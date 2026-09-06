@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuck You Flow: free dictation for Windows, Greek and English</title>
+<meta name="description" content="Press the right Alt key, speak Greek or English, get text with punctuation where your cursor is. Free, open source, everything on your own PC.">
+<link rel="icon" href="../assets/favicon.ico">
+<script>
+(function(){var r=document.documentElement,s=null;try{s=localStorage.getItem("fyf-theme")}catch(e){}
+var sys=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";
+r.setAttribute("data-theme",s||sys);
+document.addEventListener("DOMContentLoaded",function(){var b=document.getElementById("theme-toggle");if(!b)return;
+function label(){b.textContent=r.getAttribute("data-theme")==="light"?"Dark":"Light"}label();
+b.addEventListener("click",function(){var n=r.getAttribute("data-theme")==="light"?"dark":"light";
+r.setAttribute("data-theme",n);try{localStorage.setItem("fyf-theme",n)}catch(e){}label();
+document.dispatchEvent(new CustomEvent("fyf-theme"))})});})();
+</script>
+<style>
+:root{--bg:#000;--bg2:#0c0c0c;--card:#141414;--line:#2a2a2a;--fg:#f2f2f2;--muted:#a3a3a3;--acid:#c8ff5a;--acid-deep:#8fd400;--acid-fg:#0c0c0c;--acid-text:#c8ff5a;--rec:#ff4d4d;--ring:#c8ff5a;--scrim:rgba(0,0,0,.74);--scrim0:rgba(0,0,0,0);--hdr:rgba(0,0,0,.84);--shadow:rgba(0,0,0,.55)}
+html[data-theme="light"]{--bg:#f6f7f2;--bg2:#fff;--card:#fff;--line:#d6d9cc;--fg:#0c0c0c;--muted:#4f5548;--acid:#c8ff5a;--acid-deep:#6fae00;--acid-fg:#0c0c0c;--acid-text:#2f6b00;--ring:#2f6b00;--scrim:rgba(246,247,242,.8);--scrim0:rgba(246,247,242,0);--hdr:rgba(246,247,242,.88);--shadow:rgba(12,12,12,.18)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.6 Consolas,"Cascadia Mono",ui-monospace,"SF Mono",Menlo,monospace;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+button{font:inherit}
+.skip{position:absolute;left:-999px;top:8px;background:var(--acid);color:var(--acid-fg);padding:8px 16px;z-index:100;text-decoration:none;font-weight:700}
+.skip:focus{left:8px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+h1,h2,h3{margin:0;font-weight:700;line-height:1.1;letter-spacing:-.01em}
+h2{font-size:clamp(32px,4vw,40px);margin-bottom:16px}
+h3{font-size:22px}
+p{margin:0 0 1em}
+section{padding:96px 0}
+.sec-head{max-width:760px;margin-bottom:48px}
+.sec-head p{color:var(--muted);margin:0}
+.muted{color:var(--muted)}
+
+/* header */
+.hdr{position:sticky;top:0;z-index:50;background:var(--hdr);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.hdr .wrap{display:flex;align-items:center;gap:20px;min-height:64px;position:relative}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-weight:700;white-space:nowrap}
+.brand img{width:28px;height:28px}
+.nav{display:flex;gap:2px;margin-left:auto}
+.nav a{text-decoration:none;padding:8px 12px;color:var(--muted);border-bottom:2px solid transparent}
+.nav a:hover{color:var(--fg);border-bottom-color:var(--acid)}
+.nav .lang{display:none}
+.tools{display:flex;gap:8px;align-items:center}
+.btn-sm{font-size:15px;background:transparent;color:var(--fg);border:1px solid var(--line);padding:6px 12px;cursor:pointer;text-decoration:none;line-height:1.4}
+.btn-sm:hover{border-color:var(--fg)}
+.menu-btn{display:none}
+@media (max-width:920px){
+ .nav{display:none;position:absolute;left:0;right:0;top:100%;flex-direction:column;background:var(--bg2);border-bottom:1px solid var(--line);padding:8px 24px 16px;margin:0}
+ .hdr.open .nav{display:flex}
+ .nav a{padding:12px 0;border-bottom:1px solid var(--line)}
+ .nav a:hover{border-bottom-color:var(--acid)}
+ .menu-btn{display:inline-block}
+ .tools{margin-left:auto}
+}
+
+/* hero */
+.hero{position:relative;overflow:hidden;padding:88px 0 80px;border-bottom:1px solid var(--line)}
+.hero canvas,.hero .bgfb{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
+.hero .bgfb{display:none;background:
+ radial-gradient(ellipse 60% 70% at 70% 60%,rgba(200,255,90,.10),rgba(0,0,0,0) 70%),
+ repeating-linear-gradient(90deg,rgba(200,255,90,.06) 0 3px,transparent 3px 8px),
+ repeating-linear-gradient(180deg,rgba(200,255,90,.03) 0 1px,transparent 1px 4px)}
+.hero.no-webgl canvas{display:none}
+.hero.no-webgl .bgfb{display:block}
+.hero .scrim{position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,var(--scrim) 0%,var(--scrim) 28%,var(--scrim0) 62%),linear-gradient(180deg,var(--scrim0) 55%,var(--bg) 100%)}
+.hero .wrap{position:relative;z-index:2;display:grid;grid-template-columns:45fr 55fr;gap:56px;align-items:center}
+.badges{display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap}
+.badge{font-size:15px;border:1px solid var(--line);padding:4px 10px;color:var(--muted);line-height:1.4}
+.badge.acid{border-color:var(--acid-text);color:var(--acid-text)}
+h1{font-size:clamp(44px,5.4vw,64px);line-height:1.02;letter-spacing:-.025em}
+h1 span{display:block}
+.lead{font-size:20px;color:var(--muted);max-width:520px;margin:28px 0 32px}
+.ctas{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-block;font-weight:700;text-decoration:none;padding:14px 22px;border:1px solid var(--acid);background:var(--acid);color:var(--acid-fg);line-height:1.4}
+.btn:hover{background:var(--acid-deep);border-color:var(--acid-deep)}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--fg)}
+.btn.ghost:hover{border-color:var(--acid-text);color:var(--acid-text);background:transparent}
+.fine{font-size:15px;color:var(--muted);margin:28px 0 0;max-width:520px}
+
+/* demo panel: always the dark app, in both themes */
+.demo{background:#0c0c0c;border:1px solid #2a2a2a;color:#f2f2f2;box-shadow:0 30px 80px var(--shadow);position:relative}
+.demo-bar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid #2a2a2a;font-size:15px;color:#a3a3a3}
+.demo-bar b{color:#f2f2f2;font-weight:400}
+.demo-body{padding:20px 16px 88px;position:relative}
+.field{border:1px solid #2a2a2a;background:#000;padding:16px 18px;min-height:190px;font-size:18px;line-height:1.6;color:#f2f2f2;overflow-wrap:anywhere}
+.caret{display:inline-block;width:10px;height:1.1em;background:#c8ff5a;vertical-align:-3px;margin-left:2px;animation:blink 1s steps(1) infinite}
+.overlay{position:absolute;right:28px;bottom:56px;width:260px;height:84px;background:#000;border:1px solid #2a2a2a;display:flex;align-items:center;gap:12px;padding:0 14px;opacity:0;transition:opacity .25s;box-shadow:0 12px 30px rgba(0,0,0,.65)}
+.overlay.on{opacity:1}
+.dot{width:10px;height:10px;background:#ff4d4d;flex:none;animation:pulse 1.2s ease-in-out infinite}
+.ov-text{font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bars{display:flex;gap:3px;align-items:flex-end;height:36px;margin-left:auto}
+.bars i{display:block;width:4px;background:#c8ff5a;height:20%;animation:bounce .9s ease-in-out infinite;animation-play-state:paused}
+.overlay.on .bars i{animation-play-state:running}
+.bars i:nth-child(1){--h:45%;animation-delay:-.1s}.bars i:nth-child(2){--h:80%;animation-delay:-.4s}.bars i:nth-child(3){--h:100%;animation-delay:-.2s}.bars i:nth-child(4){--h:65%;animation-delay:-.6s}.bars i:nth-child(5){--h:90%;animation-delay:-.3s}.bars i:nth-child(6){--h:50%;animation-delay:-.7s}.bars i:nth-child(7){--h:75%;animation-delay:-.5s}.bars i:nth-child(8){--h:35%;animation-delay:-.15s}
+.stamp{position:absolute;left:18px;right:18px;bottom:20px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;opacity:0;transform:translateY(6px);transition:opacity .3s,transform .3s}
+.stamp.on{opacity:1;transform:none}
+.stamp b{font-size:40px;line-height:1;color:#c8ff5a;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stamp span{font-size:15px;color:#a3a3a3}
+
+/* numbers */
+.strip{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:72px}
+.strip div{padding:28px 24px;border-left:1px solid var(--line)}
+.strip div:first-child{border-left:0}
+.strip b{display:block;font-size:clamp(40px,5vw,64px);line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.strip small{font-size:15px;color:var(--muted);display:block;margin-top:10px;line-height:1.4}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th,.tbl td{text-align:left;padding:14px 16px;border-top:1px solid var(--line);vertical-align:top}
+.tbl thead th{border-top:0;border-bottom:1px solid var(--fg);font-size:15px;color:var(--muted);font-weight:400;padding-top:0}
+.tbl thead th.us{color:var(--acid-text);font-weight:700}
+.tbl th[scope=row]{color:var(--muted);font-weight:400;width:22%}
+.tbl td.them{color:var(--muted)}
+blockquote{margin:56px 0 0;padding:4px 0 4px 24px;border-left:3px solid var(--acid);font-size:22px;line-height:1.45;max-width:760px}
+blockquote footer{font-size:15px;color:var(--muted);margin-top:12px}
+
+/* how it works */
+.band{margin:0;position:relative;aspect-ratio:16/9;background:#050505;border:1px solid var(--line);overflow:hidden}
+.band img{width:100%;height:100%;object-fit:cover}
+.band.art-missing img{display:none}
+.band.art-missing{background:#050505 radial-gradient(ellipse 42% 55% at 50% 52%,rgba(200,255,90,.22),rgba(0,0,0,0) 72%)}
+.band.art-missing::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 64px,transparent 64px 72px),repeating-linear-gradient(180deg,rgba(255,255,255,.04) 0 64px,transparent 64px 72px);-webkit-mask-image:radial-gradient(ellipse at 50% 50%,#000 20%,transparent 78%);mask-image:radial-gradient(ellipse at 50% 50%,#000 20%,transparent 78%)}
+.band.art-missing::after{content:"Alt";position:absolute;left:50%;top:50%;width:128px;height:128px;margin:-64px 0 0 -64px;border:2px solid #c8ff5a;color:#c8ff5a;display:flex;align-items:flex-end;padding:12px;font-size:22px;font-weight:700;background:#0c0c0c;box-shadow:0 0 0 1px #000,0 0 56px rgba(200,255,90,.45),inset 0 0 24px rgba(200,255,90,.14)}
+.steps{list-style:none;margin:-96px 32px 0;padding:0;position:relative;z-index:1;display:grid;grid-template-columns:repeat(3,1fr);background:var(--bg2);border:1px solid var(--line)}
+.steps li{padding:28px;border-left:1px solid var(--line)}
+.steps li:first-child{border-left:0}
+.steps .n{display:block;color:var(--acid-text);font-size:32px;font-weight:700;line-height:1;margin-bottom:16px;font-variant-numeric:tabular-nums}
+.steps h3{margin-bottom:8px}
+.steps p{margin:0;color:var(--muted)}
+.works{margin:32px 32px 0;color:var(--muted)}
+@media (max-width:760px){
+ .steps{margin:0;grid-template-columns:1fr;border-top:0}
+ .steps li{border-left:0;border-top:1px solid var(--line)}
+ .steps li:first-child{border-top:0}
+ .band{border-bottom:0}
+ .works{margin:24px 0 0}
+}
+
+/* speed */
+.speed{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
+.num{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.num th,.num td{padding:12px 16px;border-top:1px solid var(--line);text-align:right}
+.num th{font-size:15px;color:var(--muted);font-weight:400;border-top:0;border-bottom:1px solid var(--fg);padding-top:0}
+.num td:last-child{color:var(--acid-text);font-weight:700}
+.num tbody tr:last-child td{border-bottom:1px solid var(--line)}
+.speed .note{color:var(--muted)}
+.speed .note p:last-child{margin:0}
+
+/* features */
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:0 56px;margin:0}
+.feat div{border-top:1px solid var(--line);padding:24px 0 28px}
+.feat dt{color:var(--acid-text);font-weight:700;font-size:22px;margin-bottom:8px;line-height:1.3}
+.feat dd{margin:0;color:var(--muted)}
+
+/* screenshots */
+.shots{display:grid;grid-template-columns:repeat(3,1fr);gap:28px 24px}
+.shots figure{margin:0}
+.shots img{border:1px solid var(--line);aspect-ratio:1280/820;width:100%;height:auto;background:#0c0c0c}
+.shots figcaption{font-size:15px;color:var(--muted);margin-top:10px}
+
+/* faq */
+.faq{max-width:820px}
+.faq details{border-top:1px solid var(--line)}
+.faq details:last-child{border-bottom:1px solid var(--line)}
+.faq summary{cursor:pointer;padding:20px 0;font-weight:700;font-size:20px;list-style:none;display:flex;justify-content:space-between;gap:16px;line-height:1.4}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:var(--acid-text);font-weight:400;flex:none}
+.faq details[open] summary::after{content:"-"}
+.faq details p{color:var(--muted);margin:0 0 22px;max-width:720px}
+
+/* feedback */
+.doors{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.door{display:flex;flex-direction:column;text-decoration:none;border:1px solid var(--line);padding:28px 24px}
+.door:hover{border-color:var(--acid-text)}
+.door h3{margin-bottom:10px}
+.door p{color:var(--muted);margin:0 0 auto}
+.door .go{display:block;margin-top:20px;color:var(--acid-text);font-weight:700}
+
+/* footer */
+.ftr{border-top:1px solid var(--line);padding:56px 0 40px;font-size:15px;color:var(--muted)}
+.ftr .top{display:flex;gap:32px 48px;justify-content:space-between;flex-wrap:wrap;margin-bottom:32px}
+.ftr .top p{max-width:520px;margin:0}
+.ftr nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-content:flex-start}
+.ftr a{color:var(--fg)}
+.ftr .legal{max-width:820px;margin:0}
+
+@keyframes blink{50%{opacity:0}}
+@keyframes pulse{50%{opacity:.35}}
+@keyframes bounce{0%,100%{height:20%}50%{height:var(--h,90%)}}
+
+@media (max-width:1000px){
+ .hero .wrap{grid-template-columns:1fr;gap:48px}
+ .hero .scrim{background:linear-gradient(180deg,var(--scrim) 0%,var(--scrim) 45%,var(--scrim0) 75%,var(--bg) 100%)}
+ .speed{grid-template-columns:1fr;gap:32px}
+ .shots{grid-template-columns:1fr 1fr}
+ .doors{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+ section{padding:64px 0}
+ .hero{padding:56px 0 64px}
+ .strip{grid-template-columns:1fr 1fr}
+ .strip div:nth-child(3){border-left:0}
+ .strip div:nth-child(n+3){border-top:1px solid var(--line)}
+ .feat{grid-template-columns:1fr}
+ .tbl thead{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+ .tbl tr{display:block;border-top:1px solid var(--line);padding:14px 0}
+ .tbl th,.tbl td{display:block;border:0;padding:3px 0;width:auto}
+ .tbl th[scope=row]{padding-bottom:6px;width:auto}
+ .tbl td::before{content:attr(data-h) ": ";color:var(--muted)}
+}
+@media (max-width:560px){
+ .wrap{padding:0 16px}
+ .hdr .wrap{gap:12px}
+ .tools{gap:6px}
+ .tools .lang{display:none}
+ .nav .lang{display:block}
+ .shots{grid-template-columns:1fr}
+ .overlay{right:12px}
+ .demo-body{padding-bottom:96px}
+ .stamp{left:16px}
+}
+@media (prefers-reduced-motion:reduce){
+ html{scroll-behavior:auto}
+ *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="hdr" id="hdr">
+ <div class="wrap">
+  <a class="brand" href="#main"><img src="../assets/icon-64.png" alt="" width="28" height="28">Fuck You Flow</a>
+  <nav class="nav" id="nav" aria-label="Sections">
+   <a href="#numbers">Numbers</a>
+   <a href="#how">How it works</a>
+   <a href="#speed">Speed</a>
+   <a href="#faq">FAQ</a>
+   <a href="https://github.com/Breakzoras/fuck-you-flow">GitHub</a>
+   <a class="lang" href="/el/" lang="el" hreflang="el">Ελληνικά</a>
+  </nav>
+  <div class="tools">
+   <a class="btn-sm lang" href="/el/" lang="el" hreflang="el" title="Ελληνικά">ΕΛ</a>
+   <button class="btn-sm" id="theme-toggle" type="button" aria-label="Switch theme">Light</button>
+   <button class="btn-sm menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
+  </div>
+ </div>
+</header>
+
+<main id="main">
+
+<section class="hero" id="hero" aria-label="Introduction">
+ <canvas id="bg" aria-hidden="true"></canvas>
+ <div class="bgfb" aria-hidden="true"></div>
+ <div class="scrim" aria-hidden="true"></div>
+ <div class="wrap">
+  <div>
+   <div class="badges"><span class="badge acid">beta</span><span class="badge">Windows 10 and 11</span></div>
+   <h1><span>Your voice.</span><span>Your PC.</span><span>Zero dollars.</span></h1>
+   <p class="lead">Wispr Flow raised 361 million dollars to rent you your own voice for 15 dollars a month. We put the same thing behind one key. Greek and English, everything on your PC, nothing in the cloud.</p>
+   <div class="ctas">
+    <a class="btn" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.1.0/Fuck.You.Flow.Setup.0.1.0.exe">Download for Windows</a>
+    <a class="btn ghost" href="https://github.com/Breakzoras/fuck-you-flow">Read the code</a>
+   </div>
+   <p class="fine">Version 0.1.0. 1.4 GB with every model inside. No internet connection after setup. MIT license. The SHA256 checksum is on the <a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.1.0">release page</a>.</p>
+  </div>
+
+  <div class="demo" id="demo" aria-label="Animated demonstration of dictation" role="img">
+   <div class="demo-bar"><span><b>Any program</b>, cursor in a text field</span><span>key: right Alt</span></div>
+   <div class="demo-body">
+    <div class="field"><span id="d-out"></span><span class="caret" aria-hidden="true"></span></div>
+    <div class="overlay" id="d-ov" aria-hidden="true">
+     <span class="dot"></span>
+     <span class="ov-text">Listening <span id="d-tm">0.0</span> s</span>
+     <span class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    </div>
+    <div class="stamp" id="d-st"><b>0.53 s</b><span>from key release to text</span></div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<section id="numbers">
+ <div class="wrap">
+  <div class="strip" aria-label="Key figures">
+   <div><b>0</b><small>dollars a month</small></div>
+   <div><b>0.53 s</b><small>wait for 179 words, RTX 3070</small></div>
+   <div><b>2</b><small>languages in one sentence</small></div>
+   <div><b>1</b><small>key</small></div>
+  </div>
+  <div class="sec-head">
+   <h2>The numbers</h2>
+   <p>Every row below is verified. The valuation is from TechCrunch, 17 August 2026.</p>
+  </div>
+  <table class="tbl">
+   <thead><tr><th scope="col"><span class="muted">Item</span></th><th scope="col">Wispr Flow</th><th scope="col" class="us">Fuck You Flow</th></tr></thead>
+   <tbody>
+    <tr><th scope="row">Price</th><td class="them" data-h="Wispr Flow">12 to 15 dollars a month</td><td class="us" data-h="Fuck You Flow">0, forever</td></tr>
+    <tr><th scope="row">Company valuation</th><td class="them" data-h="Wispr Flow">2 billion dollars (August 2026)</td><td class="us" data-h="Fuck You Flow">One domain name</td></tr>
+    <tr><th scope="row">Investor money</th><td class="them" data-h="Wispr Flow">361 million dollars</td><td class="us" data-h="Fuck You Flow">One weekend</td></tr>
+    <tr><th scope="row">Where your voice goes</th><td class="them" data-h="Wispr Flow">Their servers</td><td class="us" data-h="Fuck You Flow">Into the text. Then nowhere.</td></tr>
+    <tr><th scope="row">Account</th><td class="them" data-h="Wispr Flow">Required</td><td class="us" data-h="Fuck You Flow">None</td></tr>
+    <tr><th scope="row">Internet</th><td class="them" data-h="Wispr Flow">Always</td><td class="us" data-h="Fuck You Flow">Only to download it</td></tr>
+    <tr><th scope="row">Greek</th><td class="them" data-h="Wispr Flow">One of 100+ languages</td><td class="us" data-h="Fuck You Flow">First language, mixed with English in the same sentence</td></tr>
+    <tr><th scope="row">Source code</th><td class="them" data-h="Wispr Flow">Secret</td><td class="us" data-h="Fuck You Flow">Open, MIT, on GitHub</td></tr>
+   </tbody>
+  </table>
+  <blockquote>
+   <p>The models that do Greek well have been open and free for two years. Someone had to put them behind a key. We did.</p>
+   <footer>Luram AI Agency, Thessaloniki</footer>
+  </blockquote>
+ </div>
+</section>
+
+<section id="how">
+ <div class="wrap">
+  <div class="sec-head">
+   <h2>How it works</h2>
+   <p>One key starts it, the same key stops it. Everything between is your voice.</p>
+  </div>
+  <figure class="band">
+   <img src="../assets/art-key-macro.png" alt="Macro photo of a black keyboard, the right Alt key glowing acid green" onerror="this.parentElement.classList.add('art-missing')">
+  </figure>
+  <ol class="steps">
+   <li><span class="n">1</span><h3>Press right Alt</h3><p>A small window with a waveform appears. It listens.</p></li>
+   <li><span class="n">2</span><h3>Speak</h3><p>Greek, English or both. Each finished phrase is transcribed while you keep talking.</p></li>
+   <li><span class="n">3</span><h3>Press right Alt again</h3><p>The text lands where your cursor was. With periods, commas and question marks.</p></li>
+  </ol>
+  <p class="works">Works in any program: Word, Chrome, Slack, Outlook, even a terminal.</p>
+ </div>
+</section>
+
+<section id="speed">
+ <div class="wrap">
+  <div class="sec-head">
+   <h2>Speed</h2>
+   <p>Measured on an RTX 3070 with the large model. The wait is the time from key release to text on screen.</p>
+  </div>
+  <div class="speed">
+   <table class="num">
+    <thead><tr><th scope="col">Words</th><th scope="col">Speech</th><th scope="col">Wait</th></tr></thead>
+    <tbody>
+     <tr><td>32</td><td>17.5 s</td><td>0.59 s</td></tr>
+     <tr><td>108</td><td>82 s</td><td>0.17 s</td></tr>
+     <tr><td>179</td><td>77 s</td><td>0.53 s</td></tr>
+     <tr><td>312</td><td>152 s</td><td>0.88 s</td></tr>
+    </tbody>
+   </table>
+   <div class="note">
+    <p>The wait depends only on the last phrase, because earlier phrases were transcribed while you spoke. Two and a half minutes of speech land in under a second.</p>
+    <p>AMD and Intel cards run through Vulkan at the same speed. Without a graphics card it runs on the processor, with a wait of a few seconds.</p>
+   </div>
+  </div>
+ </div>
+</section>
+
+<section id="inside">
+ <div class="wrap">
+  <div class="sec-head">
+   <h2>What is inside</h2>
+   <p>Six things the app does that a cloud service cannot promise.</p>
+  </div>
+  <dl class="feat">
+   <div><dt>Greek that holds up</dt><dd>Question marks from grammar rules or from the rise of your voice. Spoken self-corrections are applied.</dd></div>
+   <div><dt>A dictionary that learns</dt><dd>Correct a word once in History and it becomes a rule.</dd></div>
+   <div><dt>Every graphics card</dt><dd>NVIDIA, AMD, Intel. The first start reads the machine and picks the model.</dd></div>
+   <div><dt>Snippets</dt><dd>Say a phrase, get a whole block of text: signatures, addresses, daily replies.</dd></div>
+   <div><dt>History and statistics</dt><dd>Words, time saved, what you said yesterday. One file on your disk.</dd></div>
+   <div><dt>Nothing leaves</dt><dd>No server, no analytics, no account. Password fields are detected and stay empty.</dd></div>
+  </dl>
+ </div>
+</section>
+
+<section id="app">
+ <div class="wrap">
+  <div class="sec-head">
+   <h2>The app</h2>
+   <p>Black, monospace, one accent. The same on your screen as on this page.</p>
+  </div>
+  <div class="shots">
+   <figure><img src="../assets/1-home.png" alt="Home screen: engine status, microphone level and words dictated today" loading="lazy" width="1280" height="820"><figcaption>Home: engine, microphone, words today</figcaption></figure>
+   <figure><img src="../assets/2-history.png" alt="History screen with past dictations and an edit field for corrections" loading="lazy" width="1280" height="820"><figcaption>History: correct it, it learns</figcaption></figure>
+   <figure><img src="../assets/3-dictionary.png" alt="Dictionary screen listing custom words and replacement rules" loading="lazy" width="1280" height="820"><figcaption>Dictionary: your own words</figcaption></figure>
+   <figure><img src="../assets/4-suggestions.png" alt="Suggestions screen proposing dictionary rules from your corrections" loading="lazy" width="1280" height="820"><figcaption>Suggestions</figcaption></figure>
+   <figure><img src="../assets/5-statistics.png" alt="Statistics screen with words per day and time saved" loading="lazy" width="1280" height="820"><figcaption>Statistics</figcaption></figure>
+   <figure><img src="../assets/6-settings.png" alt="Settings screen for model choice, graphics card and hotkeys" loading="lazy" width="1280" height="820"><figcaption>Settings: models, card, keys</figcaption></figure>
+  </div>
+ </div>
+</section>
+
+<section id="faq">
+ <div class="wrap">
+  <div class="sec-head">
+   <h2>Questions</h2>
+  </div>
+  <div class="faq">
+   <details><summary>Is it a free alternative to Wispr Flow?</summary><p>Yes. Same job, one-key dictation into any Windows program, no subscription, no account. Open source under MIT on GitHub.</p></details>
+   <details><summary>Where does my voice go?</summary><p>Nowhere. Recognition runs on your own machine with the Whisper model. After setup no internet connection is needed. Password fields are detected and left empty.</p></details>
+   <details><summary>Does it need an NVIDIA card?</summary><p>No. NVIDIA, AMD and Intel through Vulkan. Without a graphics card it runs on the processor, more slowly.</p></details>
+   <details><summary>Why does Windows show a blue warning during install?</summary><p>The installer carries no purchased code-signing certificate. Click "More info", then "Run anyway". The SHA256 checksum is on GitHub.</p></details>
+   <details><summary>What does beta mean?</summary><p>It runs daily on our machines and is now going out to yours. Some programs may refuse the paste, some cards are untested. Whatever breaks, we want it written down.</p></details>
+   <details><summary>Why the name?</summary><p>A dictation company was valued at 2 billion dollars for something open models have done for free for two years. The name is the reply. On social media we write FU Flow.</p></details>
+  </div>
+ </div>
+</section>
+
+<section id="feedback">
+ <div class="wrap">
+  <div class="sec-head">
+   <h2>Feedback</h2>
+   <p>Three doors. Whatever you find, we want it written down.</p>
+  </div>
+  <div class="doors">
+   <a class="door" href="https://github.com/Breakzoras/fuck-you-flow/issues/new?labels=bug&amp;title=%5Bbug%5D+"><h3>Something broke</h3><p>Tell us the program, the graphics card and what you saw. The Diagnostics tab has Recent problems ready to copy.</p><span class="go">Open a bug report</span></a>
+   <a class="door" href="https://github.com/Breakzoras/fuck-you-flow/issues/new?labels=idea&amp;title=%5Bidea%5D+"><h3>Something you want</h3><p>A program it should work in, a setting you miss, a habit of your language it should learn.</p><span class="go">Open an idea</span></a>
+   <a class="door" href="mailto:info@luram.gr?subject=Fuck%20You%20Flow%20feedback"><h3>No GitHub account</h3><p>An email is enough. Humans answer.</p><span class="go">Write to info@luram.gr</span></a>
+  </div>
+ </div>
+</section>
+
+</main>
+
+<footer class="ftr">
+ <div class="wrap">
+  <div class="top">
+   <p>Created by <a href="https://luram.gr">luram.gr</a>, Luram AI Agency. We build tools and automations for Greek businesses.</p>
+   <nav aria-label="Footer">
+    <a href="https://github.com/Breakzoras/fuck-you-flow">Code on GitHub</a>
+    <a href="https://github.com/Breakzoras/fuck-you-flow/releases">All releases</a>
+    <a href="https://github.com/Breakzoras/fuck-you-flow/blob/main/docs/KNOWN-LIMITATIONS.md">Known limits</a>
+    <a href="/llms.txt">llms.txt</a>
+    <a href="/el/" lang="el" hreflang="el">Ελληνικά</a>
+   </nav>
+  </div>
+  <p class="legal">MIT license. The whisper.cpp engine and the models carry their own licenses. Wispr Flow is a trademark of Wispr AI, Inc. We have no relationship with them. The key is yours.</p>
+ </div>
+</footer>
+
+<script id="fs" type="x-shader/x-fragment">
+precision mediump float;
+uniform float u_time;uniform vec2 u_res;uniform float u_theme;
+float hash(float n){return fract(sin(n*12.9898)*43758.5453);}
+float noise(float x){float i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);return mix(hash(i),hash(i+1.0),f);}
+void main(){
+ vec2 uv=gl_FragCoord.xy/u_res;
+ float cols=u_res.x/8.0;
+ float ix=floor(uv.x*cols);
+ float fx=fract(uv.x*cols);
+ float x=ix/cols;
+ float t=u_time*0.45;
+ float h=0.20+0.13*sin(x*7.0+t)+0.09*sin(x*19.0-t*1.4)+0.06*sin(x*41.0+t*0.8)
+  +0.20*noise(ix*0.21+t*0.9)+0.10*noise(ix*0.9-t*1.6);
+ h=clamp(h,0.02,0.92);
+ float bar=step(0.3,fx)*step(fx,0.7);
+ float on=bar*step(uv.y,h);
+ float fade=1.0-0.7*smoothstep(0.0,h,uv.y);
+ float tip=bar*smoothstep(h-0.014,h,uv.y)*step(uv.y,h);
+ float scan=0.5+0.5*sin(gl_FragCoord.y*1.5707963);
+ float side=smoothstep(0.15,0.65,uv.x);
+ vec3 bg=mix(vec3(0.0),vec3(0.965,0.969,0.949),u_theme);
+ vec3 ink=mix(vec3(0.784,1.0,0.353),vec3(0.184,0.42,0.0),u_theme);
+ float a=(on*fade*mix(0.14,0.10,u_theme)+tip*mix(0.40,0.28,u_theme))*(0.35+0.65*side)+scan*mix(0.03,0.02,u_theme);
+ gl_FragColor=vec4(mix(bg,ink,a),1.0);
+}
+</script>
+<script>
+(function(){
+var c=document.getElementById('bg');if(!c)return;
+var hero=c.parentElement;
+function fail(){hero.classList.add('no-webgl')}
+var gl=null;try{gl=c.getContext('webgl',{antialias:false,alpha:false})||c.getContext('experimental-webgl')}catch(e){}
+if(!gl){fail();return}
+var vs='attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}';
+var fs=document.getElementById('fs').textContent;
+function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null}
+var v=sh(gl.VERTEX_SHADER,vs),f=sh(gl.FRAGMENT_SHADER,fs);
+if(!v||!f){fail();return}
+var pr=gl.createProgram();gl.attachShader(pr,v);gl.attachShader(pr,f);gl.linkProgram(pr);
+if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){fail();return}
+gl.useProgram(pr);
+var b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+var loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+var uT=gl.getUniformLocation(pr,'u_time'),uR=gl.getUniformLocation(pr,'u_res'),uTh=gl.getUniformLocation(pr,'u_theme');
+var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var visible=true,raf=0,start=performance.now();
+function theme(){return document.documentElement.getAttribute('data-theme')==='light'?1:0}
+function size(){var d=Math.min(window.devicePixelRatio||1,1.5);var w=Math.max(1,Math.floor(c.clientWidth*d)),h=Math.max(1,Math.floor(c.clientHeight*d));if(c.width!==w||c.height!==h){c.width=w;c.height=h;gl.viewport(0,0,w,h)}}
+function draw(){size();gl.uniform1f(uT,(performance.now()-start)/1000);gl.uniform2f(uR,c.width,c.height);gl.uniform1f(uTh,theme());gl.drawArrays(gl.TRIANGLE_STRIP,0,4)}
+function loop(){raf=0;if(!visible||document.hidden)return;draw();raf=requestAnimationFrame(loop)}
+function kick(){if(reduce){draw();return}if(!raf)raf=requestAnimationFrame(loop)}
+if('IntersectionObserver' in window){new IntersectionObserver(function(e){visible=e[0].isIntersecting;kick()}).observe(c)}
+document.addEventListener('visibilitychange',kick);
+document.addEventListener('fyf-theme',function(){draw()});
+window.addEventListener('resize',function(){if(reduce)draw()});
+kick();
+})();
+
+(function(){
+var root=document.getElementById('demo');if(!root)return;
+var out=document.getElementById('d-out'),ov=document.getElementById('d-ov'),tm=document.getElementById('d-tm'),st=document.getElementById('d-st');
+var GR='Καλημέρα, στείλε στον λογιστή το τιμολόγιο του Σεπτεμβρίου',EN=' and cc the accountant.';
+var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function finished(){out.textContent=GR+EN;ov.classList.remove('on');tm.textContent='4.2';st.classList.add('on')}
+if(reduce){finished();return}
+var timers=[],running=false;
+function at(ms,fn){timers.push(setTimeout(fn,ms))}
+function type(str,from,speed,done){var i=0;(function step(){if(i<str.length){out.textContent=from+str.slice(0,++i);timers.push(setTimeout(step,speed))}else if(done)done()})()}
+function run(){
+ timers.forEach(clearTimeout);timers=[];
+ out.textContent='';st.classList.remove('on');ov.classList.remove('on');tm.textContent='0.0';
+ at(700,function(){ov.classList.add('on');var t0=performance.now();(function tick(){var s=Math.min(4.2,(performance.now()-t0)/1000);tm.textContent=s.toFixed(1);if(s<4.2)timers.push(setTimeout(tick,100))})()});
+ at(1500,function(){type(GR,'',36)});
+ at(4900,function(){ov.classList.remove('on')});
+ at(5150,function(){type(EN,GR,34,function(){at(380,function(){st.classList.add('on')})})});
+ at(12000,run);
+}
+function start(){if(running)return;running=true;run()}
+function stop(){running=false;timers.forEach(clearTimeout);timers=[]}
+if('IntersectionObserver' in window){new IntersectionObserver(function(e){if(e[0].isIntersecting&&!document.hidden)start();else stop()}).observe(root)}else start();
+document.addEventListener('visibilitychange',function(){if(document.hidden)stop();else start()});
+})();
+
+(function(){
+var h=document.getElementById('hdr'),b=document.getElementById('menu-btn');if(!h||!b)return;
+b.addEventListener('click',function(){var o=h.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false')});
+var links=h.querySelectorAll('.nav a');for(var i=0;i<links.length;i++){links[i].addEventListener('click',function(){h.classList.remove('open');b.setAttribute('aria-expanded','false')})}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08. Dithering: Fuck You Flow shader candidate</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="../../assets/favicon.ico" sizes="48x48">
+<link rel="stylesheet" href="demo.css">
+<script>
+(function(){var r=document.documentElement,s=null;try{s=localStorage.getItem("fyf-theme")}catch(e){}
+var sys=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";
+r.setAttribute("data-theme",s||sys);
+document.addEventListener("DOMContentLoaded",function(){var b=document.getElementById("theme-toggle");if(!b)return;
+function label(){b.textContent=r.getAttribute("data-theme")==="light"?"Dark":"Light"}label();
+b.addEventListener("click",function(){var n=r.getAttribute("data-theme")==="light"?"dark":"light";
+r.setAttribute("data-theme",n);try{localStorage.setItem("fyf-theme",n)}catch(e){}label();
+document.dispatchEvent(new CustomEvent("fyf-theme"))})});})();
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="index.html"><img src="../../assets/icon-64.png" alt="" width="32" height="32">Fuck You Flow</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#main">Features</a><a href="#main">Speed</a><a href="#main">The bill</a>
+      <a href="#main">FAQ</a><a href="https://github.com/Breakzoras/fuck-you-flow">GitHub</a>
+    </nav>
+    <div class="tools">
+      <a href="#main" hreflang="el" lang="el">ΕΛ</a>
+      <button id="theme-toggle" type="button">Light</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" aria-labelledby="h1">
+  <div id="shader-host" aria-hidden="true"></div>
+  <div class="gl-fallback" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="hero-copy">
+      <div class="badges"><span>beta</span><span>Windows 10 and 11</span></div>
+      <h1 id="h1">Dictation that lives on your PC.</h1>
+      <p class="lead">Wispr Flow raised 361 million dollars to rent you your own voice for 15 dollars a month. We put the same thing behind one key. Greek and English, everything on your PC, nothing in the cloud.</p>
+      <div class="cta">
+        <a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.1.0/Fuck.You.Flow.Setup.0.1.0.exe">Download for Windows</a>
+        <a class="btn" href="https://github.com/Breakzoras/fuck-you-flow">Read the code</a>
+      </div>
+      <p class="fine">Version 0.1.0. 1.4 GB with every model inside. No internet connection after setup. MIT license. The SHA256 checksum is on the <a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.1.0">release page</a>.</p>
+    </div>
+
+    <div class="frame hero-frame">
+      <div class="frame-bar"><span>Fuck You Flow</span><i aria-hidden="true"><b></b><b></b><b></b></i></div>
+      <img src="../../assets/1-home.png" width="1280" height="820" alt="The Fuck You Flow home screen: the large-v3 engine on the GPU, the right Alt key for start and stop, words dictated today and the last five transcripts in Greek and English.">
+      <div class="listen" role="img" aria-label="The listening window: a red dot, Listening 4.2 s, and a green waveform.">
+        <div class="st"><span class="dot"></span><span>Listening 4.2 s</span></div>
+        <div class="bars" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="demo-bar">
+  <div class="wrap">
+    <h2>Candidate 08 of 10: <b>Dithering</b></h2>
+    <p>An ordered dot screen, the way an old monitor draws a gradient. Closest to the app itself. <span id="shader-state"></span></p>
+    <nav class="demo-nav" aria-label="The ten candidates">
+        <a href="s01-god-rays.html">01 God rays</a>
+        <a href="s02-mesh-gradient.html">02 Mesh gradient</a>
+        <a href="s03-grain-gradient.html">03 Grain gradient</a>
+        <a href="s04-smoke-ring.html">04 Smoke ring</a>
+        <a href="s05-liquid-metal.html">05 Liquid metal</a>
+        <a href="s06-neuro-noise.html">06 Neuro noise</a>
+        <a href="s07-warp.html">07 Warp</a>
+        <a href="s08-dithering.html" aria-current="page">08 Dithering</a>
+        <a href="s09-waves.html">09 Waves</a>
+        <a href="s10-gem-smoke.html">10 Gem smoke</a>
+        <a href="index.html">All ten</a>
+    </nav>
+  </div>
+</section>
+</main>
+
+<script src="vendor/paper-shaders.iife.js"></script>
+<script src="vendor/shader-config.js"></script>
+<script src="presets.js"></script>
+<script>window.DEMO_KEY = "dithering";</script>
+<script src="demo.js"></script>
+</body>
+</html>
