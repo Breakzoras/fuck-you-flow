@@ -1,0 +1,170 @@
+[
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-01",
+    "ms": 824,
+    "wer": 0.07692307692307693
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-02",
+    "ms": 836,
+    "wer": 0.5714285714285714
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-03",
+    "ms": 284,
+    "wer": 0.5833333333333334
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-04",
+    "ms": 270,
+    "wer": 0.5833333333333334
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-05",
+    "ms": 356,
+    "wer": 0.0
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-06",
+    "ms": 238,
+    "wer": 0.42857142857142855
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-07",
+    "ms": 273,
+    "wer": 0.18181818181818182
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-08",
+    "ms": 267,
+    "wer": 0.07692307692307693
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-09",
+    "ms": 293,
+    "wer": 0.0
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-10",
+    "ms": 255,
+    "wer": 0.2727272727272727
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-01",
+    "ms": 292,
+    "wer": 0.14285714285714285
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-02",
+    "ms": 250,
+    "wer": 0.15384615384615385
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-01",
+    "ms": 827,
+    "wer": 0.15384615384615385
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-02",
+    "ms": 456,
+    "wer": 0.5
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-03",
+    "ms": 524,
+    "wer": 0.5833333333333334
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-04",
+    "ms": 572,
+    "wer": 0.5833333333333334
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-05",
+    "ms": 746,
+    "wer": 0.0
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-06",
+    "ms": 505,
+    "wer": 0.42857142857142855
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-07",
+    "ms": 506,
+    "wer": 0.09090909090909091
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-08",
+    "ms": 660,
+    "wer": 0.23076923076923078
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-09",
+    "ms": 756,
+    "wer": 0.0
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "el-10",
+    "ms": 524,
+    "wer": 0.09090909090909091
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "mix-01",
+    "ms": 586,
+    "wer": 0.0
+  },
+  {
+    "backend": "vulkan",
+    "model": "large-v3-q5_0",
+    "id": "mix-02",
+    "ms": 452,
+    "wer": 0.15384615384615385
+  }
+]

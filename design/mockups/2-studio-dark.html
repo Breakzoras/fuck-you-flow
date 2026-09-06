@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Mockup 2: Studio Dark</title>
+<style>
+  :root { --bg:#0f1418; --rail:#151b21; --panel:#1a2229; --fg:#eef3f6; --muted:#93a3ad; --line:#26313a; --accent:#ffb84d; --rec:#ff5c5c; --ok:#4fd08a; }
+  * { box-sizing:border-box; } body { margin:0; background:#06090b; font-family:"Segoe UI", system-ui, sans-serif; color:var(--fg); font-size:17px; }
+  .frame { width:1100px; height:680px; margin:28px auto; background:var(--bg); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.6); overflow:hidden; display:grid; grid-template-columns:76px 1fr; }
+  .rail { background:var(--rail); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:18px 0; gap:6px; }
+  .rail .logo { width:40px; height:40px; border-radius:12px; background:var(--accent); margin-bottom:14px; display:grid; place-items:center; color:#1a1200; font-weight:900; }
+  .ic { width:48px; height:48px; border-radius:12px; display:grid; place-items:center; color:var(--muted); font-size:13px; font-weight:600; }
+  .ic.on { background:#26313a; color:var(--fg); }
+  .main { padding:34px 40px; }
+  .hero { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:26px 28px; background:linear-gradient(135deg,#1c2630,#141b21); border:1px solid var(--line); border-radius:18px; margin-bottom:24px; }
+  .hero h1 { margin:0; font-size:34px; } .hero p { margin:6px 0 0; color:var(--muted); font-size:17px; }
+  .hero .ok { color:var(--ok); font-weight:700; font-size:16px; }
+  kbd { font-family:Consolas, monospace; background:#0b0f12; border:1px solid var(--line); border-radius:8px; padding:5px 12px; color:var(--accent); font-size:16px; }
+  .cols { display:grid; grid-template-columns:1.4fr 1fr; gap:22px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 22px; }
+  h2 { margin:0 0 14px; font-size:15px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .item { padding:12px 0; border-top:1px solid var(--line); font-size:16px; line-height:1.4; } .item small { display:block; color:var(--muted); margin-top:4px; }
+  .stat { display:flex; justify-content:space-between; padding:12px 0; border-top:1px solid var(--line); font-size:16px; } .stat b { font-size:22px; color:var(--accent); }
+  .pill { display:inline-flex; flex-direction:column; align-items:center; gap:8px; padding:12px 22px; border-radius:20px; background:#0b0f12; border:1px solid #2b3a44; color:#fff; margin-top:22px; }
+  .pill .row { display:flex; align-items:center; gap:10px; font-weight:600; } .pill .rd { width:12px; height:12px; border-radius:50%; background:var(--rec); }
+  .bars { display:flex; gap:3px; align-items:center; height:24px; } .bars i { width:4px; border-radius:2px; background:var(--accent); display:block; }
+  .note { width:1100px; margin:0 auto 40px; font-size:16px; color:#cfd8de; }
+</style></head><body>
+<div class="frame">
+  <div class="rail"><div class="logo">||</div><div class="ic on">Home</div><div class="ic">Hist</div><div class="ic">Dict</div><div class="ic">Snip</div><div class="ic">Stats</div><div class="ic">Set</div></div>
+  <div class="main">
+    <div class="hero"><div><h1>Ready to listen</h1><p>Press <kbd>Right Alt</kbd> once to start, again to insert.</p></div><div class="ok">● GPU · large-v3 · 1.8 s warm</div></div>
+    <div class="cols">
+      <div class="panel"><h2>Last transcripts</h2>
+        <div class="item">Λοιπόν, άκουσέ με τώρα. Έχω ένα link από το YouTube και το επίσημο κανάλι του OpenClaw…<small>Claude · 17:55 · 179 words · 0.53 s</small></div>
+        <div class="item">Κάνε μου σε παρακαλώ ένα tutorial πόσο γρήγορα μπορώ να μιλάω…<small>Claude · 17:44 · 57 words · 1.39 s</small></div>
+        <div class="item">Επίσης θα κάνω τώρα δοκιμή να πω κάποιες λέξεις. OneClickClaw. Luram.<small>Claude · 17:42 · 32 words · 0.59 s</small></div>
+      </div>
+      <div class="panel"><h2>Today</h2>
+        <div class="stat"><span>Words</span><b>1,240</b></div><div class="stat"><span>Median wait</span><b>0.6 s</b></div><div class="stat"><span>Saved vs typing</span><b>14 min</b></div><div class="stat"><span>Dictionary fixes</span><b>7</b></div>
+        <div class="pill"><div class="row"><span class="rd"></span> Listening 4.2s</div><div class="bars"><i style="height:6px"></i><i style="height:14px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:18px"></i><i style="height:24px"></i><i style="height:10px"></i><i style="height:16px"></i><i style="height:8px"></i><i style="height:20px"></i><i style="height:14px"></i><i style="height:6px"></i></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note"><b>2. Studio Dark.</b> Dark graphite, a narrow icon rail instead of the wide menu, one amber accent. A hero strip says "ready" in one line; the two panels below are the only things you ever check: what it wrote and how it is doing.</p>
+</body></html>

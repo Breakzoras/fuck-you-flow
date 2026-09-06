@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Mockup 4: Mono</title>
+<style>
+  :root { --bg:#0c0c0c; --fg:#f2f2f2; --muted:#8f8f8f; --line:#262626; --accent:#c8ff5a; --rec:#ff4d4d; }
+  * { box-sizing:border-box; } body { margin:0; background:#000; font-family:Consolas, "Cascadia Mono", monospace; color:var(--fg); font-size:17px; }
+  .frame { width:1100px; height:680px; margin:28px auto; background:var(--bg); border:1px solid var(--line); overflow:hidden; display:grid; grid-template-columns:220px 1fr; }
+  .side { border-right:1px solid var(--line); padding:26px 22px; }
+  .name { font-size:22px; font-weight:700; letter-spacing:-.02em; margin-bottom:26px; } .name span { color:var(--accent); }
+  .nav div { padding:10px 0; color:var(--muted); font-size:16px; } .nav div.on { color:var(--fg); } .nav div.on::before { content:"> "; color:var(--accent); }
+  .main { padding:30px 34px; }
+  .line { display:flex; gap:14px; padding:10px 0; border-bottom:1px solid var(--line); font-size:16px; } .line .k { color:var(--muted); width:150px; flex:0 0 auto; } .line .v b { color:var(--accent); }
+  h1 { font-size:26px; margin:0 0 20px; font-weight:700; } h2 { font-size:15px; color:var(--muted); margin:28px 0 10px; text-transform:uppercase; letter-spacing:.1em; }
+  .log { font-size:15px; line-height:1.6; } .log .t { color:var(--muted); } .log .ok { color:var(--accent); }
+  kbd { border:1px solid var(--line); padding:3px 9px; color:var(--accent); }
+  .pill { display:inline-flex; flex-direction:column; align-items:center; gap:8px; padding:12px 22px; border:1px solid var(--line); background:#000; margin-top:26px; }
+  .pill .row { display:flex; align-items:center; gap:10px; font-weight:700; } .pill .rd { width:12px; height:12px; background:var(--rec); }
+  .bars { display:flex; gap:3px; align-items:center; height:24px; } .bars i { width:4px; background:var(--accent); display:block; }
+  .note { width:1100px; margin:0 auto 40px; font-size:16px; color:#cfcfcf; font-family:"Segoe UI", system-ui, sans-serif; }
+</style></head><body>
+<div class="frame">
+  <div class="side"><div class="name">FU <span>Wispr</span> Flow</div><div class="nav"><div class="on">home</div><div>history</div><div>dictionary</div><div>snippets</div><div>stats</div><div>settings</div><div>diagnostics</div></div></div>
+  <div class="main">
+    <h1>ready_</h1>
+    <div class="line"><span class="k">engine</span><span class="v"><b>large-v3</b> on GPU, warm in 1.8 s</span></div>
+    <div class="line"><span class="k">mic</span><span class="v">Razer Barracuda X 2.4 · 48 kHz</span></div>
+    <div class="line"><span class="k">key</span><span class="v"><kbd>RAlt</kbd> start · <kbd>RAlt</kbd> stop and insert · <kbd>Esc</kbd> cancel</span></div>
+    <div class="line"><span class="k">today</span><span class="v"><b>1,240</b> words · median wait <b>0.6 s</b> · <b>14 min</b> saved</span></div>
+    <h2>last transcripts</h2>
+    <div class="log">
+      <div><span class="t">17:55</span> <span class="ok">ok</span> 179w 0.53s  Λοιπόν, άκουσέ με τώρα. Έχω ένα link από το YouTube…</div>
+      <div><span class="t">17:44</span> <span class="ok">ok</span> 57w 1.39s  Κάνε μου σε παρακαλώ ένα tutorial πόσο γρήγορα…</div>
+      <div><span class="t">17:42</span> <span class="ok">ok</span> 32w 0.59s  Επίσης θα κάνω τώρα δοκιμή να πω κάποιες λέξεις…</div>
+    </div>
+    <div class="pill"><div class="row"><span class="rd"></span> LISTENING 4.2s</div><div class="bars"><i style="height:6px"></i><i style="height:14px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:18px"></i><i style="height:24px"></i><i style="height:10px"></i><i style="height:16px"></i><i style="height:8px"></i><i style="height:20px"></i><i style="height:14px"></i><i style="height:6px"></i></div></div>
+  </div>
+</div>
+<p class="note"><b>4. Mono.</b> Black, monospace, square corners, one acid-green accent. Reads like a console but stays large and legible. Fits the attitude of the new name; everything is a line of facts.</p>
+</body></html>

@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Lalia local artifacts
+/vendor/
+/models/
+/research/
+/target/
+/dist/
+*.wav
+/eval/private/
+/src-tauri/bundled/
+# working files that stay out of the public repository
+__pycache__/
+**/.omc/
+/eval/prosody/
+/eval/server-*.log
+/press/posts.md
+/press/shots/*.html
+/src-tauri/bundled/
+/vendor/whisper.cpp-src/

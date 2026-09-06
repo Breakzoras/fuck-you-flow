@@ -1,0 +1,174 @@
+[
+  {
+    "id": "el-01",
+    "language": "el",
+    "voice": "el-GR-NestorasNeural",
+    "spoken": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την Τρίτη στις τέσσερις το απόγευμα.",
+    "expected": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την Τρίτη στις τέσσερις το απόγευμα.",
+    "terms": [],
+    "file": "el-01.wav"
+  },
+  {
+    "id": "el-02",
+    "language": "el",
+    "voice": "el-GR-AthinaNeural",
+    "spoken": "Στείλε μου το αρχείο στο email μου, είναι το info παπάκι oneclickclaw τελεία io.",
+    "expected": "Στείλε μου το αρχείο στο email μου, είναι το info@oneclickclaw.io.",
+    "terms": [],
+    "file": "el-02.wav"
+  },
+  {
+    "id": "el-03",
+    "language": "el",
+    "voice": "el-GR-NestorasNeural",
+    "spoken": "Ο server του OpenClaw τρέχει στο Webdock και η βάση είναι PostgreSQL.",
+    "expected": "Ο server του OpenClaw τρέχει στο Webdock και η βάση είναι PostgreSQL.",
+    "terms": [
+      "OpenClaw",
+      "Webdock",
+      "PostgreSQL"
+    ],
+    "file": "el-03.wav"
+  },
+  {
+    "id": "el-04",
+    "language": "el",
+    "voice": "el-GR-AthinaNeural",
+    "spoken": "Θα πληρώσω τριακόσια πενήντα ευρώ στις δεκαπέντε Σεπτεμβρίου δύο χιλιάδες είκοσι έξι.",
+    "expected": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "terms": [],
+    "file": "el-04.wav"
+  },
+  {
+    "id": "el-05",
+    "language": "el",
+    "voice": "el-GR-NestorasNeural",
+    "spoken": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "expected": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "terms": [
+      "Luram"
+    ],
+    "file": "el-05.wav"
+  },
+  {
+    "id": "el-06",
+    "language": "el",
+    "voice": "el-GR-AthinaNeural",
+    "spoken": "Άνοιξε το αρχείο settings τελεία json και άλλαξε το port σε οκτώ χιλιάδες ογδόντα.",
+    "expected": "Άνοιξε το αρχείο settings.json και άλλαξε το port σε 8080.",
+    "terms": [],
+    "file": "el-06.wav"
+  },
+  {
+    "id": "el-07",
+    "language": "el",
+    "voice": "el-GR-NestorasNeural",
+    "spoken": "Θα σε πάρω τηλέφωνο την Τετάρτη, όχι, την Πέμπτη το πρωί.",
+    "expected": "Θα σε πάρω τηλέφωνο την Πέμπτη το πρωί.",
+    "terms": [],
+    "file": "el-07.wav"
+  },
+  {
+    "id": "el-08",
+    "language": "el",
+    "voice": "el-GR-AthinaNeural",
+    "spoken": "Εεε, νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "expected": "Νομίζω ότι πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "terms": [],
+    "file": "el-08.wav"
+  },
+  {
+    "id": "el-09",
+    "language": "el",
+    "voice": "el-GR-NestorasNeural",
+    "spoken": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "expected": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "terms": [],
+    "file": "el-09.wav"
+  },
+  {
+    "id": "el-10",
+    "language": "el",
+    "voice": "el-GR-AthinaNeural",
+    "spoken": "Τι κάνεις; Είμαι καλά, ευχαριστώ. Εσύ πώς πας με τη δουλειά;",
+    "expected": "Τι κάνεις; Είμαι καλά, ευχαριστώ. Εσύ πώς πας με τη δουλειά;",
+    "terms": [],
+    "file": "el-10.wav"
+  },
+  {
+    "id": "en-01",
+    "language": "en",
+    "voice": "en-GB-RyanNeural",
+    "spoken": "Please push the fix to the main branch and open a pull request before noon.",
+    "expected": "Please push the fix to the main branch and open a pull request before noon.",
+    "terms": [],
+    "file": "en-01.wav"
+  },
+  {
+    "id": "en-02",
+    "language": "en",
+    "voice": "en-US-AriaNeural",
+    "spoken": "The meeting is on Tuesday, no, Friday at three thirty.",
+    "expected": "The meeting is on Friday at three thirty.",
+    "terms": [],
+    "file": "en-02.wav"
+  },
+  {
+    "id": "en-03",
+    "language": "en",
+    "voice": "en-GB-RyanNeural",
+    "spoken": "Um, I think we should, uh, deploy the new version tonight.",
+    "expected": "I think we should deploy the new version tonight.",
+    "terms": [],
+    "file": "en-03.wav"
+  },
+  {
+    "id": "en-04",
+    "language": "en",
+    "voice": "en-US-AriaNeural",
+    "spoken": "Send the invoice for one thousand two hundred euros to accounts at luram dot gr.",
+    "expected": "Send the invoice for 1200 euros to accounts@luram.gr.",
+    "terms": [],
+    "file": "en-04.wav"
+  },
+  {
+    "id": "mix-01",
+    "language": "el",
+    "voice": "el-GR-NestorasNeural",
+    "spoken": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "expected": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "terms": [
+      "Cloudflare"
+    ],
+    "file": "mix-01.wav"
+  },
+  {
+    "id": "mix-02",
+    "language": "el",
+    "voice": "el-GR-AthinaNeural",
+    "spoken": "Πες στον Claude να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "expected": "Πες στον Claude να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "terms": [
+      "Claude"
+    ],
+    "file": "mix-02.wav"
+  },
+  {
+    "id": "silence",
+    "language": "none",
+    "voice": "",
+    "spoken": "",
+    "expected": "",
+    "terms": [],
+    "file": "silence-3s.wav"
+  },
+  {
+    "id": "noise",
+    "language": "none",
+    "voice": "",
+    "spoken": "",
+    "expected": "",
+    "terms": [],
+    "file": "noise-3s.wav"
+  }
+]

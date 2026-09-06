@@ -1,0 +1,881 @@
+{
+  "date": "2026-09-05 09:39",
+  "beam": 5,
+  "results": {
+    "large-v3-q5_0": {
+      "gpu": true,
+      "start_ms": 1541,
+      "el": {
+        "n": 12,
+        "wer": 0.182,
+        "cer": 0.144,
+        "p50_ms": 783,
+        "max_ms": 1238
+      },
+      "en": {
+        "n": 4,
+        "wer": 0.212,
+        "cer": 0.157,
+        "p50_ms": 456,
+        "max_ms": 493
+      },
+      "hallucinations": 2,
+      "term_accuracy": 0.833,
+      "items": [
+        {
+          "id": "el-01",
+          "language": "el",
+          "hyp": "Καλημέρα. Θα ήθελα να κλείσουμε ένα ραντεβού την Τρίτη στις 16.00 στο απόγευμα.",
+          "ref": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την Τρίτη στις τέσσερις το απόγευμα.",
+          "wer": 0.231,
+          "cer": 0.125,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 885,
+          "rtf": 0.188,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-02",
+          "language": "el",
+          "hyp": "Στείλε μου το αρχείο στο email μου, είναι το info-ganiklyklo.io.",
+          "ref": "Στείλε μου το αρχείο στο email μου, είναι το info παπάκι oneclickclaw τελεία io.",
+          "wer": 0.286,
+          "cer": 0.291,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 641,
+          "rtf": 0.13,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-03",
+          "language": "el",
+          "hyp": "Ο σερβερ του OpenClaw τρέχει στο WebDock και η βάση είναι πιο στην SQL.",
+          "ref": "Ο server του OpenClaw τρέχει στο Webdock και η βάση είναι PostgreSQL.",
+          "wer": 0.333,
+          "cer": 0.217,
+          "terms": [
+            "OpenClaw",
+            "Webdock",
+            "PostgreSQL"
+          ],
+          "terms_ok": [
+            "OpenClaw",
+            "Webdock"
+          ],
+          "ms": 813,
+          "rtf": 0.176,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-04",
+          "language": "el",
+          "hyp": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+          "ref": "Θα πληρώσω τριακόσια πενήντα ευρώ στις δεκαπέντε Σεπτεμβρίου δύο χιλιάδες είκοσι έξι.",
+          "wer": 0.583,
+          "cer": 0.576,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 626,
+          "rtf": 0.124,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-05",
+          "language": "el",
+          "hyp": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+          "ref": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [
+            "Luram"
+          ],
+          "terms_ok": [
+            "Luram"
+          ],
+          "ms": 1238,
+          "rtf": 0.223,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-06",
+          "language": "el",
+          "hyp": "Άνοιξε το αρχείο settings.jswen και άλλαξε το port σε 8080.",
+          "ref": "Άνοιξε το αρχείο settings τελεία json και άλλαξε το port σε οκτώ χιλιάδες ογδόντα.",
+          "wer": 0.429,
+          "cer": 0.378,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 679,
+          "rtf": 0.135,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-07",
+          "language": "el",
+          "hyp": "Θα σε πάρω τηλέφωνο την Δετάρτη, όχι την Πέμπτη το πρωί.",
+          "ref": "Θα σε πάρω τηλέφωνο την Τετάρτη, όχι, την Πέμπτη το πρωί.",
+          "wer": 0.091,
+          "cer": 0.018,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 746,
+          "rtf": 0.167,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-08",
+          "language": "el",
+          "hyp": "YYY. Νομίζω ότι πρέπει να ξαναδούμε το πλάνο για τα social media.",
+          "ref": "Εεε, νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+          "wer": 0.154,
+          "cer": 0.104,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 720,
+          "rtf": 0.121,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-09",
+          "language": "el",
+          "hyp": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+          "ref": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 1013,
+          "rtf": 0.234,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-10",
+          "language": "el",
+          "hyp": "Τι κάνεις? Είμαι καλά, ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+          "ref": "Τι κάνεις; Είμαι καλά, ευχαριστώ. Εσύ πώς πας με τη δουλειά;",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 783,
+          "rtf": 0.125,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-01",
+          "language": "en",
+          "hyp": "Please push the fix to the main branch and open a pull request before noon.",
+          "ref": "Please push the fix to the main branch and open a pull request before noon.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 493,
+          "rtf": 0.104,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-02",
+          "language": "en",
+          "hyp": "The meeting is on Tuesday, no, Friday at 3.30.",
+          "ref": "The meeting is on Tuesday, no, Friday at three thirty.",
+          "wer": 0.2,
+          "cer": 0.231,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 425,
+          "rtf": 0.103,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-03",
+          "language": "en",
+          "hyp": "Em, I think we should, ah, deploy the new version tonight.",
+          "ref": "Um, I think we should, uh, deploy the new version tonight.",
+          "wer": 0.182,
+          "cer": 0.036,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 450,
+          "rtf": 0.104,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-04",
+          "language": "en",
+          "hyp": "Send the invoice for 1,200 euros to accounts at lurum.gr.",
+          "ref": "Send the invoice for one thousand two hundred euros to accounts at luram dot gr.",
+          "wer": 0.467,
+          "cer": 0.362,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 456,
+          "rtf": 0.081,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "mix-01",
+          "language": "el",
+          "hyp": "Έκανα deploy το frontend στο cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+          "ref": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [
+            "Cloudflare"
+          ],
+          "terms_ok": [
+            "Cloudflare"
+          ],
+          "ms": 847,
+          "rtf": 0.159,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "mix-02",
+          "language": "el",
+          "hyp": "Πες τον Claude να γράψει ένα script σε Python που διαβάζει το CSV.",
+          "ref": "Πες στον Claude να γράψει ένα script σε Python που διαβάζει το CSV.",
+          "wer": 0.077,
+          "cer": 0.015,
+          "terms": [
+            "Claude"
+          ],
+          "terms_ok": [
+            "Claude"
+          ],
+          "ms": 578,
+          "rtf": 0.137,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "silence",
+          "language": "none",
+          "hyp": "you",
+          "ref": "",
+          "wer": 1.0,
+          "cer": 1.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 344,
+          "rtf": 0.115,
+          "detected": null,
+          "hallucinated": true
+        },
+        {
+          "id": "noise",
+          "language": "none",
+          "hyp": "Okay.",
+          "ref": "",
+          "wer": 1.0,
+          "cer": 1.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 382,
+          "rtf": 0.127,
+          "detected": null,
+          "hallucinated": true
+        }
+      ]
+    },
+    "large-v3-turbo-q5_0": {
+      "gpu": true,
+      "start_ms": 1030,
+      "el": {
+        "n": 12,
+        "wer": 0.25,
+        "cer": 0.171,
+        "p50_ms": 304,
+        "max_ms": 397
+      },
+      "en": {
+        "n": 4,
+        "wer": 0.212,
+        "cer": 0.157,
+        "p50_ms": 232,
+        "max_ms": 238
+      },
+      "hallucinations": 2,
+      "term_accuracy": 0.5,
+      "items": [
+        {
+          "id": "el-01",
+          "language": "el",
+          "hyp": "Καλημέρα. Θα ήθελα να κλείσουμε ένα ραντεβού την Τρίτη στις 4 το απόγευμα.",
+          "ref": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την Τρίτη στις τέσσερις το απόγευμα.",
+          "wer": 0.154,
+          "cer": 0.113,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 354,
+          "rtf": 0.075,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-02",
+          "language": "el",
+          "hyp": "Στείλε μου το αρχείο στο email μου,",
+          "ref": "Στείλε μου το αρχείο στο email μου, είναι το info παπάκι oneclickclaw τελεία io.",
+          "wer": 0.5,
+          "cer": 0.57,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 288,
+          "rtf": 0.058,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-03",
+          "language": "el",
+          "hyp": "Ο σέρβερ του OpenClaw τρέχει στο WebDoc και η βάση είναι πιο στην SQL.",
+          "ref": "Ο server του OpenClaw τρέχει στο Webdock και η βάση είναι PostgreSQL.",
+          "wer": 0.417,
+          "cer": 0.232,
+          "terms": [
+            "OpenClaw",
+            "Webdock",
+            "PostgreSQL"
+          ],
+          "terms_ok": [
+            "OpenClaw"
+          ],
+          "ms": 294,
+          "rtf": 0.064,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-04",
+          "language": "el",
+          "hyp": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+          "ref": "Θα πληρώσω τριακόσια πενήντα ευρώ στις δεκαπέντε Σεπτεμβρίου δύο χιλιάδες είκοσι έξι.",
+          "wer": 0.583,
+          "cer": 0.576,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 267,
+          "rtf": 0.053,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-05",
+          "language": "el",
+          "hyp": "Η εταιρεία μου λέγεται LuRam και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+          "ref": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [
+            "Luram"
+          ],
+          "terms_ok": [
+            "Luram"
+          ],
+          "ms": 397,
+          "rtf": 0.072,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-06",
+          "language": "el",
+          "hyp": "Άνοιξε το αρχείο settings.jswin και άλλαξε το port σε 8080.",
+          "ref": "Άνοιξε το αρχείο settings τελεία json και άλλαξε το port σε οκτώ χιλιάδες ογδόντα.",
+          "wer": 0.429,
+          "cer": 0.378,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 278,
+          "rtf": 0.055,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-07",
+          "language": "el",
+          "hyp": "Θα σε πάρω τηλέφωνο τη Δετάρτη, όχι, την Πέμπτη το πρωί.",
+          "ref": "Θα σε πάρω τηλέφωνο την Τετάρτη, όχι, την Πέμπτη το πρωί.",
+          "wer": 0.182,
+          "cer": 0.036,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 297,
+          "rtf": 0.067,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-08",
+          "language": "el",
+          "hyp": "Ε, Ε, Ε. Νομίζω ότι, Ε, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+          "ref": "Εεε, νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+          "wer": 0.308,
+          "cer": 0.06,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 316,
+          "rtf": 0.053,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-09",
+          "language": "el",
+          "hyp": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+          "ref": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 352,
+          "rtf": 0.081,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-10",
+          "language": "el",
+          "hyp": "Τι κάνεις. Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά.",
+          "ref": "Τι κάνεις; Είμαι καλά, ευχαριστώ. Εσύ πώς πας με τη δουλειά;",
+          "wer": 0.273,
+          "cer": 0.053,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 304,
+          "rtf": 0.048,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-01",
+          "language": "en",
+          "hyp": "Please push the fix to the main branch and open a pull request before noon.",
+          "ref": "Please push the fix to the main branch and open a pull request before noon.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 217,
+          "rtf": 0.046,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-02",
+          "language": "en",
+          "hyp": "The meeting is on Tuesday, no, Friday at 3.30.",
+          "ref": "The meeting is on Tuesday, no, Friday at three thirty.",
+          "wer": 0.2,
+          "cer": 0.231,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 207,
+          "rtf": 0.05,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-03",
+          "language": "en",
+          "hyp": "M, I think we should, ah, deploy the new version tonight.",
+          "ref": "Um, I think we should, uh, deploy the new version tonight.",
+          "wer": 0.182,
+          "cer": 0.036,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 238,
+          "rtf": 0.055,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-04",
+          "language": "en",
+          "hyp": "Send the invoice for 1,200 euros to accounts at lurim.gr.",
+          "ref": "Send the invoice for one thousand two hundred euros to accounts at luram dot gr.",
+          "wer": 0.467,
+          "cer": 0.362,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 232,
+          "rtf": 0.041,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "mix-01",
+          "language": "el",
+          "hyp": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+          "ref": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [
+            "Cloudflare"
+          ],
+          "terms_ok": [
+            "Cloudflare"
+          ],
+          "ms": 301,
+          "rtf": 0.056,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "mix-02",
+          "language": "el",
+          "hyp": "Πες τον Claud να γράψει ένα script σε Python που διαβάζει το CSV.",
+          "ref": "Πες στον Claude να γράψει ένα script σε Python που διαβάζει το CSV.",
+          "wer": 0.154,
+          "cer": 0.03,
+          "terms": [
+            "Claude"
+          ],
+          "terms_ok": [],
+          "ms": 319,
+          "rtf": 0.076,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "silence",
+          "language": "none",
+          "hyp": "you",
+          "ref": "",
+          "wer": 1.0,
+          "cer": 1.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 283,
+          "rtf": 0.094,
+          "detected": null,
+          "hallucinated": true
+        },
+        {
+          "id": "noise",
+          "language": "none",
+          "hyp": "Thank you.",
+          "ref": "",
+          "wer": 1.0,
+          "cer": 1.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 300,
+          "rtf": 0.1,
+          "detected": null,
+          "hallucinated": true
+        }
+      ]
+    },
+    "medium-q5_0": {
+      "gpu": true,
+      "start_ms": 1022,
+      "el": {
+        "n": 12,
+        "wer": 0.219,
+        "cer": 0.149,
+        "p50_ms": 560,
+        "max_ms": 863
+      },
+      "en": {
+        "n": 4,
+        "wer": 0.212,
+        "cer": 0.17,
+        "p50_ms": 335,
+        "max_ms": 340
+      },
+      "hallucinations": 2,
+      "term_accuracy": 0.833,
+      "items": [
+        {
+          "id": "el-01",
+          "language": "el",
+          "hyp": "Καλημέρα. Θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις τέσσερις στο απόγευμα.",
+          "ref": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την Τρίτη στις τέσσερις το απόγευμα.",
+          "wer": 0.154,
+          "cer": 0.025,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 687,
+          "rtf": 0.146,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-02",
+          "language": "el",
+          "hyp": "Στείλε μου το αρχείο στο e-mail μου. Είναι το info-ganicliclo.io",
+          "ref": "Στείλε μου το αρχείο στο email μου, είναι το info παπάκι oneclickclaw τελεία io.",
+          "wer": 0.5,
+          "cer": 0.304,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 547,
+          "rtf": 0.111,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-03",
+          "language": "el",
+          "hyp": "Ο server του OpenClaw τρέχει στο Webdock και η βάση είναι PostgreSQL.",
+          "ref": "Ο server του OpenClaw τρέχει στο Webdock και η βάση είναι PostgreSQL.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [
+            "OpenClaw",
+            "Webdock",
+            "PostgreSQL"
+          ],
+          "terms_ok": [
+            "OpenClaw",
+            "Webdock",
+            "PostgreSQL"
+          ],
+          "ms": 507,
+          "rtf": 0.11,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-04",
+          "language": "el",
+          "hyp": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+          "ref": "Θα πληρώσω τριακόσια πενήντα ευρώ στις δεκαπέντε Σεπτεμβρίου δύο χιλιάδες είκοσι έξι.",
+          "wer": 0.583,
+          "cer": 0.576,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 502,
+          "rtf": 0.099,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-05",
+          "language": "el",
+          "hyp": "Η εταιρία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+          "ref": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+          "wer": 0.071,
+          "cer": 0.01,
+          "terms": [
+            "Luram"
+          ],
+          "terms_ok": [
+            "Luram"
+          ],
+          "ms": 863,
+          "rtf": 0.156,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-06",
+          "language": "el",
+          "hyp": "Άνοιξε το αρχείο σε την στελεία JSON και άλλαξε το port σε 8.080.",
+          "ref": "Άνοιξε το αρχείο settings τελεία json και άλλαξε το port σε οκτώ χιλιάδες ογδόντα.",
+          "wer": 0.429,
+          "cer": 0.366,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 538,
+          "rtf": 0.107,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-07",
+          "language": "el",
+          "hyp": "Θα σε πάρω τηλέφωνο τη Δετάρτη. Όχι, την πέμπτη το πρωί.",
+          "ref": "Θα σε πάρω τηλέφωνο την Τετάρτη, όχι, την Πέμπτη το πρωί.",
+          "wer": 0.182,
+          "cer": 0.055,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 557,
+          "rtf": 0.125,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-08",
+          "language": "el",
+          "hyp": "Λοιπόν, εψηλον εψηλον εψηλον. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+          "ref": "Εεε, νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+          "wer": 0.308,
+          "cer": 0.373,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 781,
+          "rtf": 0.131,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-09",
+          "language": "el",
+          "hyp": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+          "ref": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 676,
+          "rtf": 0.156,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "el-10",
+          "language": "el",
+          "hyp": "Τι κάνεις? Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά.",
+          "ref": "Τι κάνεις; Είμαι καλά, ευχαριστώ. Εσύ πώς πας με τη δουλειά;",
+          "wer": 0.182,
+          "cer": 0.035,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 560,
+          "rtf": 0.089,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-01",
+          "language": "en",
+          "hyp": "Please push the fix to the main branch and open a pull request before noon.",
+          "ref": "Please push the fix to the main branch and open a pull request before noon.",
+          "wer": 0.0,
+          "cer": 0.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 340,
+          "rtf": 0.072,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-02",
+          "language": "en",
+          "hyp": "The meeting is on Tuesday, no, Friday at 3.30.",
+          "ref": "The meeting is on Tuesday, no, Friday at three thirty.",
+          "wer": 0.2,
+          "cer": 0.231,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 311,
+          "rtf": 0.075,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-03",
+          "language": "en",
+          "hyp": "I think we should, ah, deploy the new version tonight.",
+          "ref": "Um, I think we should, uh, deploy the new version tonight.",
+          "wer": 0.182,
+          "cer": 0.073,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 294,
+          "rtf": 0.068,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "en-04",
+          "language": "en",
+          "hyp": "Send the invoice for 1,200 euros to accounts at lurum.gr",
+          "ref": "Send the invoice for one thousand two hundred euros to accounts at luram dot gr.",
+          "wer": 0.467,
+          "cer": 0.375,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 335,
+          "rtf": 0.059,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "mix-01",
+          "language": "el",
+          "hyp": "Έκανα deploy το front-end στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+          "ref": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+          "wer": 0.143,
+          "cer": 0.011,
+          "terms": [
+            "Cloudflare"
+          ],
+          "terms_ok": [
+            "Cloudflare"
+          ],
+          "ms": 608,
+          "rtf": 0.114,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "mix-02",
+          "language": "el",
+          "hyp": "Πες στον Cloud να γράψει ένα script σε Python που διαβάζει το CSV.",
+          "ref": "Πες στον Claude να γράψει ένα script σε Python που διαβάζει το CSV.",
+          "wer": 0.077,
+          "cer": 0.03,
+          "terms": [
+            "Claude"
+          ],
+          "terms_ok": [],
+          "ms": 459,
+          "rtf": 0.109,
+          "detected": null,
+          "hallucinated": false
+        },
+        {
+          "id": "silence",
+          "language": "none",
+          "hyp": "you",
+          "ref": "",
+          "wer": 1.0,
+          "cer": 1.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 231,
+          "rtf": 0.077,
+          "detected": null,
+          "hallucinated": true
+        },
+        {
+          "id": "noise",
+          "language": "none",
+          "hyp": "you",
+          "ref": "",
+          "wer": 1.0,
+          "cer": 1.0,
+          "terms": [],
+          "terms_ok": [],
+          "ms": 236,
+          "rtf": 0.079,
+          "detected": null,
+          "hallucinated": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Mockup 3: Cards</title>
+<style>
+  :root { --bg:#eef1f5; --card:#ffffff; --fg:#1b2733; --muted:#66727d; --line:#e1e6ec; --accent:#3b6cf6; --soft:#e9efff; --rec:#e5484d; --ok:#1f9d63; }
+  * { box-sizing:border-box; } body { margin:0; background:#c9d1db; font-family:"Segoe UI", system-ui, sans-serif; color:var(--fg); font-size:17px; }
+  .frame { width:1100px; height:680px; margin:28px auto; background:var(--bg); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.3); overflow:hidden; }
+  .top { display:flex; align-items:center; justify-content:space-between; padding:18px 28px; background:var(--card); border-bottom:1px solid var(--line); }
+  .brand { font-weight:800; font-size:20px; display:flex; align-items:center; gap:10px; } .brand i { width:28px; height:28px; border-radius:8px; background:var(--accent); display:inline-block; }
+  .nav { display:flex; gap:6px; } .nav span { padding:9px 14px; border-radius:999px; color:var(--muted); font-weight:600; font-size:15px; } .nav span.on { background:var(--soft); color:var(--accent); }
+  .wrap { padding:26px 28px; display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  .card { background:var(--card); border-radius:18px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .card.wide { grid-column:span 2; } .card h2 { margin:0 0 12px; font-size:17px; color:var(--muted); font-weight:600; }
+  .big { font-size:40px; font-weight:800; margin:4px 0; } .sub { color:var(--muted); font-size:15px; }
+  .ready { display:flex; align-items:center; gap:12px; font-size:19px; font-weight:700; color:var(--ok); }
+  kbd { font-family:Consolas, monospace; background:#f1f4f8; border:1px solid var(--line); border-radius:8px; padding:4px 10px; font-size:15px; }
+  .item { padding:12px 0; border-top:1px solid var(--line); font-size:16px; line-height:1.4; } .item small { color:var(--muted); display:block; margin-top:3px; }
+  .btn { display:inline-block; padding:12px 20px; border-radius:12px; background:var(--accent); color:#fff; font-weight:700; margin-top:14px; }
+  .pill { display:inline-flex; flex-direction:column; align-items:center; gap:8px; padding:12px 22px; border-radius:20px; background:#101820; color:#fff; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+  .pill .row { display:flex; align-items:center; gap:10px; font-weight:600; } .pill .rd { width:12px; height:12px; border-radius:50%; background:var(--rec); }
+  .bars { display:flex; gap:3px; align-items:center; height:24px; } .bars i { width:4px; border-radius:2px; background:var(--rec); display:block; }
+  .note { width:1100px; margin:0 auto 40px; font-size:16px; color:#2a3a44; }
+</style></head><body>
+<div class="frame">
+  <div class="top"><div class="brand"><i></i> Lalia</div><div class="nav"><span class="on">Home</span><span>History</span><span>Dictionary</span><span>Snippets</span><span>Stats</span><span>Settings</span></div></div>
+  <div class="wrap">
+    <div class="card"><h2>Status</h2><div class="ready">● Ready</div><div class="sub" style="margin-top:8px">GPU · large-v3 · Razer Barracuda X</div><div class="sub" style="margin-top:14px">Press <kbd>Right Alt</kbd> to start, again to insert.</div><div class="btn">Test dictation</div></div>
+    <div class="card"><h2>Today</h2><div class="big">1,240</div><div class="sub">words · 14 min saved</div></div>
+    <div class="card"><h2>Median wait</h2><div class="big">0.6 s</div><div class="sub">from stop to text</div></div>
+    <div class="card wide"><h2>Last transcripts</h2>
+      <div class="item">Λοιπόν, άκουσέ με τώρα. Έχω ένα link από το YouTube και το επίσημο κανάλι του OpenClaw…<small>Claude · 17:55 · 179 words</small></div>
+      <div class="item">Κάνε μου σε παρακαλώ ένα tutorial πόσο γρήγορα μπορώ να μιλάω…<small>Claude · 17:44 · 57 words</small></div>
+      <div class="item">Επίσης θα κάνω τώρα δοκιμή να πω κάποιες λέξεις. OneClickClaw. Luram.<small>Claude · 17:42 · 32 words</small></div>
+    </div>
+    <div class="card"><h2>Overlay</h2><div class="pill"><div class="row"><span class="rd"></span> Listening 4.2s</div><div class="bars"><i style="height:6px"></i><i style="height:14px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:18px"></i><i style="height:24px"></i><i style="height:10px"></i><i style="height:16px"></i><i style="height:8px"></i><i style="height:20px"></i><i style="height:14px"></i><i style="height:6px"></i></div></div><div class="sub" style="margin-top:12px">Bottom center · hides when idle</div></div>
+  </div>
+</div>
+<p class="note"><b>3. Cards.</b> Soft grey canvas, white cards, pill navigation on top, blue accent. Feels like a modern Windows settings app. Every card is one fact; the big numbers do the talking.</p>
+</body></html>

@@ -1,0 +1,338 @@
+[
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-01",
+    "ms": 14615,
+    "audio_ms": 4706,
+    "wer": 0.07692307692307693
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-02",
+    "ms": 14672,
+    "audio_ms": 4946,
+    "wer": 0.5714285714285714
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-03",
+    "ms": 14152,
+    "audio_ms": 4610,
+    "wer": 0.5833333333333334
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-04",
+    "ms": 14439,
+    "audio_ms": 5066,
+    "wer": 0.5833333333333334
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-05",
+    "ms": 15030,
+    "audio_ms": 5546,
+    "wer": 0.0
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-06",
+    "ms": 14591,
+    "audio_ms": 5042,
+    "wer": 0.42857142857142855
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-07",
+    "ms": 14232,
+    "audio_ms": 4466,
+    "wer": 0.18181818181818182
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-08",
+    "ms": 14282,
+    "audio_ms": 5954,
+    "wer": 0.07692307692307693
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-09",
+    "ms": 14423,
+    "audio_ms": 4322,
+    "wer": 0.0
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-10",
+    "ms": 14346,
+    "audio_ms": 6290,
+    "wer": 0.2727272727272727
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-01",
+    "ms": 14591,
+    "audio_ms": 5330,
+    "wer": 0.14285714285714285
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-02",
+    "ms": 14324,
+    "audio_ms": 4226,
+    "wer": 0.15384615384615385
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-01",
+    "ms": 9560,
+    "audio_ms": 4706,
+    "wer": 0.07692307692307693
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-02",
+    "ms": 9671,
+    "audio_ms": 4946,
+    "wer": 0.5714285714285714
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-03",
+    "ms": 9663,
+    "audio_ms": 4610,
+    "wer": 0.5833333333333334
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-04",
+    "ms": 9203,
+    "audio_ms": 5066,
+    "wer": 0.5833333333333334
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-05",
+    "ms": 9531,
+    "audio_ms": 5546,
+    "wer": 0.0
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-06",
+    "ms": 9495,
+    "audio_ms": 5042,
+    "wer": 0.42857142857142855
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-07",
+    "ms": 9172,
+    "audio_ms": 4466,
+    "wer": 0.18181818181818182
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-08",
+    "ms": 9621,
+    "audio_ms": 5954,
+    "wer": 0.07692307692307693
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-09",
+    "ms": 9674,
+    "audio_ms": 4322,
+    "wer": 0.0
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-10",
+    "ms": 9304,
+    "audio_ms": 6290,
+    "wer": 0.2727272727272727
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-01",
+    "ms": 9295,
+    "audio_ms": 5330,
+    "wer": 0.14285714285714285
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-02",
+    "ms": 9194,
+    "audio_ms": 4226,
+    "wer": 0.15384615384615385
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-01",
+    "ms": 8266,
+    "audio_ms": 4706,
+    "wer": 0.07692307692307693
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-02",
+    "ms": 7798,
+    "audio_ms": 4946,
+    "wer": 0.5714285714285714
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-03",
+    "ms": 7779,
+    "audio_ms": 4610,
+    "wer": 0.5833333333333334
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-04",
+    "ms": 7790,
+    "audio_ms": 5066,
+    "wer": 0.5833333333333334
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-05",
+    "ms": 8053,
+    "audio_ms": 5546,
+    "wer": 0.0
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-06",
+    "ms": 7863,
+    "audio_ms": 5042,
+    "wer": 0.42857142857142855
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-07",
+    "ms": 8082,
+    "audio_ms": 4466,
+    "wer": 0.18181818181818182
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-08",
+    "ms": 7834,
+    "audio_ms": 5954,
+    "wer": 0.07692307692307693
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-09",
+    "ms": 7976,
+    "audio_ms": 4322,
+    "wer": 0.0
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-10",
+    "ms": 8326,
+    "audio_ms": 6290,
+    "wer": 0.2727272727272727
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-01",
+    "ms": 7847,
+    "audio_ms": 5330,
+    "wer": 0.14285714285714285
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-02",
+    "ms": 7880,
+    "audio_ms": 4226,
+    "wer": 0.15384615384615385
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-01",
+    "ms": 7755,
+    "audio_ms": 4706,
+    "wer": 0.07692307692307693
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-02",
+    "ms": 7460,
+    "audio_ms": 4946,
+    "wer": 0.5714285714285714
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-03",
+    "ms": 7525,
+    "audio_ms": 4610,
+    "wer": 0.5833333333333334
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-04",
+    "ms": 7524,
+    "audio_ms": 5066,
+    "wer": 0.5833333333333334
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-05",
+    "ms": 7639,
+    "audio_ms": 5546,
+    "wer": 0.0
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-06",
+    "ms": 7809,
+    "audio_ms": 5042,
+    "wer": 0.42857142857142855
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-07",
+    "ms": 7634,
+    "audio_ms": 4466,
+    "wer": 0.18181818181818182
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-08",
+    "ms": 7861,
+    "audio_ms": 5954,
+    "wer": 0.07692307692307693
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-09",
+    "ms": 12558,
+    "audio_ms": 4322,
+    "wer": 0.0
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "el-10",
+    "ms": 8449,
+    "audio_ms": 6290,
+    "wer": 0.2727272727272727
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-01",
+    "ms": 8849,
+    "audio_ms": 5330,
+    "wer": 0.14285714285714285
+  },
+  {
+    "model": "large-v3-turbo-q5_0",
+    "id": "mix-02",
+    "ms": 7972,
+    "audio_ms": 4226,
+    "wer": 0.15384615384615385
+  }
+]

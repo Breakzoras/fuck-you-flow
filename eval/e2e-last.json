@@ -1,0 +1,30 @@
+[
+  {
+    "id": "el-01",
+    "inserted": "",
+    "expected": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την Τρίτη στις τέσσερις το απόγευμα.",
+    "latency_ms_observed": 20032,
+    "ok": false
+  },
+  {
+    "id": "el-05",
+    "inserted": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "expected": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "latency_ms_observed": 1606,
+    "ok": true
+  },
+  {
+    "id": "en-01",
+    "inserted": "",
+    "expected": "Please push the fix to the main branch and open a pull request before noon.",
+    "latency_ms_observed": 20031,
+    "ok": false
+  },
+  {
+    "id": "en-02",
+    "inserted": "",
+    "expected": "The meeting is on Friday at three thirty.",
+    "latency_ms_observed": 20030,
+    "ok": false
+  }
+]

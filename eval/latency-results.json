@@ -1,0 +1,1562 @@
+[
+  {
+    "server": "ctx-full",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Καλημέρα. Θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 873,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "στείλε μου το αρχείο στο email μου,",
+    "ms": 674,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Ο σερβερ του Open Cloud τρέχει στο GebDoc και η βάση είναι πιο στην JSQL.",
+    "ms": 775,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 800,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 1264,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Άνοιξε το αρχείο settings.jswen και άλλαξε το port σε 8080.",
+    "ms": 742,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Θα σε πάρω τηλέφωνο την Δετάρτη. Όχι, την Πέμπτη το πρωί.",
+    "ms": 812,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "ΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 856,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 1120,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Τι κάνεις? Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+    "ms": 814,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-full",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 840,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 661,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Καλημέρα. Θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 724,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "στείλε μου το αρχείο στο email μου,",
+    "ms": 551,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Ο σερβερ του Open Cloud τρέχει στο GebDoc και η βάση είναι πιο στην jQuery SQL.",
+    "ms": 716,
+    "wer": 0.6666666666666666
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 652,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 997,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Άνοιξε το αρχείο settings.jswen και άλλαξε το port σε 8080.",
+    "ms": 618,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Θα σε πάρω τηλέφωνο την Δετάρτη. Όχι, την Πέμπτη το πρωί.",
+    "ms": 718,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "ΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 699,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 922,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Τι κάνεις? Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+    "ms": 661,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-full",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 695,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 531,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Καλημέρα. Θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις τέσσερις το απόγευμα.",
+    "ms": 774,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "στείλε μου το αρχείο στο email μου,",
+    "ms": 520,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Ο σερβερ του OpenCloud τρέχει στο webdoc και η βάση είναι πιο στην jersql.",
+    "ms": 593,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 655,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 982,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Άνοιξε το αρχείο settings.jswn και άλλαξε το port σε 8080.",
+    "ms": 564,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Θα σε πάρω τηλέφωνο την Δετάρτη. Όχι, την Πέμπτη το πρωί.",
+    "ms": 602,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "ΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 697,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 763,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Τι κάνεις? Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+    "ms": 637,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-full",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 673,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 491,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Καλημέρα. Θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 588,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "στείλε μου το αρχείο στο email μου, είναι το info.ganikliklo.io.",
+    "ms": 422,
+    "wer": 0.35714285714285715
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Ο σερβερ του Open Cloud τρέχει στο GebDoc και η βάση είναι πιο στην JSQL.",
+    "ms": 477,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 445,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 762,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Άνοιξε το αρχείο settings.jswn και άλλαξε το port σε 8080.",
+    "ms": 474,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Θα σε πάρω τηλέφωνο την Δετάρτη. Όχι, την Πέμπτη το πρωί.",
+    "ms": 524,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "ΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 526,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 684,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Τι κάνεις? Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+    "ms": 515,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-full",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 541,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 431,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-full",
+    "id": "en-01",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "Please push the fix to the main branch and open a pull request before noon.",
+    "ms": 557,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-full",
+    "id": "en-02",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "The meeting is on Tuesday, no, Friday at 3.30.",
+    "ms": 489,
+    "wer": 0.2
+  },
+  {
+    "server": "ctx-full",
+    "id": "en-03",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "Em, I think we should, ah, deploy the new version tonight.",
+    "ms": 523,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-full",
+    "id": "en-04",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "Send the invoice for 1,200 euros to accounts at lurum.gr.",
+    "ms": 552,
+    "wer": 0.4666666666666667
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Καλημέρα. Θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 818,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "στείλε μου το αρχείο στο email μου,",
+    "ms": 598,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Ο σερβερ του OpenCloud τρέχει στο GebDoc και η βάση είναι πιο στην jersql.",
+    "ms": 715,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 715,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 1801,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Άνοιξε το αρχείο settings.jswen και άλλαξε το port σε 8080.",
+    "ms": 904,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Θα σε πάρω τηλέφωνο τη Δετάρτη, όχι, την Πέμπτη το πρωί.",
+    "ms": 729,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "ΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 746,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 1072,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Τι κάνεις? Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+    "ms": 710,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-1024",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 1143,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 555,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 667,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "στείλε μου το αρχείο στο email μου,",
+    "ms": 496,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Ο σερβερ του Open Cloud τρέχει στο GebDoc και η βάση είναι πιο στην Jerry SQL.",
+    "ms": 644,
+    "wer": 0.6666666666666666
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 647,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 1166,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Άνοιξε το αρχείο settings.jswen και άλλαξε το port σε 8080.",
+    "ms": 615,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Θα σε πάρω τηλέφωνο τη Δετάρτη, όχι, την Πέμπτη το πρωί.",
+    "ms": 801,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "ΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 673,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 2851,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Τι κάνεις? Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+    "ms": 598,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-1024",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 694,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 454,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 673,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "στείλε μου το αρχείο στο email μου,",
+    "ms": 289,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Ο σερβερ του Open Cloud τρέχει στο GebDoc και η βάση είναι πιο στην jQuery SQL.",
+    "ms": 694,
+    "wer": 0.6666666666666666
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 663,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 1032,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Άνοιξε το αρχείο settings.jswan και άλλαξε το port σε 8080.",
+    "ms": 528,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Θα σε πάρω τηλέφωνο τη Δετάρτη, όχι, την Πέμπτη το πρωί.",
+    "ms": 725,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "ΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 623,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 865,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Τι κάνεις? Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+    "ms": 673,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-1024",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 745,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 477,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 529,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "στείλε μου το αρχείο στο email μου, είναι το info.gannikliklo.io.",
+    "ms": 459,
+    "wer": 0.35714285714285715
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Ο σερβερ του Open Cloud τρέχει στο GebDoc και η βάση είναι πιο στην JersQL.",
+    "ms": 484,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 492,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 763,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Άνοιξε το αρχείο settings.jswen και άλλαξε το port σε 8080.",
+    "ms": 410,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Θα σε πάρω τηλέφωνο τη Δετάρτη, όχι, την Πέμπτη το πρωί.",
+    "ms": 495,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "ΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 485,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 642,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Τι κάνεις? Είμαι καλά, ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+    "ms": 500,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 511,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 380,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-1024",
+    "id": "en-01",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "Please push the fix to the main branch and open a pull request before noon.",
+    "ms": 450,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-1024",
+    "id": "en-02",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "The meeting is on Tuesday, no, Friday at 3.30.",
+    "ms": 490,
+    "wer": 0.2
+  },
+  {
+    "server": "ctx-1024",
+    "id": "en-03",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "M, I think we should, uh, deploy the new version tonight.",
+    "ms": 443,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-1024",
+    "id": "en-04",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "Send the invoice for 1,200 euros to accounts at lurum.gr.",
+    "ms": 458,
+    "wer": 0.4666666666666667
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 737,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "στείλε μου το αρχείο στο email μου,",
+    "ms": 579,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Ο σερβερ του Open Cloud τρέχει στο GebDoc και η βάση είναι πιο στην jersql.",
+    "ms": 618,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 694,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 1125,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Άνοιξε το αρχείο settings.jswen και άλλαξε το port σε 8080.",
+    "ms": 1123,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Θα σε πάρω τηλέφωνο τη Δετάρτη, όχι, την Πέμπτη το πρωί.",
+    "ms": 799,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "ΕΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 886,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη. Υπότιτλοι AUTHORWAVE",
+    "ms": 3149,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Τι κάνεις. Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά.",
+    "ms": 664,
+    "wer": 0.2727272727272727
+  },
+  {
+    "server": "ctx-768",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 991,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "auto",
+    "beam": 5,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 558,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Καλημέρα. Θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 772,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "στείλε μου το αρχείο στο email μου,",
+    "ms": 494,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Ο σερβερ του Open Cloud τρέχει στο GebDoc και η βάση είναι πιο στην Jerry SQL.",
+    "ms": 630,
+    "wer": 0.6666666666666666
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 595,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 1062,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Άνοιξε το αρχείο settings.jswen και άλλαξε το port σε 8080.",
+    "ms": 792,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Θα σε πάρω τηλέφωνο τη Δετάρτη, όχι, την Πέμπτη το πρωί.",
+    "ms": 735,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "ΕΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 639,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη. Υπότιτλοι AUTHORWAVE",
+    "ms": 3025,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Τι κάνεις. Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά.",
+    "ms": 643,
+    "wer": 0.2727272727272727
+  },
+  {
+    "server": "ctx-768",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 1033,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 5,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 596,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την Τρίτη στις 4 στο απόγευμα.",
+    "ms": 726,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "στείλε μου το αρχείο στο email μου,",
+    "ms": 466,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Ο σερβερ του OpenCloud τρέχει στο GebDoc και η βάση είναι πιο στην javasql.",
+    "ms": 536,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 834,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 1039,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Άνοιξε το αρχείο settings.jsuen και άλλαξε το port σε 8080.",
+    "ms": 455,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Θα σε πάρω τηλέφωνο τη Δετάρτη, όχι, την Πέμπτη το πρωί.",
+    "ms": 703,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "ΕΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 617,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 829,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Τι κάνεις. Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά.",
+    "ms": 653,
+    "wer": 0.2727272727272727
+  },
+  {
+    "server": "ctx-768",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 882,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 3,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 421,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Καλημέρα, θα ήθελα να κλείσουμε ένα ραντεβού την τρίτη στις 4 το απόγευμα.",
+    "ms": 506,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "στείλε μου το αρχείο στο email μου, είναι το info.gannikliklo.io.",
+    "ms": 402,
+    "wer": 0.35714285714285715
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-03",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Ο σερβερ του OpenCloud τρέχει στο GebDoc και η βάση είναι πιο στην Jersql.",
+    "ms": 435,
+    "wer": 0.5
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-04",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Θα πληρώσω 350 ευρώ στις 15 Σεπτεμβρίου 2026.",
+    "ms": 398,
+    "wer": 0.5833333333333334
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-05",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Η εταιρεία μου λέγεται Luram και φτιάχνει αυτοματισμούς με τεχνητή νοημοσύνη για μικρές επιχειρήσεις.",
+    "ms": 705,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-06",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Άνοιξε το αρχείο settings.jswen και άλλαξε το port σε 8080.",
+    "ms": 399,
+    "wer": 0.42857142857142855
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-07",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Θα σε πάρω τηλέφωνο τη Δετάρτη, όχι, την Πέμπτη το πρωί.",
+    "ms": 458,
+    "wer": 0.18181818181818182
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-08",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "ΕΕΕ. Νομίζω ότι, εμ, πρέπει να ξαναδούμε το πλάνο για τα social media.",
+    "ms": 506,
+    "wer": 0.07692307692307693
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-09",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Ο Γιάννης Παπαδόπουλος και η Μαρία Κωνσταντίνου θα έρθουν στη Θεσσαλονίκη.",
+    "ms": 587,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "el-10",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Τι κάνεις? Είμαι καλά. Ευχαριστώ. Εσύ πώς πας με τη δουλειά?",
+    "ms": 476,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-768",
+    "id": "mix-01",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Έκανα deploy το frontend στο Cloudflare και τώρα το dashboard φορτώνει σε μισό δευτερόλεπτο.",
+    "ms": 493,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "mix-02",
+    "corpus": "el",
+    "language": "el",
+    "beam": 1,
+    "text": "Πες τον GLOD να γράψει ένα script σε Python που διαβάζει το CSV.",
+    "ms": 361,
+    "wer": 0.15384615384615385
+  },
+  {
+    "server": "ctx-768",
+    "id": "en-01",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "Please push the fix to the main branch and open a pull request before noon.",
+    "ms": 436,
+    "wer": 0.0
+  },
+  {
+    "server": "ctx-768",
+    "id": "en-02",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "The meeting is on Tuesday, no, Friday at 3.30.",
+    "ms": 414,
+    "wer": 0.2
+  },
+  {
+    "server": "ctx-768",
+    "id": "en-03",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "M, I think we should, uh, deploy the new version tonight.",
+    "ms": 407,
+    "wer": 0.09090909090909091
+  },
+  {
+    "server": "ctx-768",
+    "id": "en-04",
+    "corpus": "en",
+    "language": "auto",
+    "beam": 5,
+    "text": "Send the invoice for 1,200 euros to accounts at lurum.gr.",
+    "ms": 427,
+    "wer": 0.4666666666666667
+  }
+]

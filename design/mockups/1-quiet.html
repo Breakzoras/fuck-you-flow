@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Mockup 1: Quiet</title>
+<style>
+  :root { --bg:#f6f7f8; --panel:#ffffff; --fg:#14202a; --muted:#5b6b75; --line:#e3e8ec; --accent:#0f8b8d; --accent-2:#e8f5f5; --rec:#e5484d; }
+  * { box-sizing:border-box; } body { margin:0; background:#d9dde2; font-family:"Segoe UI", system-ui, sans-serif; color:var(--fg); font-size:17px; }
+  .frame { width:1100px; margin:28px auto; background:var(--bg); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.25); overflow:hidden; }
+  .titlebar { height:38px; background:#eef1f3; display:flex; align-items:center; padding:0 14px; gap:10px; font-size:14px; color:var(--muted); border-bottom:1px solid var(--line); }
+  .titlebar .dot { width:12px; height:12px; border-radius:50%; background:var(--accent); }
+  .tabs { display:flex; gap:4px; padding:14px 28px 0; border-bottom:1px solid var(--line); background:var(--bg); }
+  .tab { padding:12px 18px; border-radius:10px 10px 0 0; color:var(--muted); font-weight:600; font-size:16px; }
+  .tab.on { background:var(--panel); color:var(--accent); border:1px solid var(--line); border-bottom:1px solid var(--panel); margin-bottom:-1px; }
+  .main { padding:32px 28px 40px; background:var(--panel); min-height:560px; }
+  h1 { margin:0 0 6px; font-size:30px; font-weight:700; }
+  .lead { color:var(--muted); margin:0 0 28px; font-size:18px; }
+  .status { display:flex; align-items:center; gap:14px; padding:18px 22px; background:var(--accent-2); border-radius:14px; margin-bottom:26px; font-size:18px; }
+  .status b { color:var(--accent); }
+  kbd { font-family:Consolas, monospace; background:#fff; border:1px solid var(--line); border-bottom-width:3px; border-radius:8px; padding:4px 10px; font-size:16px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; margin-bottom:26px; }
+  .stat { border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .stat .n { font-size:34px; font-weight:700; } .stat .l { color:var(--muted); font-size:15px; }
+  h2 { font-size:20px; margin:0 0 12px; }
+  .item { display:flex; justify-content:space-between; gap:20px; padding:14px 0; border-top:1px solid var(--line); }
+  .item .t { font-size:17px; } .item .m { color:var(--muted); font-size:14px; white-space:nowrap; }
+  .pill { display:inline-flex; flex-direction:column; align-items:center; gap:8px; padding:12px 22px; border-radius:20px; background:#101820; color:#fff; box-shadow:0 10px 30px rgba(0,0,0,.35); margin-top:34px; }
+  .pill .row { display:flex; align-items:center; gap:10px; font-weight:600; font-size:17px; } .pill .rd { width:12px; height:12px; border-radius:50%; background:var(--rec); }
+  .bars { display:flex; gap:3px; align-items:center; height:24px; } .bars i { width:4px; border-radius:2px; background:var(--rec); display:block; }
+  .note { width:1100px; margin:0 auto 40px; font-size:16px; color:#2a3a44; }
+</style></head><body>
+<div class="frame">
+  <div class="titlebar"><span class="dot"></span> Lalia</div>
+  <div class="tabs"><div class="tab on">Home</div><div class="tab">History</div><div class="tab">Dictionary</div><div class="tab">Snippets</div><div class="tab">Statistics</div><div class="tab">Settings</div></div>
+  <div class="main">
+    <h1>Ready</h1>
+    <p class="lead">Press <kbd>Right Alt</kbd> once, speak, press again.</p>
+    <div class="status"><span>●</span> Speech engine <b>ready on the GPU</b> · Microphone <b>Razer Barracuda X</b> · Greek + English</div>
+    <div class="grid">
+      <div class="stat"><div class="n">1,240</div><div class="l">words today</div></div>
+      <div class="stat"><div class="n">0.6 s</div><div class="l">median wait</div></div>
+      <div class="stat"><div class="n">14 min</div><div class="l">saved vs typing</div></div>
+    </div>
+    <h2>Last transcripts</h2>
+    <div class="item"><div class="t">Λοιπόν, άκουσέ με τώρα. Έχω ένα link από το YouTube και το επίσημο κανάλι του OpenClaw…</div><div class="m">Claude · 17:55</div></div>
+    <div class="item"><div class="t">Κάνε μου σε παρακαλώ ένα tutorial πόσο γρήγορα μπορώ να μιλάω…</div><div class="m">Claude · 17:44</div></div>
+    <div class="item"><div class="t">Επίσης θα κάνω τώρα δοκιμή να πω κάποιες λέξεις. OneClickClaw. Luram.</div><div class="m">Claude · 17:42</div></div>
+    <div class="pill"><div class="row"><span class="rd"></span> Listening 4.2s</div><div class="bars"><i style="height:6px"></i><i style="height:14px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:18px"></i><i style="height:24px"></i><i style="height:10px"></i><i style="height:16px"></i><i style="height:8px"></i><i style="height:20px"></i><i style="height:14px"></i><i style="height:6px"></i></div></div>
+  </div>
+</div>
+<p class="note"><b>1. Quiet.</b> Light, one column, tabs on top, one teal accent. The Home screen answers three questions at a glance: is it ready, what did it write last, how much did it save. Nothing else competes for attention.</p>
+</body></html>
