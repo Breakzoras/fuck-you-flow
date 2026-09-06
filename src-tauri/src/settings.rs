@@ -275,6 +275,11 @@ pub struct GeneralSettings {
     pub play_sounds: bool,
     /// The machine was inspected once and threads/model/backend were set from it.
     pub machine_profiled: bool,
+    /// Hidden developer mode: records every event to the journal and shows the
+    /// Debug panel in Diagnostics. Turned on by clicking the Diagnostics title
+    /// five times; nothing in the normal interface mentions it.
+    #[serde(default)]
+    pub debug_mode: bool,
 }
 
 impl Default for GeneralSettings {
@@ -286,6 +291,7 @@ impl Default for GeneralSettings {
             first_run_done: false,
             play_sounds: true,
             machine_profiled: false,
+            debug_mode: false,
         }
     }
 }

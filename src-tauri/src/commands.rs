@@ -564,3 +564,71 @@ pub fn quit_app(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) {
     tauri::async_runtime::block_on(async move { engine.stop().await });
     app.exit(0);
 }
+
+// ---------------------------------------------------------------------------
+// Hidden debug mode
+//
+// Nothing in the normal interface points at it: the Diagnostics title turns it
+// on after five clicks. It exists so a problem reported by a stranger can be
+// read without guessing, now that the app is public.
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn debug_mode_get(state: State<'_, Arc<AppState>>) -> bool {
+    state.shared.settings.read().general.debug_mode
+}
+
+#[tauri::command]
+pub fn debug_mode_set(on: bool, state: State<'_, Arc<AppState>>) -> R<()> {
+    let mut s = state.shared.settings.read().clone();
+    s.general.debug_mode = on;
+    s.save(&crate::paths::settings_file()).map_err(e)?;
+    *state.shared.settings.write() = s;
+    crate::journal::set_verbose(on);
+    crate::journal::info("debug.mode", serde_json::json!({ "on": on }));
+    tracing::info!("debug mode {}", if on { "on" } else { "off" });
+    Ok(())
+}
+
+/// The newest journal entries, newest first, as raw JSON lines.
+#[tauri::command]
+pub fn debug_events(limit: Option<usize>) -> Vec<String> {
+    crate::journal::tail(limit.unwrap_or(200).min(2000))
+}
+
+/// Everything needed to understand a problem, in one block of text: the
+/// machine, the engine, the settings that matter and the recent events. Also
+/// written to `logs\debug-bundle.txt` so it can be read without the app.
+#[tauri::command]
+pub fn debug_bundle(state: State<'_, Arc<AppState>>) -> R<String> {
+    use std::fmt::Write as _;
+    let mut out = String::new();
+    let _ = writeln!(out, "Fuck You Flow {} debug bundle", env!("CARGO_PKG_VERSION"));
+    let _ = writeln!(out, "written {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
+    let hw = crate::hw::detect();
+    let _ = writeln!(out, "\n== machine ==\n{hw:#?}");
+    {
+        let s = state.shared.settings.read();
+        let _ = writeln!(out, "\n== settings ==");
+        let _ = writeln!(out, "hotkeys      {:?}", s.hotkeys);
+        let _ = writeln!(out, "asr backend  {} model {}", s.asr.backend, s.asr.model_id);
+        let _ = writeln!(out, "threads      {}  beam {}", s.asr.threads, s.asr.beam_size);
+        let _ = writeln!(out, "segmenting   {}", s.asr.segment_while_speaking);
+        let _ = writeln!(out, "paste settle {} ms", s.insertion.paste_settle_ms);
+        let _ = writeln!(out, "debug mode   {}", s.general.debug_mode);
+    }
+    let _ = writeln!(out, "\n== problems recorded this run: {} ==", crate::journal::problem_count());
+    let _ = writeln!(out, "\n== last 300 events (newest first) ==");
+    for line in crate::journal::tail(300) {
+        let _ = writeln!(out, "{line}");
+    }
+    let _ = writeln!(out, "\n== last 60 log lines flagged as problems ==");
+    for line in recent_problems().into_iter().take(60) {
+        let _ = writeln!(out, "{line}");
+    }
+    let path = crate::paths::logs_dir().join("debug-bundle.txt");
+    if let Err(e) = std::fs::write(&path, &out) {
+        tracing::warn!("could not write {}: {e}", path.display());
+    }
+    Ok(out)
+}

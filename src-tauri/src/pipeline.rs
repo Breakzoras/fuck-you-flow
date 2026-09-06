@@ -361,6 +361,10 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
     overlay::emit_state(app, OverlayPayload { state, message: None, preview: None, can_retry: false, seconds: 0.0 });
     set_phase(shared, Phase::Recording, mode == Mode::HandsFree);
     tracing::info!("recording started in {} ms (target {}, {})", t0.elapsed().as_millis(), ctx.friendly_name, ctx.target.process_name);
+    crate::journal::info(
+        "record.start",
+        serde_json::json!({ "app": ctx.target.process_name, "friendly": ctx.friendly_name, "ms": t0.elapsed().as_millis() as u64 }),
+    );
 
     // 4. Password field check (UIA) after we already reacted. Chromium and
     // Electron apps can take seconds to answer UI Automation, so the wait is
@@ -488,7 +492,9 @@ async fn finalize(
     if rec.overflowed {
         tracing::warn!("recording hit the maximum length; transcribing what fits");
     }
-    let samples = rec.samples;
+    // `mut` only matters to the debug-only fake microphone below.
+    #[allow(unused_mut)]
+    let mut samples = rec.samples;
     // Test harness (debug builds only): replace the microphone with a WAV file
     // named in %LOCALAPPDATA%\Lalia\fake_mic.txt so the whole hotkey -> ASR ->
     // cleanup -> insertion path can be exercised without a human speaking.
@@ -550,6 +556,7 @@ async fn process(
         Some(a) if !a.trimmed.is_empty() => (a.total_ms, a.trimmed),
         Some(a) => {
             tracing::info!("no speech: {} ms audio, {} ms speech, peak {:.3}", a.total_ms, a.speech_ms, a.peak);
+            crate::journal::info("record.no_speech", serde_json::json!({ "audio_ms": a.total_ms, "speech_ms": a.speech_ms, "peak": a.peak }));
             overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0 });
             finish_idle(shared, app, idle_timer, 1200);
             return;
@@ -774,6 +781,18 @@ async fn process(
         .unwrap_or((insertion::InsertReport { outcome: InsertOutcome::Failed, method: "paste".into(), message: Some("insertion task crashed".into()), elapsed_ms: 0 }, false));
         let (r, focus_lost) = report;
         tracing::info!("insertion: {:?} via {} in {} ms{}{}", r.outcome, r.method, r.elapsed_ms, if focus_lost { " (focus lost)" } else { "" }, r.message.as_deref().map(|m| format!(": {m}")).unwrap_or_default());
+        let ok = matches!(r.outcome, crate::insertion::InsertOutcome::Pasted | crate::insertion::InsertOutcome::PastedNoRestore | crate::insertion::InsertOutcome::Typed);
+        crate::journal::record(
+            if ok { "info" } else { "warn" },
+            "insert.done",
+            serde_json::json!({
+                "outcome": format!("{:?}", r.outcome),
+                "method": r.method,
+                "ms": r.elapsed_ms,
+                "focus_lost": focus_lost,
+                "message": r.message,
+            }),
+        );
         insertion_method = r.method.clone();
         match r.outcome {
             InsertOutcome::Pasted | InsertOutcome::PastedNoRestore | InsertOutcome::Typed => ("success".to_string(), OverlayState::Success, r.message),

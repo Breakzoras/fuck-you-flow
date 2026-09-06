@@ -63,8 +63,17 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
         }
     }
     let mut settings = Settings::load(&crate::paths::settings_file());
+    crate::journal::set_verbose(settings.general.debug_mode);
     let hw = crate::hw::detect();
     tracing::info!("machine: {}", hw.summary());
+    crate::journal::info(
+        "app.start",
+        serde_json::json!({
+            "version": env!("CARGO_PKG_VERSION"),
+            "machine": hw.summary(),
+            "debug_mode": settings.general.debug_mode,
+        }),
+    );
     let mut changed = false;
     // First start on this machine: threads and model from the hardware.
     if !settings.general.machine_profiled {

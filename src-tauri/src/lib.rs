@@ -10,6 +10,7 @@ pub mod hotkey;
 pub mod hw;
 pub mod insertion;
 pub mod jobobject;
+pub mod journal;
 pub mod learning;
 pub mod logging;
 pub mod models;
@@ -101,6 +102,10 @@ pub fn run() {
             commands::open_logs_folder,
             commands::diagnostics,
             commands::recent_problems,
+            commands::debug_mode_get,
+            commands::debug_mode_set,
+            commands::debug_events,
+            commands::debug_bundle,
             commands::current_foreground_app,
             commands::record_shortcut,
             commands::show_main_window,

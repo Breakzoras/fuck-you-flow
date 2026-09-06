@@ -430,21 +430,44 @@ pub mod win {
         }
     }
 
+    /// The class name of a window, empty when it has none.
+    fn window_class(h: HWND) -> String {
+        use windows::Win32::UI::WindowsAndMessaging::GetClassNameW;
+        unsafe {
+            let mut b = [0u16; 128];
+            let n = GetClassNameW(h, &mut b).max(0) as usize;
+            String::from_utf16_lossy(&b[..n])
+        }
+    }
+
+    /// Some windows swallow Ctrl+V without complaining and without showing
+    /// anything: the desktop treats it as "paste a file", the taskbar ignores
+    /// it. A paste sent there looks like a success in every measurement we have,
+    /// while the user sees nothing. Name those cases so the caller can refuse.
+    ///
+    /// Only classes that are certainly not text targets belong here. A window
+    /// that merely does not report a caret (Chromium does not) must NOT be
+    /// listed: that would refuse pastes that work today.
+    fn unusable_target(h: HWND) -> Option<&'static str> {
+        match window_class(h).as_str() {
+            "Progman" | "WorkerW" => Some("the desktop"),
+            "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" => Some("the taskbar"),
+            "" => Some("no window"),
+            _ => None,
+        }
+    }
+
     /// Which window has the keyboard focus right now, for the log when a paste
     /// went nowhere.
     fn focus_diagnostics() -> String {
-        use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetGUIThreadInfo, GUITHREADINFO};
+        use windows::Win32::UI::WindowsAndMessaging::{GetGUIThreadInfo, GUITHREADINFO};
         unsafe {
             let fg = GetForegroundWindow();
             let tid = GetWindowThreadProcessId(fg, None);
             let mut gti = GUITHREADINFO::default();
             gti.cbSize = std::mem::size_of::<GUITHREADINFO>() as u32;
             let _ = GetGUIThreadInfo(tid, &mut gti);
-            let class = |h: HWND| {
-                let mut b = [0u16; 128];
-                let n = GetClassNameW(h, &mut b).max(0) as usize;
-                String::from_utf16_lossy(&b[..n])
-            };
+            let class = window_class;
             format!(
                 "foreground {:?} '{}', focused control {:?} '{}', caret window {:?}",
                 fg, class(fg), gti.hwndFocus, class(gti.hwndFocus), gti.hwndCaret
@@ -516,6 +539,35 @@ pub mod win {
             tracing::debug!("paste: modifiers still held after 400 ms: {held:?}; releasing them");
         }
         release_modifiers();
+
+        // Refuse to paste into a window that cannot hold text. Ctrl+V there is
+        // accepted silently, so every signal we have would report success while
+        // the user sees nothing arrive. Leave the text on the clipboard and say
+        // so out loud instead.
+        let fg_now = unsafe { GetForegroundWindow() };
+        if let Some(what) = unusable_target(fg_now) {
+            tracing::warn!("paste refused: the target is {what}; {}", focus_diagnostics());
+            crate::journal::warn(
+                "insert.refused",
+                serde_json::json!({
+                    "reason": "target cannot hold text",
+                    "target": what,
+                    "class": window_class(fg_now),
+                    "chars": text.chars().count(),
+                }),
+            );
+            unsafe {
+                let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
+            }
+            let _ = wait_done(Duration::from_secs(2));
+            return InsertReport {
+                outcome: InsertOutcome::PasteNotConsumed,
+                method: "paste".into(),
+                message: Some(format!("{what} was in front, which cannot hold text; the text is on the clipboard")),
+                elapsed_ms: started.elapsed().as_millis() as u64,
+            };
+        }
+
         st.shared.lock().keystroke_at = Some(Instant::now());
         send_paste_chord(opts.shift_paste);
 
@@ -568,6 +620,14 @@ pub mod win {
 
         if !consumed {
             tracing::warn!("paste not consumed: {}", focus_diagnostics());
+            crate::journal::warn(
+                "insert.not_consumed",
+                serde_json::json!({
+                    "class": window_class(unsafe { GetForegroundWindow() }),
+                    "chars": text.chars().count(),
+                    "attempts": attempts,
+                }),
+            );
             // The app never asked for the data. Leave real text on the clipboard so the
             // user can paste by hand, and do not restore.
             unsafe {
