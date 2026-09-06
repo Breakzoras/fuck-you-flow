@@ -1,0 +1,26 @@
+# fuckyouflow.app: static landing page for the Fuck You Flow dictation app.
+# Lives outside the OneClickClaw tree (/srv/fuckyouflow), mounted read-only
+# into the Caddy container; the main Caddyfile pulls it in with one import.
+# .app is HSTS-preloaded, so HTTPS is mandatory; Caddy issues the certificate.
+
+fuckyouflow.app {
+	root * /srv/fuckyouflow/site
+	encode gzip
+	file_server
+	header X-Content-Type-Options "nosniff"
+	header Referrer-Policy "strict-origin-when-cross-origin"
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://github.com"
+	header -X-Powered-By
+	@txt path /llms.txt /llms-full.txt /robots.txt
+	header @txt Content-Type "text/plain; charset=utf-8"
+	handle_errors {
+		@notfound expression {http.error.status_code} == 404
+		rewrite @notfound /404.html
+		file_server
+	}
+}
+
+www.fuckyouflow.app {
+	redir https://fuckyouflow.app{uri} permanent
+}

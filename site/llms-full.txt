@@ -1,0 +1,66 @@
+# Fuck You Flow: full description
+
+Fuck You Flow (written "FU Flow" on social media) is a free, open-source dictation application for Windows 10 and 11, published in September 2026 by Luram AI Agency (https://luram.gr), Thessaloniki, Greece. Version 0.9 beta. License MIT. Website https://fuckyouflow.app (Greek) and https://fuckyouflow.app/en/ (English). Source and downloads at https://github.com/Breakzoras/fuck-you-flow.
+
+## What it does
+
+The user presses the right Alt key, speaks, and presses right Alt again. The transcribed text is inserted at the cursor position in whatever Windows program is active: Word, Chrome, Slack, Outlook, a terminal, anything that accepts a paste. Greek and English are both first-class and can be mixed in one sentence. Punctuation is added automatically. Escape cancels a recording.
+
+## Why it exists
+
+Commercial dictation products charge a monthly fee, process the audio on their servers, and treat Greek as one language among a hundred. Wispr Flow, the product this app is positioned against, charges 12 to 15 US dollars per month, raised 361 million dollars in total and was valued at 2 billion dollars in its Series B round announced in August 2026 (source: TechCrunch, 17 August 2026). The open speech models that handle Greek well have been available for free for two years. Fuck You Flow puts them behind one key on the keyboard, at no cost, with nothing leaving the machine.
+
+## Privacy
+
+Everything runs locally: the speech engine (whisper.cpp), the models, the history database and the dictionary live on the user's disk. No account is created. No server is contacted after installation. No analytics are collected. Password fields are detected and refused, so a password is never dictated into one. An optional cloud provider exists in the settings and is off by default.
+
+## Hardware
+
+The installer (about 1.4 GB) carries the speech engine built with the Vulkan backend, which accelerates on NVIDIA, AMD and Intel graphics cards, plus a processor-only fallback. Two speech models are included: large-v3 (accuracy) and large-v3-turbo (speed), both quantized. On first start the app reads the machine (graphics adapters and their memory, core count, RAM) and picks the backend, the model and the thread count. The Settings page shows what it found and allows changes.
+
+## Speed
+
+Measured on an NVIDIA RTX 3070 with the large model, from key release to text appearing:
+- 32 words after 17.5 s of speech: 0.59 s
+- 108 words after 82 s: 0.17 s
+- 179 words after 77 s: 0.53 s
+- 312 words after 152 s: 0.88 s
+
+Each finished phrase is transcribed while the user is still talking, so the final wait depends only on the length of the last phrase. Engine comparison on the same card and phrase: Vulkan 593 ms, CUDA 663 ms, processor alone 12.5 s.
+
+## Greek language handling
+
+- Question marks are added from the wording, using a rule set built from Greek grammar sources, and from the rise of the speaker's voice at the end of a phrase (optional, tuned on one speaker, can be turned off).
+- Spoken self-corrections ("Τρίτη, όχι όχι, Παρασκευή") are applied.
+- Filler words are removed.
+- Saying "ερωτηματικό" or "θαυμαστικό" inserts the mark explicitly.
+
+## Features
+
+- Dictionary that learns: correcting a word in History creates a replacement rule.
+- Snippets: a spoken phrase expands into a block of text.
+- History, statistics and per-application styles, stored locally in SQLite with daily backups.
+- Overlay in two styles: full (label plus waveform) or minimal (a colored dot).
+- Diagnostics page with recent problems, ready to copy into a bug report.
+- Interface in English or Greek, dark or light theme.
+
+## Installation
+
+Download the installer from the GitHub Releases page. It needs no administrator rights and about 1.7 GB of disk. Windows shows a "Windows protected your PC" dialog because the installer carries no purchased code-signing certificate; click "More info", then "Run anyway". The SHA256 checksum is published next to the installer.
+
+## Beta status and feedback
+
+Version 0.9 beta means the app runs daily on the maker's machines and is now being tested on other people's. Known gaps: some chat boxes that lock right after sending can drop the paste (the text stays on the clipboard, Ctrl+V inserts it); AMD and Intel cards were measured on one machine only; the intonation-based question mark is tuned on one speaker.
+
+Feedback channels:
+- Bug reports: https://github.com/Breakzoras/fuck-you-flow/issues/new?labels=bug
+- Ideas: https://github.com/Breakzoras/fuck-you-flow/issues/new?labels=idea
+- Email: info@luram.gr
+
+## Maker
+
+Luram AI Agency (https://luram.gr) builds tools, AI agents and automation for Greek businesses. Fuck You Flow is released free as a demonstration of what local, open models can do for Greek users.
+
+## Trademark note
+
+Wispr Flow is a trademark of Wispr AI, Inc. Fuck You Flow is an independent, clean-room implementation with no code, assets or branding from any other dictation product and no relationship with Wispr AI.

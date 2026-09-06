@@ -1,0 +1,25 @@
+# Fuck You Flow
+
+> Free, open-source dictation app for Windows 10 and 11. Greek and English, mixed in the same sentence. Speech recognition runs entirely on the user's own computer (whisper.cpp, Vulkan on NVIDIA, AMD and Intel cards, processor fallback). No account, no subscription, no server, no internet connection after setup. Positioned as a free alternative to Wispr Flow. Version 0.9 beta. Built by Luram AI Agency (luram.gr), Thessaloniki, Greece. MIT license.
+
+## Pages
+
+- [Greek landing page](https://fuckyouflow.app/): why it exists, the numbers, how it works, speed, FAQ, feedback
+- [English landing page](https://fuckyouflow.app/en/): same content in English
+- [Source code](https://github.com/Breakzoras/fuck-you-flow): repository, README, documentation
+- [Download](https://github.com/Breakzoras/fuck-you-flow/releases): Windows installer (1.4 GB, all models included) and SHA256 checksums
+- [Known limitations](https://github.com/Breakzoras/fuck-you-flow/blob/main/docs/KNOWN-LIMITATIONS.md)
+
+## Key facts
+
+- Hotkey: right Alt starts, right Alt stops and inserts the text where the cursor is. Escape cancels.
+- Latency measured on an RTX 3070: 0.17 to 0.88 s from key release to text, even after 2.5 minutes of speech.
+- Question marks in Greek come from a grammar rule set and from the rise of the speaker's voice.
+- A dictionary learns from corrections made in History.
+- Password fields are detected and never filled.
+- Feedback: GitHub Issues or info@luram.gr.
+
+## Optional
+
+- [Full description](https://fuckyouflow.app/llms-full.txt)
+- [Luram AI Agency](https://luram.gr): the maker, tools and automation for Greek businesses

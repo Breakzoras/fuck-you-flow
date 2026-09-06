@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuck You Flow: free dictation for Windows, the Wispr Flow alternative</title>
+<meta name="description" content="Free Wispr Flow alternative for Windows. Greek and English dictation that runs on your own PC. No $15 a month, no account, no audio leaving the machine. Open source, 0.9 beta.">
+<link rel="canonical" href="https://fuckyouflow.app/en/">
+<link rel="alternate" hreflang="el" href="https://fuckyouflow.app/">
+<link rel="alternate" hreflang="en" href="https://fuckyouflow.app/en/">
+<link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/en/">
+<link rel="icon" href="/assets/favicon.ico" sizes="48x48">
+<link rel="icon" href="/assets/icon-64.png" type="image/png" sizes="64x64">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
+<link rel="stylesheet" href="/style.css">
+<meta name="theme-color" content="#0c0c0c">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Fuck You Flow">
+<meta property="og:title" content="Fuck You Flow: free dictation for Windows">
+<meta property="og:description" content="The Wispr Flow alternative that costs nothing. Greek and English, everything on your own PC.">
+<meta property="og:url" content="https://fuckyouflow.app/en/">
+<meta property="og:image" content="https://fuckyouflow.app/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<script src="/theme.js"></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://fuckyouflow.app/#app",
+      "name": "Fuck You Flow",
+      "alternateName": "FU Flow",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Windows 10, Windows 11",
+      "softwareVersion": "0.9 beta",
+      "inLanguage": ["el", "en"],
+      "description": "Free dictation for Windows with Greek and English. Runs entirely on the user's own machine. A Wispr Flow alternative with no subscription.",
+      "url": "https://fuckyouflow.app/en/",
+      "downloadUrl": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.1.0/Fuck.You.Flow.Setup.0.1.0.exe",
+      "installUrl": "https://github.com/Breakzoras/fuck-you-flow/releases",
+      "fileSize": "1464MB",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "author": { "@id": "https://luram.gr/#organization" },
+      "publisher": { "@id": "https://luram.gr/#organization" },
+      "screenshot": "https://fuckyouflow.app/assets/1-home.png",
+      "featureList": "One-key dictation (right Alt), Greek and English in the same sentence, GPU acceleration on NVIDIA, AMD and Intel, a dictionary that learns, local history and statistics, no account, no internet connection after setup"
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://luram.gr/#organization",
+      "name": "Luram AI Agency",
+      "url": "https://luram.gr",
+      "email": "info@luram.gr",
+      "sameAs": ["https://github.com/Breakzoras"]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://fuckyouflow.app/en/#faq",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is Fuck You Flow a free alternative to Wispr Flow?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. It does the same job, one-key dictation into any Windows program, with no subscription and no account. The code is open source under the MIT license on GitHub." } },
+        { "@type": "Question", "name": "Where does my voice go?", "acceptedAnswer": { "@type": "Answer", "text": "Nowhere. Recognition runs on your own machine with the Whisper model. After setup no internet connection is needed. Password fields are detected and left empty." } },
+        { "@type": "Question", "name": "Does it need an NVIDIA card?", "acceptedAnswer": { "@type": "Answer", "text": "No. The engine runs on NVIDIA, AMD and Intel cards through Vulkan. With no graphics card it runs on the processor, more slowly." } },
+        { "@type": "Question", "name": "Why does Windows show a blue warning during install?", "acceptedAnswer": { "@type": "Answer", "text": "The installer carries no purchased code-signing certificate. Click More info, then Run anyway. The SHA256 checksum of the file is published on GitHub." } },
+        { "@type": "Question", "name": "Why the name?", "acceptedAnswer": { "@type": "Answer", "text": "A dictation company was valued at 2 billion dollars for something open models have done for free for two years. The name is the reply." } }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/en/"><img src="/assets/icon-64.png" alt="" width="30" height="30">Fuck You <span>Flow</span></a>
+    <nav class="main" aria-label="Main">
+      <a href="#numbers">The numbers</a>
+      <a href="#how">How it works</a>
+      <a href="#speed">Speed</a>
+      <a href="#faq">FAQ</a>
+      <a href="#feedback">Feedback</a>
+      <a href="https://github.com/Breakzoras/fuck-you-flow">GitHub</a>
+    </nav>
+    <div class="tools">
+      <a href="/" hreflang="el" lang="el">ΕΛ</a>
+      <button id="theme-toggle" type="button" data-light="Light" data-dark="Dark" aria-label="Switch theme">Light</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero">
+  <div class="wrap">
+    <span class="badge">0.9 beta · Windows 10 and 11</span>
+    <h1>Dictation for Windows.<br>Free. <span>Yours.</span></h1>
+    <p class="lead">Wispr Flow raised 361 million dollars to rent you your own voice for 15 dollars a month. We put the same thing behind one key. Greek and English, everything on your PC, nothing in the cloud.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.1.0/Fuck.You.Flow.Setup.0.1.0.exe">Download for Windows</a>
+      <a class="btn ghost" href="https://github.com/Breakzoras/fuck-you-flow">Read the code</a>
+    </div>
+    <p class="fine">1.4 GB with every model inside. No internet connection after setup. MIT license. The SHA256 checksum is on the <a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.1.0">release page</a>.</p>
+  </div>
+</section>
+
+<section id="numbers">
+  <div class="wrap">
+    <h2>The numbers</h2>
+    <p class="sub">Every figure in the left column is public. Ours are even easier to verify: they are zero.</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>Wispr Flow</th><th>Fuck You Flow</th></tr></thead>
+      <tbody>
+        <tr><td>Price</td><td class="them">12 to 15 dollars a month</td><td class="us">0, forever</td></tr>
+        <tr><td>Company valuation</td><td class="them">2 billion dollars (August 2026)</td><td class="us">One domain name</td></tr>
+        <tr><td>Investor money</td><td class="them">361 million dollars</td><td class="us">One weekend</td></tr>
+        <tr><td>Where your voice goes</td><td class="them">Their servers</td><td class="us">Into the text. Then nowhere.</td></tr>
+        <tr><td>Account</td><td class="them">Required</td><td class="us">None</td></tr>
+        <tr><td>Internet</td><td class="them">Always</td><td class="us">Only to download it</td></tr>
+        <tr><td>Greek</td><td class="them">One of 100+ languages</td><td class="us">First language, mixed with English in the same sentence</td></tr>
+        <tr><td>Source code</td><td class="them">Secret</td><td class="us">Open, MIT, on GitHub</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <blockquote class="quote">The models that do Greek well have been open and free for two years. Someone had to put them behind a key. We did.<cite>Luram AI Agency, Thessaloniki</cite></blockquote>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p class="sub">Three steps. In any program: Word, Chrome, Slack, Outlook, even a terminal.</p>
+    <div class="steps">
+      <div class="step"><div class="n">01</div><h3>Press <kbd>right Alt</kbd></h3><p>A small window with a waveform appears. It listens.</p></div>
+      <div class="step"><div class="n">02</div><h3>Speak</h3><p>Greek, English or both. Each finished phrase is transcribed while you keep talking.</p></div>
+      <div class="step"><div class="n">03</div><h3>Press <kbd>right Alt</kbd> again</h3><p>The text lands where your cursor was. With periods, commas and question marks.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="speed">
+  <div class="wrap">
+    <h2>Speed</h2>
+    <p class="sub">Measured on an RTX 3070 with the large model. The wait runs from the moment you release the key to the text appearing.</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th class="num">Words</th><th class="num">Speech</th><th class="num">Wait</th></tr></thead>
+      <tbody>
+        <tr><td class="num">32</td><td class="num">17.5 s</td><td class="num us">0.59 s</td></tr>
+        <tr><td class="num">108</td><td class="num">82 s</td><td class="num us">0.17 s</td></tr>
+        <tr><td class="num">179</td><td class="num">77 s</td><td class="num us">0.53 s</td></tr>
+        <tr><td class="num">312</td><td class="num">152 s</td><td class="num us">0.88 s</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="fine">The wait depends only on the length of the last phrase, because the earlier ones were transcribed while you spoke. On an AMD or Intel card the engine runs through Vulkan at the same speed. Without a graphics card it runs on the processor, with a wait of a few seconds.</p>
+  </div>
+</section>
+
+<section id="inside">
+  <div class="wrap">
+    <h2>What is inside</h2>
+    <p class="sub">Everything the others sell as premium.</p>
+    <div class="grid">
+      <div class="card"><h3>Greek that holds up</h3><p>Question marks from the wording through grammar rules, or from the rise of your voice. Your spoken self-corrections are applied.</p></div>
+      <div class="card"><h3>A dictionary that learns</h3><p>Correct a word once in History and it becomes a rule. Names, companies and technical terms come out right from then on.</p></div>
+      <div class="card"><h3>Every graphics card</h3><p>NVIDIA, AMD, Intel. The first start reads the machine and picks the model and settings by itself.</p></div>
+      <div class="card"><h3>Snippets</h3><p>Say a phrase, get a whole block of text. Signatures, addresses, the replies you type every day.</p></div>
+      <div class="card"><h3>History and statistics</h3><p>How many words, how much time saved, what you said yesterday. All in one file on your disk.</p></div>
+      <div class="card"><h3>Nothing leaves</h3><p>No server, no analytics, no account. Password fields are detected and stay empty.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="shots">
+  <div class="wrap">
+    <h2>The app</h2>
+    <p class="sub">Black, monospace, large type. Every screen is a list of facts.</p>
+    <div class="shots">
+      <figure><img src="/assets/1-home.png" alt="Fuck You Flow home screen: engine status, microphone, hotkey and recent dictations" width="1280" height="820" loading="lazy"><figcaption>Home: engine, microphone, words today</figcaption></figure>
+      <figure><img src="/assets/2-history.png" alt="Dictation history with correction" width="1280" height="820" loading="lazy"><figcaption>History: correct it, it learns</figcaption></figure>
+      <figure><img src="/assets/3-dictionary.png" alt="Dictionary with word replacement rules" width="1280" height="820" loading="lazy"><figcaption>Dictionary: your own words</figcaption></figure>
+      <figure><img src="/assets/6-settings.png" alt="Settings: speech models, acceleration and machine profile" width="1280" height="820" loading="lazy"><figcaption>Settings: models, card, keys</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <details open><summary>Is it a free alternative to Wispr Flow?</summary><p>Yes. It does the same job, one-key dictation into any Windows program, with no subscription and no account. The code is open source under the MIT license on GitHub.</p></details>
+    <details><summary>Where does my voice go?</summary><p>Nowhere. Recognition runs on your own machine with the Whisper model. After setup no internet connection is needed. Password fields are detected and left empty.</p></details>
+    <details><summary>Does it need an NVIDIA card?</summary><p>No. The engine runs on NVIDIA, AMD and Intel cards through Vulkan. With no graphics card it runs on the processor, more slowly.</p></details>
+    <details><summary>Why does Windows show a blue warning during install?</summary><p>The installer carries no purchased code-signing certificate. Click "More info", then "Run anyway". The SHA256 checksum of the file is published on GitHub.</p></details>
+    <details><summary>What does 0.9 beta mean?</summary><p>It runs daily on our machines and is now going out to yours. Some programs may refuse the paste, some cards are untested. Whatever breaks, we want it written down.</p></details>
+    <details><summary>Why the name?</summary><p>A dictation company was valued at 2 billion dollars for something open models have done for free for two years. The name is the reply. On social media we write FU Flow.</p></details>
+  </div>
+</section>
+
+<section id="feedback">
+  <div class="wrap">
+    <h2>Feedback</h2>
+    <p class="sub">It is a beta. What broke, what you missed, what you liked, here.</p>
+    <div class="feedback">
+      <div class="card"><h3>Something broke</h3><p>Tell us the program, the graphics card and what you saw. The Diagnostics tab in the app has "Recent problems" ready to copy.</p><p style="margin-top:14px"><a class="btn ghost" href="https://github.com/Breakzoras/fuck-you-flow/issues/new?labels=bug&title=%5Bbug%5D+">Report on GitHub</a></p></div>
+      <div class="card"><h3>Something you want</h3><p>A feature, a language, a word the dictionary should have known.</p><p style="margin-top:14px"><a class="btn ghost" href="https://github.com/Breakzoras/fuck-you-flow/issues/new?labels=idea&title=%5Bidea%5D+">Suggest on GitHub</a></p></div>
+      <div class="card"><h3>No GitHub account</h3><p>An email is enough. Humans answer.</p><p style="margin-top:14px"><a class="btn ghost" href="mailto:info@luram.gr?subject=Fuck%20You%20Flow%20feedback">info@luram.gr</a></p></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="made">Created by <a href="https://luram.gr">luram.gr</a>, Luram AI Agency. We build tools and automations for Greek businesses.</p>
+    <p><a href="https://github.com/Breakzoras/fuck-you-flow">Code on GitHub</a> · <a href="https://github.com/Breakzoras/fuck-you-flow/releases">All releases</a> · <a href="https://github.com/Breakzoras/fuck-you-flow/blob/main/docs/KNOWN-LIMITATIONS.md">Known limits</a> · <a href="/llms.txt">llms.txt</a> · <a href="/">Ελληνικά</a></p>
+    <p>MIT license. The whisper.cpp engine and the models carry their own licenses. Wispr Flow is a trademark of Wispr AI, Inc. We have no relationship with them. The key is yours.</p>
+  </div>
+</footer>
+</body>
+</html>
