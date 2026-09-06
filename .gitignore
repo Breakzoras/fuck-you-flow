@@ -41,3 +41,4 @@ __pycache__/
 /press/shots/*.html
 /src-tauri/bundled/
 /vendor/whisper.cpp-src/
+/site/variants/
