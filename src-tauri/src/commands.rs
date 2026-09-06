@@ -593,7 +593,12 @@ pub fn debug_mode_set(on: bool, state: State<'_, Arc<AppState>>) -> R<()> {
 /// The newest journal entries, newest first, as raw JSON lines.
 #[tauri::command]
 pub fn debug_events(limit: Option<usize>) -> Vec<String> {
+    // `test.*` kinds come from the test suite writing into the real journal on
+    // a developer machine. They are noise in front of a user.
     crate::journal::tail(limit.unwrap_or(200).min(2000))
+        .into_iter()
+        .filter(|l| !l.contains("\"kind\":\"test."))
+        .collect()
 }
 
 /// Everything needed to understand a problem, in one block of text: the

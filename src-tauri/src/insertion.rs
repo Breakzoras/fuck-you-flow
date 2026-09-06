@@ -20,6 +20,58 @@ use crossbeam_channel::{Receiver, Sender};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
+/// Windows that accept Ctrl+V without holding text. The desktop treats it as
+/// "paste a file" and the taskbar ignores it, and both read the clipboard while
+/// doing so, which is the only signal the paste path has. Sending a transcript
+/// there looks like a success in every measurement and shows the user nothing.
+///
+/// Returns a name for the place, for the message the user reads.
+///
+/// A class is listed here only when it certainly cannot hold text. Absence of a
+/// caret is NOT such a signal: Chromium never reports one, and refusing on that
+/// basis would break the browsers, editors and chat apps that work today.
+pub fn unusable_class(class: &str) -> Option<&'static str> {
+    match class {
+        "Progman" | "WorkerW" => Some("the desktop"),
+        "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" => Some("the taskbar"),
+        "" => Some("no window"),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod target_tests {
+    use super::unusable_class;
+
+    #[test]
+    fn the_desktop_and_the_taskbar_are_refused() {
+        assert_eq!(unusable_class("Progman"), Some("the desktop"));
+        assert_eq!(unusable_class("WorkerW"), Some("the desktop"));
+        assert_eq!(unusable_class("Shell_TrayWnd"), Some("the taskbar"));
+        assert_eq!(unusable_class("Shell_SecondaryTrayWnd"), Some("the taskbar"));
+        assert_eq!(unusable_class(""), Some("no window"));
+    }
+
+    /// The regression this guard must never cause: everything the user actually
+    /// dictates into keeps working. Chromium reports no caret, Windows Terminal
+    /// is not a normal edit control, and both paste fine today.
+    #[test]
+    fn real_targets_are_left_alone() {
+        for class in [
+            "Chrome_WidgetWin_1", // Chrome, Electron, VS Code, Slack, Claude
+            "MozillaWindowClass",
+            "OpusApp",            // Word
+            "CASCADIA_HOSTING_WINDOW_CLASS", // Windows Terminal
+            "ConsoleWindowClass",
+            "Notepad",
+            "Tauri Window",       // our own window
+            "SunAwtFrame",        // JetBrains
+        ] {
+            assert_eq!(unusable_class(class), None, "{class} must still receive pastes");
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum InsertOutcome {
@@ -449,12 +501,7 @@ pub mod win {
     /// that merely does not report a caret (Chromium does not) must NOT be
     /// listed: that would refuse pastes that work today.
     fn unusable_target(h: HWND) -> Option<&'static str> {
-        match window_class(h).as_str() {
-            "Progman" | "WorkerW" => Some("the desktop"),
-            "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" => Some("the taskbar"),
-            "" => Some("no window"),
-            _ => None,
-        }
+        super::unusable_class(&window_class(h))
     }
 
     /// Which window has the keyboard focus right now, for the log when a paste
