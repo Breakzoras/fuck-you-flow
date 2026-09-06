@@ -217,6 +217,10 @@ impl WhisperServer {
                     g.warm_ms = Some(ms);
                 }
                 tracing::info!("whisper-server ready in {ms} ms (model {})", self.cfg.model_id);
+                crate::journal::info(
+                    "engine.ready",
+                    serde_json::json!({ "backend": self.cfg.backend, "model": self.cfg.model_id, "warm_ms": ms }),
+                );
                 Ok(())
             }
             Err(e) => {

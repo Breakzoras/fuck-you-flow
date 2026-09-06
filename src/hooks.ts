@@ -1,12 +1,14 @@
 import { createContext, useContext } from "react";
 import { Settings } from "./api";
-import { t as translate, Strings } from "./i18n";
+import { t as translate, tk as translateKey, Strings } from "./i18n";
 
 export interface Ctx {
   settings: Settings;
   setSettings: (s: Settings) => Promise<void>;
   lang: string;
   t: (key: keyof Strings, vars?: Record<string, string | number>) => string;
+  /// For keys the backend chooses at runtime, such as a model note.
+  tk: (key: string) => string;
   toast: (msg: string, kind?: "ok" | "err") => void;
 }
 
@@ -20,4 +22,8 @@ export function useApp(): Ctx {
 
 export function makeT(lang: string) {
   return (key: keyof Strings, vars?: Record<string, string | number>) => translate(lang, key, vars);
+}
+
+export function makeTk(lang: string) {
+  return (key: string) => translateKey(lang, key);
 }

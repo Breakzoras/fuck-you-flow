@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, EngineInfo, PipelineSnapshot, Settings } from "./api";
-import { AppCtx, makeT } from "./hooks";
+import { AppCtx, makeT, makeTk } from "./hooks";
 import Home from "./pages/Home";
 import History from "./pages/History";
 import Dictionary from "./pages/Dictionary";
@@ -81,8 +81,9 @@ export default function App() {
     }
   }, [toast]);
 
-  const lang = settings?.general.ui_language ?? "el";
+  const lang = settings?.general.ui_language ?? "en";
   const t = useMemo(() => makeT(lang), [lang]);
+  const tk = useMemo(() => makeTk(lang), [lang]);
 
   if (!settings) {
     return (
@@ -116,7 +117,7 @@ export default function App() {
   const phaseLabel = snap?.phase === "recording" ? t("status_recording") : snap?.phase === "processing" ? t("status_processing") : t("status_idle");
 
   return (
-    <AppCtx.Provider value={{ settings, setSettings, lang, t, toast }}>
+    <AppCtx.Provider value={{ settings, setSettings, lang, t, tk, toast }}>
       <div className="layout">
         <nav className="nav" aria-label="Main">
           <div className="brand">

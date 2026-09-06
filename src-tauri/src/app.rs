@@ -62,8 +62,30 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             crate::paths::set_bundled_dir(bundled);
         }
     }
+    // A fresh install has no settings file yet. That is the only moment the
+    // machine's own language may choose the defaults; after it, the user's
+    // choice stands and is never overwritten.
+    let fresh_install = !crate::paths::settings_file().exists();
     let mut settings = Settings::load(&crate::paths::settings_file());
     crate::journal::set_verbose(settings.general.debug_mode);
+    if fresh_install {
+        let locale = crate::hw::user_locale();
+        let greek = locale.starts_with("el");
+        settings.general.ui_language = if greek { "el" } else { "en" }.into();
+        // A Greek speaker mixes English words into Greek sentences all day, so
+        // the bilingual mode earns its cost there. Everyone else gets their own
+        // language alone, which is both faster and more accurate.
+        settings.language.mode = if greek {
+            crate::settings::LanguageMode::Multi
+        } else if locale.starts_with("en") {
+            crate::settings::LanguageMode::English
+        } else {
+            crate::settings::LanguageMode::Auto
+        };
+        tracing::info!("fresh install: locale {locale} -> interface {}, dictation {:?}", settings.general.ui_language, settings.language.mode);
+        crate::journal::info("app.first_run", serde_json::json!({ "locale": locale, "ui": settings.general.ui_language, "dictation": format!("{:?}", settings.language.mode) }));
+        let _ = settings.save(&crate::paths::settings_file());
+    }
     let hw = crate::hw::detect();
     tracing::info!("machine: {}", hw.summary());
     crate::journal::info(
@@ -88,6 +110,22 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
         settings.general.machine_profiled = true;
         changed = true;
         tracing::info!("machine profiled: {} threads, model {}", settings.asr.threads, settings.asr.model_id);
+        // The one record that tells us, from a stranger's machine, what the app
+        // decided on its own and whether that decision was right.
+        crate::journal::info(
+            "machine.profiled",
+            serde_json::json!({
+                "gpu": hw.best_gpu().map(|g| g.name.clone()),
+                "vendor": hw.best_gpu().map(|g| g.vendor.clone()),
+                "vram_mb": hw.best_gpu().map(|g| g.vram_mb),
+                "logical_cores": hw.logical_cores,
+                "ram_mb": hw.ram_mb,
+                "vulkan": hw.vulkan_runtime,
+                "cuda": hw.cuda_driver,
+                "chose_threads": settings.asr.threads,
+                "chose_model": settings.asr.model_id,
+            }),
+        );
     }
     // The configured model is not on disk (fresh install): take a shipped one.
     if let Some(id) = crate::models::preferred_installed_model(&settings.asr.model_id) {

@@ -21,8 +21,10 @@ pub struct ModelSpec {
     pub vram_mb: u32,
     /// Approximate RAM needed on CPU (MB).
     pub ram_mb: u32,
-    pub languages: String,
-    pub notes: String,
+    /// i18n key, resolved by the interface. The catalogue must not carry
+    /// text in one language: the app ships in English and Greek.
+    pub languages_key: String,
+    pub notes_key: String,
     pub recommended: bool,
 }
 
@@ -48,8 +50,8 @@ pub fn catalog() -> Vec<ModelSpec> {
             size_bytes: 1_081_140_203,
             vram_mb: 2600,
             ram_mb: 2400,
-            languages: "Ελληνικά, Αγγλικά και 97 ακόμα".into(),
-            notes: "Η καλύτερη ακρίβεια στα ελληνικά (WER 11 στο FLEURS). Προεπιλογή.".into(),
+            languages_key: "model_langs_99".into(),
+            notes_key: "model_note_large_v3".into(),
             recommended: true,
         },
         ModelSpec {
@@ -61,8 +63,8 @@ pub fn catalog() -> Vec<ModelSpec> {
             size_bytes: 574_041_195,
             vram_mb: 1600,
             ram_mb: 1400,
-            languages: "Ελληνικά, Αγγλικά και 97 ακόμα".into(),
-            notes: "Πιο γρήγορο, αλλά μετρημένα χειρότερο στα ελληνικά. Εφεδρικό για λίγη μνήμη.".into(),
+            languages_key: "model_langs_99".into(),
+            notes_key: "model_note_turbo_q5".into(),
             recommended: false,
         },
         ModelSpec {
@@ -74,8 +76,8 @@ pub fn catalog() -> Vec<ModelSpec> {
             size_bytes: 874_188_075,
             vram_mb: 2000,
             ram_mb: 1800,
-            languages: "Ελληνικά, Αγγλικά και 97 ακόμα".into(),
-            notes: "Turbo με λιγότερη συμπίεση.".into(),
+            languages_key: "model_langs_99".into(),
+            notes_key: "model_note_turbo_q8".into(),
             recommended: false,
         },
         ModelSpec {
@@ -87,8 +89,8 @@ pub fn catalog() -> Vec<ModelSpec> {
             size_bytes: 539_212_467,
             vram_mb: 1500,
             ram_mb: 1300,
-            languages: "Ελληνικά, Αγγλικά και 97 ακόμα".into(),
-            notes: "Μικρότερο, για αδύναμα μηχανήματα. Χειρότερα ελληνικά.".into(),
+            languages_key: "model_langs_99".into(),
+            notes_key: "model_note_medium".into(),
             recommended: false,
         },
     ]
@@ -104,8 +106,8 @@ pub fn vad_spec() -> ModelSpec {
         size_bytes: 885_098,
         vram_mb: 0,
         ram_mb: 10,
-        languages: "όλες".into(),
-        notes: "Ανιχνευτής ομιλίας, κόβει τη σιωπή και τους θορύβους.".into(),
+        languages_key: "model_langs_all".into(),
+        notes_key: "model_note_vad".into(),
         recommended: true,
     }
 }

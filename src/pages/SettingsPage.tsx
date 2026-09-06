@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, ModelStatus, RuntimeStatus, Settings } from "../api";
+import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, ModelStatus, RuntimeStatus, Settings, LanguageMode } from "../api";
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
 
@@ -36,9 +36,6 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
 
       {tab === "general" && (
         <Card>
-          <Field label={t("ui_language")}>
-            <Select value={draft.general.ui_language} onChange={(v) => patch((s) => { s.general.ui_language = v; return s; })} options={[{ value: "el", label: "Ελληνικά" }, { value: "en", label: "English" }]} />
-          </Field>
           <Field label={t("theme")}>
             <Select value={draft.general.theme} onChange={(v) => patch((s) => { s.general.theme = v; return s; })} options={[{ value: "system", label: t("theme_system") }, { value: "dark", label: t("theme_dark") }, { value: "light", label: t("theme_light") }]} />
           </Field>
@@ -49,11 +46,12 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
       {tab === "mic" && <MicTab draft={draft} patch={patch} />}
 
       {tab === "language" && (
-        <Card>
-          <Field label={t("lang_mode")}>
-            <Select value={draft.language.mode} onChange={(v) => patch((s) => { s.language.mode = v; return s; })} options={[
-              { value: "multi", label: t("lang_multi") }, { value: "greek", label: t("lang_greek") }, { value: "english", label: t("lang_english") }, { value: "auto", label: t("lang_auto") },
-            ]} />
+        <Card title={t("lang_section")}>
+          <Field label={t("ui_language")} hint={t("lang_ui_hint")}>
+            <Select value={draft.general.ui_language} onChange={(v) => patch((s) => { s.general.ui_language = v; return s; })} options={[{ value: "en", label: "English" }, { value: "el", label: "Ελληνικά" }]} />
+          </Field>
+          <Field label={t("lang_mode")} hint={t("lang_mode_hint")}>
+            <Select value={draft.language.mode} onChange={(v) => patch((s) => { s.language.mode = v; return s; })} options={dictationOptions(draft.general.ui_language, t)} />
           </Field>
         </Card>
       )}
@@ -147,8 +145,20 @@ function MicTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settings) =>
   );
 }
 
+/// The dictation languages, most useful first for whoever is reading the menu.
+/// Someone running the app in English is dictating English and has no reason to
+/// meet Greek at the top of a list; someone running it in Greek almost always
+/// mixes English words into Greek sentences, so the bilingual mode leads there.
+function dictationOptions(uiLanguage: string, t: (k: "lang_multi" | "lang_greek" | "lang_english" | "lang_auto") => string): { value: LanguageMode; label: string }[] {
+  const multi = { value: "multi" as const, label: t("lang_multi") };
+  const greek = { value: "greek" as const, label: t("lang_greek") };
+  const english = { value: "english" as const, label: t("lang_english") };
+  const auto = { value: "auto" as const, label: t("lang_auto") };
+  return uiLanguage === "el" ? [multi, greek, english, auto] : [english, auto, multi, greek];
+}
+
 function ModelsTab({ draft, patch, engine }: { draft: Settings; patch: (p: (s: Settings) => Settings) => void; engine: EngineInfo | null }) {
-  const { t, toast } = useApp();
+  const { t, tk, toast } = useApp();
   const [models, setModels] = useState<ModelStatus[]>([]);
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
@@ -167,34 +177,63 @@ function ModelsTab({ draft, patch, engine }: { draft: Settings; patch: (p: (s: S
     const v = p.total > 0 ? Math.round((p.received / p.total) * 100) : 0;
     return <div><span className="hint">{p.phase === "verifying" ? t("verifying") : p.phase === "error" ? `${t("error")}: ${p.message}` : `${t("downloading")} ${v}%`}</span><div className="progress"><div style={{ transform: `scaleX(${(v / 100).toFixed(3)})` }} /></div></div>;
   };
+
+  const machine = (runtime as unknown as { machine?: { gpus?: { name: string; vram_mb: number }[]; logical_cores?: number; vulkan_runtime?: boolean; cuda_driver?: boolean } } | null)?.machine;
+  const gpus = machine?.gpus ?? [];
+  const onGpu = engine?.gpu ?? false;
+
   return (
     <>
-      <Card title={t("setup_runtime")} actions={<Button onClick={() => api.engineRestart().then(() => toast(t("saved")))}>{t("restart_engine")}</Button>}>
-        <p>{t("runtime_version")}: {runtime?.spec.version} · {t("size")}: {fmtBytes(runtime?.spec.size_bytes ?? 0)} · {t("cuda_driver")}: <Badge tone={runtime?.cuda_driver ? "ok" : "warn"}>{runtime?.cuda_driver ? t("present") : t("absent")}</Badge> · {runtime?.installed ? <Badge tone="ok">{t("installed")}</Badge> : <Button kind="primary" onClick={() => api.installRuntime().catch((e) => toast(String(e), "err"))}>{t("install")}</Button>}</p>
-        {pr("whisper-runtime")}
-        <p className="hint">{engine ? `${engine.status} · ${engine.model_id} · ${engine.gpu ? t("gpu_on") : t("gpu_off")}${engine.warm_ms ? ` · ${engine.warm_ms} ms` : ""}${engine.message ? ` · ${engine.message}` : ""}` : ""}</p>
-        <p className="hint">{t("machine")}: {String((runtime as any)?.machine?.gpus?.map((g: any) => `${g.name} (${g.vram_mb} MB)`).join(", ") || t("no_gpu"))} · {(runtime as any)?.machine?.logical_cores} {t("cores")} · Vulkan {(runtime as any)?.machine?.vulkan_runtime ? "✓" : "✗"} · CUDA {(runtime as any)?.machine?.cuda_driver ? "✓" : "✗"}</p>
+      <Card
+        title={t("setup_runtime")}
+        actions={<Button onClick={() => api.engineRestart().then(() => toast(t("saved")))}>{t("restart_engine")}</Button>}
+      >
+        <p className="hint" style={{ marginTop: 0 }}>{t("engine_what")}</p>
+
+        <p>
+          <strong>{t("engine_running_on")} {onGpu ? t("engine_on_gpu") : t("engine_on_cpu")}</strong>
+          {engine ? <> · {engine.model_id} · {engine.status}{engine.warm_ms ? ` · ${engine.warm_ms} ms` : ""}</> : null}
+          {engine?.message ? <> · {engine.message}</> : null}
+        </p>
+        <p className="hint">
+          {t("machine")}: {gpus.length ? gpus.map((g) => `${g.name} (${g.vram_mb} MB)`).join(", ") : t("no_gpu")}
+          {" · "}{machine?.logical_cores} {t("cores")}
+          {" · Vulkan "}{machine?.vulkan_runtime ? "✓" : "✗"}
+          {" · CUDA "}{machine?.cuda_driver ? "✓" : "✗"}
+        </p>
+
+        <h3 style={{ margin: "18px 0 6px", fontSize: 15, opacity: 0.75 }}>{t("engine_gpu_heavy")}</h3>
         <Field label={t("backend")}>
           <Select value={draft.asr.backend ?? "auto"} onChange={(v) => patch((s) => { s.asr.backend = v; return s; })} options={[
             { value: "auto", label: t("backend_auto") }, { value: "vulkan", label: t("backend_vulkan") }, { value: "cuda", label: t("backend_cuda") }, { value: "cpu", label: t("backend_cpu") },
           ]} />
         </Field>
         <Toggle label={t("use_gpu")} checked={draft.asr.use_gpu} onChange={(v) => patch((s) => { s.asr.use_gpu = v; return s; })} />
+
+        <h3 style={{ margin: "18px 0 6px", fontSize: 15, opacity: 0.75 }}>{t("engine_cpu_heavy")}</h3>
+        <div className="grid2">
+          <Field label={t("threads")} hint={t("threads_hint")}><input type="number" min={1} max={32} value={draft.asr.threads} onChange={(e) => patch((s) => { s.asr.threads = Number(e.target.value); return s; })} /></Field>
+          <Field label={t("beam")} hint={t("beam_hint")}><input type="number" min={1} max={8} value={draft.asr.beam_size} onChange={(e) => patch((s) => { s.asr.beam_size = Number(e.target.value); return s; })} /></Field>
+        </div>
         <Toggle label={t("vad")} checked={draft.asr.vad} onChange={(v) => patch((s) => { s.asr.vad = v; return s; })} hint={runtime?.vad_model ? t("installed") : undefined} />
         {!runtime?.vad_model && <Button onClick={() => api.downloadModel("silero-vad").catch((e) => toast(String(e), "err"))}>{t("download")} Silero VAD</Button>}
         {pr("silero-vad")}
-        <div className="grid2">
-          <Field label={t("threads")}><input type="number" min={1} max={32} value={draft.asr.threads} onChange={(e) => patch((s) => { s.asr.threads = Number(e.target.value); return s; })} /></Field>
-          <Field label={t("beam")}><input type="number" min={1} max={8} value={draft.asr.beam_size} onChange={(e) => patch((s) => { s.asr.beam_size = Number(e.target.value); return s; })} /></Field>
-        </div>
+
+        <p className="hint" style={{ marginTop: 18 }}>
+          {t("runtime_version")}: {runtime?.spec.version} · {t("size")}: {fmtBytes(runtime?.spec.size_bytes ?? 0)}
+          {" · "}{runtime?.installed ? <Badge tone="ok">{t("installed")}</Badge> : <Button kind="primary" onClick={() => api.installRuntime().catch((e) => toast(String(e), "err"))}>{t("install")}</Button>}
+        </p>
+        {pr("whisper-runtime")}
       </Card>
+
       <Card title={t("s_models")}>
+        <p className="hint" style={{ marginTop: 0 }}>{t("models_what")}</p>
         <table>
           <thead><tr><th></th><th>{t("size")}</th><th>{t("vram")}</th><th></th><th></th></tr></thead>
           <tbody>
             {models.map((m) => (
               <tr key={m.id}>
-                <td><strong>{m.display_name}</strong>{m.recommended && <> <Badge tone="ok">{t("recommended")}</Badge></>}<br /><span className="hint">{m.languages} · {m.notes}</span>{pr(m.id)}</td>
+                <td><strong>{m.display_name}</strong>{m.recommended && <> <Badge tone="ok">{t("recommended")}</Badge></>}<br /><span className="hint">{tk(m.languages_key)} · {tk(m.notes_key)}</span>{pr(m.id)}</td>
                 <td>{fmtBytes(m.size_bytes)}</td>
                 <td>~{m.vram_mb} MB</td>
                 <td>{m.installed ? <Badge tone={m.verified ? "ok" : "warn"}>{t("installed")}{m.verified ? " ✓" : ""}</Badge> : <Badge>-</Badge>}</td>

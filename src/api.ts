@@ -6,7 +6,7 @@ export type InsertionMethod = "auto" | "paste" | "type" | "copy_only";
 export type OverlayPosition = "bottom_center" | "top_center" | "bottom_right" | "bottom_left" | "custom";
 
 export interface Settings {
-  general: { ui_language: string; theme: string; autostart: boolean; first_run_done: boolean; play_sounds: boolean };
+  general: { ui_language: string; theme: string; autostart: boolean; first_run_done: boolean; play_sounds: boolean; machine_profiled?: boolean; debug_mode?: boolean };
   hotkeys: { push_to_talk: string; hands_free: string; paste_last: string; tap_toggles_hands_free: boolean; tap_ms: number };
   audio: { device_name: string | null; keep_stream_warm: boolean; preroll_ms: number; min_speech_ms: number; max_recording_seconds: number };
   language: { mode: LanguageMode };
@@ -70,7 +70,7 @@ export interface EngineInfo { status: "missing" | "starting" | "ready" | "failed
 
 export interface ModelStatus {
   id: string; file_name: string; display_name: string; url: string; sha256: string; size_bytes: number; vram_mb: number;
-  ram_mb: number; languages: string; notes: string; recommended: boolean; installed: boolean; verified: boolean; path: string | null;
+  ram_mb: number; languages_key: string; notes_key: string; recommended: boolean; installed: boolean; verified: boolean; path: string | null;
 }
 
 export interface DeviceInfo { name: string; is_default: boolean }

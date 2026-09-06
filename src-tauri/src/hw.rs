@@ -142,3 +142,17 @@ mod tests {
         assert!(profile(vec![], 8).best_gpu().is_none());
     }
 }
+
+/// The language Windows itself is set to, as a BCP-47 tag like "el-GR" or
+/// "en-GB", lowercased. Used once, on a fresh install, to choose the interface
+/// language and the dictation language. Falls back to "en" when Windows will
+/// not say.
+pub fn user_locale() -> String {
+    use windows::Win32::Globalization::GetUserDefaultLocaleName;
+    let mut buf = [0u16; 85];
+    let n = unsafe { GetUserDefaultLocaleName(&mut buf) };
+    if n <= 1 {
+        return "en".into();
+    }
+    String::from_utf16_lossy(&buf[..(n as usize - 1)]).to_lowercase()
+}

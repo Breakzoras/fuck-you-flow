@@ -7,7 +7,7 @@ import { Badge, Button, Card } from "../ui";
 // Home in the Mono style: a state word, a few lines of facts, the last
 // transcripts as a log. Setup only appears while something is missing.
 export default function Home({ engine, snap, goSettings }: { engine: EngineInfo | null; snap: PipelineSnapshot | null; goSettings: () => void }) {
-  const { settings, setSettings, t, toast } = useApp();
+  const { settings, setSettings, t, tk, toast } = useApp();
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [models, setModels] = useState<ModelStatus[]>([]);
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
@@ -101,7 +101,7 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
           <div className="setup-item">
             <div>
               <strong>{t("setup_model")}: {current?.display_name ?? settings.asr.model_id}</strong>
-              <span className="hint">{current ? `${fmtBytes(current.size_bytes)} · ${t("vram")} ~${current.vram_mb} MB · ${current.notes}` : ""}</span>
+              <span className="hint">{current ? `${fmtBytes(current.size_bytes)} · ${t("vram")} ~${current.vram_mb} MB · ${tk(current.notes_key)}` : ""}</span>
               <ProgressBar id={settings.asr.model_id} />
             </div>
             {current?.installed ? <Badge tone="ok">{t("installed")}</Badge> : (
