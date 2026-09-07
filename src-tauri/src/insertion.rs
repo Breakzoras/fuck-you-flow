@@ -127,7 +127,7 @@ pub mod win {
         RegisterClipboardFormatW, SetClipboardData,
     };
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE};
     use windows::Win32::System::Ole::CF_UNICODETEXT;
     use windows::Win32::System::Threading::{
         GetCurrentProcess, OpenProcess, OpenProcessToken, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
@@ -235,11 +235,23 @@ pub mod win {
         if p.is_null() {
             return None;
         }
+        // Read no further than the block Windows actually handed us. The old
+        // loop walked forward looking for a zero and gave up only after 50
+        // million characters, so a program that puts text on the clipboard
+        // without the closing zero (which is allowed, and some do) sent this
+        // read straight past the end of the memory. That is an access
+        // violation: the process dies on the spot, with no panic to catch, no
+        // line in the log and nothing in the Windows event log. Two such
+        // deaths happened on 7 September 2026 and left nothing behind.
+        let chars = GlobalSize(hg) / 2;
         let mut len = 0usize;
-        while *p.add(len) != 0 && len < 50_000_000 {
+        while len < chars && *p.add(len) != 0 {
             len += 1;
         }
-        let v = std::slice::from_raw_parts(p, len + 1).to_vec();
+        let mut v = std::slice::from_raw_parts(p, len).to_vec();
+        // The callers expect the closing zero, and it may be the one thing the
+        // other program left out.
+        v.push(0);
         let _ = GlobalUnlock(hg);
         Some(v)
     }

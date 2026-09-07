@@ -88,11 +88,20 @@ impl EngineManager {
         let (backend, exe) = choose_backend(&settings.asr.backend, settings.asr.use_gpu);
         let model = crate::models::find_model(&settings.asr.model_id);
         let (Some(exe), Some((spec, model_path))) = (exe, model) else {
-            tracing::warn!("engine not started: runtime found = {}, model '{}' known = {}", find_runtime_exe().is_some(), settings.asr.model_id, crate::models::find_model(&settings.asr.model_id).is_some());
+            let has_runtime = find_runtime_exe().is_some();
+            tracing::warn!("engine not started: runtime found = {}, model '{}' known = {}", has_runtime, settings.asr.model_id, crate::models::find_model(&settings.asr.model_id).is_some());
+            // Name the missing piece. "Speech engine not installed" on its own
+            // sent the first AMD tester hunting through Settings on
+            // 7 September 2026 with nothing to go on.
+            let message = if has_runtime {
+                format!("the model {} is not on this machine; choose another one under Speech models", settings.asr.model_id)
+            } else {
+                "the speech engine files are missing from this installation; reinstall the app to restore them".to_string()
+            };
             self.starting.store(false, std::sync::atomic::Ordering::SeqCst);
             let _ = app.emit(
                 "lalia://engine",
-                EngineInfo { status: EngineStatus::Missing, provider: "whisper_local".into(), model_id: settings.asr.model_id.clone(), gpu: false, message: Some("runtime or model not installed".into()), warm_ms: None, backend: String::new() },
+                EngineInfo { status: EngineStatus::Missing, provider: "whisper_local".into(), model_id: settings.asr.model_id.clone(), gpu: false, message: Some(message), warm_ms: None, backend: String::new() },
             );
             return;
         };
@@ -163,6 +172,12 @@ impl EngineManager {
 
     pub fn is_ready(&self) -> bool {
         self.info().status == EngineStatus::Ready
+    }
+
+    /// The process holding the speech model, when it is a local one. A cloud
+    /// provider has none, and neither does an engine that never started.
+    pub fn local_pid(&self) -> Option<u32> {
+        self.local.read().clone().and_then(|s| s.pid())
     }
 
     pub async fn transcribe(&self, req: TranscriptionRequest) -> Result<TranscriptionResult, AsrError> {

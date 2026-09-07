@@ -17,10 +17,21 @@ pub struct ModelSpec {
     pub url: String,
     pub sha256: String,
     pub size_bytes: u64,
-    /// Approximate GPU memory needed with CUDA (MB).
+    /// What the model actually holds on the graphics card (MB): the weights
+    /// plus the working buffers whisper.cpp allocates around them. Measured on
+    /// 7 September 2026 by reading the card while each model ran with the flags
+    /// this app passes. The card has to have this much *free*, not merely this
+    /// much in total: a card that is full still accepts the model and then
+    /// pages it out to system RAM, which is thirty times slower.
     pub vram_mb: u32,
     /// Approximate RAM needed on CPU (MB).
     pub ram_mb: u32,
+    /// Words got wrong out of a hundred, on the project's own Greek clips.
+    /// From `eval/bench-summary.md`. `None` where the model was never measured.
+    pub greek_errors_pct: Option<u32>,
+    /// Median milliseconds to transcribe one clip on a card with room, from the
+    /// same run. `None` where the model was never measured.
+    pub median_ms: Option<u32>,
     /// i18n key, resolved by the interface. The catalogue must not carry
     /// text in one language: the app ships in English and Greek.
     pub languages_key: String,
@@ -48,8 +59,10 @@ pub fn catalog() -> Vec<ModelSpec> {
             url: format!("{HF}ggml-large-v3-q5_0.bin"),
             sha256: "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1".into(),
             size_bytes: 1_081_140_203,
-            vram_mb: 2600,
+            vram_mb: 1960,
             ram_mb: 2400,
+            greek_errors_pct: Some(18),
+            median_ms: Some(783),
             languages_key: "model_langs_99".into(),
             notes_key: "model_note_large_v3".into(),
             recommended: true,
@@ -61,8 +74,10 @@ pub fn catalog() -> Vec<ModelSpec> {
             url: format!("{HF}ggml-large-v3-turbo-q5_0.bin"),
             sha256: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2".into(),
             size_bytes: 574_041_195,
-            vram_mb: 1600,
+            vram_mb: 860,
             ram_mb: 1400,
+            greek_errors_pct: Some(25),
+            median_ms: Some(304),
             languages_key: "model_langs_99".into(),
             notes_key: "model_note_turbo_q5".into(),
             recommended: false,
@@ -74,8 +89,10 @@ pub fn catalog() -> Vec<ModelSpec> {
             url: format!("{HF}ggml-large-v3-turbo-q8_0.bin"),
             sha256: "317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1".into(),
             size_bytes: 874_188_075,
-            vram_mb: 2000,
+            vram_mb: 1160,
             ram_mb: 1800,
+            greek_errors_pct: None,
+            median_ms: None,
             languages_key: "model_langs_99".into(),
             notes_key: "model_note_turbo_q8".into(),
             recommended: false,
@@ -87,8 +104,10 @@ pub fn catalog() -> Vec<ModelSpec> {
             url: format!("{HF}ggml-medium-q5_0.bin"),
             sha256: "19fea4b380c3a618ec4723c3eef2eb785ffba0d0538cf43f8f235e7b3b34220f".into(),
             size_bytes: 539_212_467,
-            vram_mb: 1500,
+            vram_mb: 927,
             ram_mb: 1300,
+            greek_errors_pct: Some(22),
+            median_ms: Some(560),
             languages_key: "model_langs_99".into(),
             notes_key: "model_note_medium".into(),
             recommended: false,
@@ -106,6 +125,8 @@ pub fn vad_spec() -> ModelSpec {
         size_bytes: 885_098,
         vram_mb: 0,
         ram_mb: 10,
+        greek_errors_pct: None,
+        median_ms: None,
         languages_key: "model_langs_all".into(),
         notes_key: "model_note_vad".into(),
         recommended: true,
@@ -147,6 +168,121 @@ pub fn model_path(spec: &ModelSpec) -> PathBuf {
         Some(p) if p.exists() => p,
         _ => app,
     }
+}
+
+/// Moves the models the installer dropped next to the executable into
+/// %LOCALAPPDATA%\Lalia\models.
+///
+/// The reason is the updater. Windows installers built with NSIS remove the
+/// previous version before writing the new one, and everything under the
+/// install folder goes with it. While the 1.6 GB of models live there, every
+/// update has to carry all 1.6 GB again. Once they live beside the user's own
+/// downloaded models, an update is the program alone, about 68 MB.
+///
+/// Same disk means a rename, which finishes instantly whatever the size. A
+/// different disk means a copy, which is why the answer of this function is
+/// kept: `false` says at least one model is still inside the install folder,
+/// and an update must then ship the models too.
+pub fn migrate_bundled_models(resource_dir: Option<&std::path::Path>) -> bool {
+    let out = match resource_dir {
+        Some(res) => {
+            let from = res.join("bundled").join("models");
+            if from.is_dir() {
+                move_models(&from, &crate::paths::models_dir())
+            } else {
+                // Nothing was shipped next to the executable: either a slim
+                // update or a developer run. Either way no model is at risk.
+                true
+            }
+        }
+        // We could not even find out where the program lives. Saying "the
+        // models are safely outside" here would be a guess, and the price of
+        // guessing wrong is a user left with no engine.
+        None => false,
+    };
+    MODELS_EXTERNAL.store(out, std::sync::atomic::Ordering::Relaxed);
+    out
+}
+
+/// True when no model is left inside the install folder, so an update may
+/// replace the program on its own. Answered by the move at startup.
+pub fn models_are_external() -> bool {
+    MODELS_EXTERNAL.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+static MODELS_EXTERNAL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+/// The move itself, kept apart from the two folder names so it can be tested.
+pub fn move_models(from: &Path, to: &Path) -> bool {
+    if let Err(e) = std::fs::create_dir_all(to) {
+        tracing::warn!("cannot create {}: {e}", to.display());
+        return false;
+    }
+    let Ok(entries) = std::fs::read_dir(from) else { return false };
+    let mut all_out = true;
+    for entry in entries {
+        let entry = match entry {
+            Ok(en) => en,
+            Err(err) => {
+                // A name we could not even read is a name we cannot promise is
+                // gone, so the answer stops being yes.
+                tracing::warn!("cannot read an entry in {}: {err}", from.display());
+                all_out = false;
+                continue;
+            }
+        };
+        let src = entry.path();
+        // The models and the small files that record their verified checksum.
+        // Leaving a marker behind makes the model look unverified afterwards.
+        let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if ext != "bin" && ext != "sha256" {
+            continue;
+        }
+        let Some(name) = src.file_name() else { continue };
+        let dest = to.join(name);
+        let Ok(src_len) = std::fs::metadata(&src).map(|m| m.len()) else {
+            tracing::warn!("cannot measure {}; leaving it alone", src.display());
+            all_out = false;
+            continue;
+        };
+        if dest.exists() {
+            // The user already has this file. Two copies of a gigabyte help
+            // nobody, so the installer's one goes, as long as it is the same
+            // file. A different size means something we did not put there.
+            let dest_len = match std::fs::metadata(&dest).map(|m| m.len()) {
+                Ok(n) => n,
+                Err(err) => {
+                    tracing::warn!("cannot measure {}: {err}", dest.display());
+                    all_out = false;
+                    continue;
+                }
+            };
+            if dest_len != src_len {
+                tracing::warn!("model {} exists in both places with different sizes; leaving both alone", name.to_string_lossy());
+                all_out = false;
+            } else if let Err(err) = std::fs::remove_file(&src) {
+                tracing::warn!("model {} is in both places and the installed copy will not delete: {err}", name.to_string_lossy());
+                all_out = false;
+            } else {
+                tracing::info!("model {} was already outside the install folder", name.to_string_lossy());
+            }
+            continue;
+        }
+        // A rename on the same disk finishes instantly whatever the size.
+        // When it fails, the file stays exactly where it is: copying a
+        // gigabyte here would freeze the startup for minutes with no window
+        // and no tray icon to explain it. The app reads the model from the
+        // install folder perfectly well; it is only the small update that
+        // becomes unsafe, and the answer below says so.
+        match std::fs::rename(&src, &dest) {
+            Ok(()) => tracing::info!("{} moved to {}", name.to_string_lossy(), to.display()),
+            Err(err) => {
+                tracing::warn!("{} stays in the install folder: {err}", name.to_string_lossy());
+                all_out = false;
+            }
+        }
+    }
+    all_out
 }
 
 pub fn find_model(id: &str) -> Option<(ModelSpec, PathBuf)> {
@@ -364,4 +500,73 @@ pub fn preferred_installed_model(default_id: &str) -> Option<String> {
 pub fn cuda_driver_present() -> bool {
     let sys = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into());
     Path::new(&sys).join("System32").join("nvcuda.dll").exists()
+}
+
+#[cfg(test)]
+mod move_models_tests {
+    use super::move_models;
+    use std::path::PathBuf;
+
+    fn playground(name: &str) -> (PathBuf, PathBuf) {
+        let base = std::env::temp_dir().join(format!("lalia-move-{}-{}", name, std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let from = base.join("install/models");
+        let to = base.join("appdata/models");
+        std::fs::create_dir_all(&from).unwrap();
+        (from, to)
+    }
+
+    fn write(p: &PathBuf, name: &str, bytes: &[u8]) {
+        std::fs::create_dir_all(p).unwrap();
+        std::fs::write(p.join(name), bytes).unwrap();
+    }
+
+    #[test]
+    fn a_model_leaves_the_install_folder() {
+        let (from, to) = playground("plain");
+        write(&from, "ggml-large.bin", b"weights");
+        assert!(move_models(&from, &to));
+        assert!(!from.join("ggml-large.bin").exists());
+        assert_eq!(std::fs::read(to.join("ggml-large.bin")).unwrap(), b"weights");
+    }
+
+    #[test]
+    fn the_users_own_copy_wins_and_the_shipped_one_goes() {
+        let (from, to) = playground("dup");
+        write(&from, "ggml-large.bin", b"weights");
+        write(&to, "ggml-large.bin", b"weights");
+        assert!(move_models(&from, &to));
+        assert!(!from.join("ggml-large.bin").exists());
+        assert_eq!(std::fs::read(to.join("ggml-large.bin")).unwrap(), b"weights");
+    }
+
+    #[test]
+    fn a_different_file_of_the_same_name_is_left_alone() {
+        let (from, to) = playground("clash");
+        write(&from, "ggml-large.bin", b"shipped");
+        write(&to, "ggml-large.bin", b"a longer file the user downloaded");
+        assert!(!move_models(&from, &to), "the shipped copy is still in the install folder");
+        assert!(from.join("ggml-large.bin").exists());
+        assert_eq!(std::fs::read(to.join("ggml-large.bin")).unwrap(), b"a longer file the user downloaded");
+    }
+
+    #[test]
+    fn the_checksum_marker_travels_with_its_model() {
+        let (from, to) = playground("marker");
+        write(&from, "ggml-large.bin", b"weights");
+        write(&from, "ggml-large.sha256", b"abc123");
+        assert!(move_models(&from, &to));
+        assert_eq!(std::fs::read(to.join("ggml-large.sha256")).unwrap(), b"abc123");
+        assert!(!from.join("ggml-large.sha256").exists());
+    }
+
+    #[test]
+    fn only_model_files_are_touched() {
+        let (from, to) = playground("other");
+        write(&from, "ggml-large.bin", b"weights");
+        write(&from, "readme.txt", b"hello");
+        assert!(move_models(&from, &to));
+        assert!(from.join("readme.txt").exists());
+        assert!(!to.join("readme.txt").exists());
+    }
 }

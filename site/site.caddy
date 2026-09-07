@@ -6,6 +6,25 @@
 fuckyouflow.app {
 	root * /srv/fuckyouflow/site
 	encode gzip
+
+	# Greek speakers who arrive at the English root are sent to /el/ once, with a
+	# temporary 302, and only for the path "/". Search engine crawlers send no
+	# Accept-Language header, so they keep receiving the English root.
+	# The "lang=en" query is the escape hatch: the EN link on the Greek page carries
+	# it, so a Greek browser can still reach the English page. Without it that link
+	# bounces straight back here and the English page is unreachable for them.
+	@greek {
+		path /
+		header Accept-Language *el*
+		not query lang=en
+	}
+	redir @greek /el/ 302
+
+	# English moved from /en/ to the root on 6 September 2026.
+	# /en, /en/ and everything below them land on / permanently.
+	@oldenglish path /en /en/ /en/*
+	redir @oldenglish / permanent
+
 	file_server
 	header X-Content-Type-Options "nosniff"
 	header Referrer-Policy "strict-origin-when-cross-origin"

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "press/keyboard.html"
+        ],
+        "createdAt": "2026-09-07T05:35:51.069Z",
+        "reason": "A lit backlit keycap literally emits light; the glow is the subject of the picture, matching the art-key-macro render it replaces."
+      }
+    ]
+  }
+}

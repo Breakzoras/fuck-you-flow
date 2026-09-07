@@ -55,12 +55,27 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     crate::paths::ensure_all()?;
     // The installer ships the engine and the models next to the executable; the
     // app must know that folder before anything looks for either of them.
-    if let Ok(res) = app.path().resource_dir() {
-        let bundled = res.join("bundled");
-        if bundled.exists() {
-            tracing::info!("bundled engine and models found at {}", bundled.display());
-            crate::paths::set_bundled_dir(bundled);
+    let resource_dir = match app.path().resource_dir() {
+        Ok(res) => {
+            let bundled = res.join("bundled");
+            if bundled.exists() {
+                tracing::info!("bundled engine and models found at {}", bundled.display());
+                crate::paths::set_bundled_dir(bundled);
+            }
+            Some(res)
         }
+        Err(err) => {
+            // Without this we cannot tell an installed copy from a developer
+            // run, and the update flow has to assume the worst.
+            tracing::warn!("cannot find where the program lives: {err}");
+            None
+        }
+    };
+    // Get the models out of the install folder before anything looks for them.
+    // On the same disk this is a rename and costs nothing; see the function for
+    // why it has to happen at all.
+    if !crate::models::migrate_bundled_models(resource_dir.as_deref()) {
+        tracing::warn!("a model is still inside the install folder; this copy updates from the site");
     }
     // A fresh install has no settings file yet. That is the only moment the
     // machine's own language may choose the defaults; after it, the user's
@@ -68,6 +83,14 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     let fresh_install = !crate::paths::settings_file().exists();
     let mut settings = Settings::load(&crate::paths::settings_file());
     crate::journal::set_verbose(settings.general.debug_mode);
+    // Point the Windows startup entry at the copy that is actually running.
+    // It used to be written only when the user saved the settings, so after an
+    // install it still named the old path, and Windows started a program that
+    // was no longer there. Measured on 8 September 2026: the entry pointed at
+    // the build folder while the installed copy was the one in use.
+    if settings.general.autostart {
+        set_autostart(&app.handle().clone(), true);
+    }
     if fresh_install {
         let locale = crate::hw::user_locale();
         let greek = locale.starts_with("el");
@@ -132,6 +155,35 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
         tracing::info!("model {} is not present; switching to the bundled {}", settings.asr.model_id, id);
         settings.asr.model_id = id;
         changed = true;
+    }
+    // A graphics card that is sitting right there should be doing the work.
+    // Any modern card can, through Vulkan, AMD and Intel included; the engine
+    // runs roughly six times faster on one than on the processor. The first
+    // AMD tester, on 7 September 2026, found the card switched off with the
+    // engine reported as missing and had to turn it on by hand before the app
+    // did anything useful. So: correct it at startup, once, and say so in the
+    // journal. A user who deliberately turned the card off is never overruled
+    // (`gpu_choice_by_user`).
+    {
+        let vulkan_build = crate::asr::whisper_server::find_runtime_exe_for("vulkan").is_some();
+        if crate::hw::should_switch_to_gpu(
+            settings.asr.use_gpu,
+            &settings.asr.backend,
+            settings.general.gpu_choice_by_user,
+            hw.best_gpu().is_some(),
+            hw.vulkan_runtime,
+            vulkan_build,
+        ) {
+            let card = hw.best_gpu().map(|g| g.name.clone()).unwrap_or_default();
+            settings.asr.use_gpu = true;
+            settings.asr.backend = "auto".into();
+            changed = true;
+            tracing::info!("graphics card found ({card}) while the engine was set to the processor; switching it on");
+            crate::journal::info(
+                "gpu.auto_enabled",
+                serde_json::json!({ "card": card, "vendor": hw.best_gpu().map(|g| g.vendor.clone()), "vulkan": hw.vulkan_runtime, "cuda": hw.cuda_driver }),
+            );
+        }
     }
     if changed {
         let _ = settings.save(&crate::paths::settings_file());

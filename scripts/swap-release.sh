@@ -5,22 +5,37 @@
 # last few seconds. Usage: bash scripts/swap-release.sh
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-LOG="$LOCALAPPDATA/Lalia/logs/lalia.log.$(date -u +%Y-%m-%d)"
+# The log rolls and stamps in local time (see src-tauri/src/logging.rs), so the
+# guard below has to read it in local time too. Reading it as UTC made every
+# key press look three hours old here, which quietly disabled the guard.
+LOG="$LOCALAPPDATA/Lalia/logs/lalia.log.$(date +%Y-%m-%d)"
 EXE="$ROOT/src-tauri/target/release/lalia.exe"
 
 [ -f "$EXE" ] || { echo "no built binary at $EXE"; exit 2; }
 
-if [ -f "$LOG" ]; then
+# An app that is not running cannot be dictating. Without this check, a crash
+# in the middle of a dictation leaves "recording started" as the last event in
+# the log and the guard below refuses every swap for the rest of the day, which
+# is exactly what happened on 7 September 2026 at 19:15.
+RUNNING=$(tasklist //FI "IMAGENAME eq lalia.exe" //NH 2>/dev/null | grep -ci "lalia.exe" || true)
+if [ -f "$LOG" ] && [ "${RUNNING:-0}" -gt 0 ]; then
   # the most recent pipeline event decides whether a recording is open
   last=$(grep -E "recording started|dictation (success|failed|copied)|no speech|Cancelled|cancelled" "$LOG" | tail -1)
   case "$last" in
-    *"recording started"*) echo "REFUSED: a recording is in progress ($(echo "$last" | cut -c12-19))"; exit 3 ;;
+    *"recording started"*)
+      # and only if it started recently: nobody dictates for ten minutes in one breath
+      started=$(echo "$last" | cut -c1-19)
+      ss=$(date -d "${started/T/ }" +%s 2>/dev/null || echo 0)
+      if [ $(( $(date +%s) - ss )) -lt 600 ]; then
+        echo "REFUSED: a recording is in progress ($(echo "$last" | cut -c12-19))"; exit 3
+      fi
+      ;;
   esac
   # a key press in the last 5 s means the user is mid-gesture
-  now=$(date -u +%s)
+  now=$(date +%s)
   lastkey=$(grep -E "hotkey event Pressed" "$LOG" | tail -1 | cut -c1-19)
   if [ -n "$lastkey" ]; then
-    ks=$(date -u -d "${lastkey/T/ }" +%s 2>/dev/null || echo 0)
+    ks=$(date -d "${lastkey/T/ }" +%s 2>/dev/null || echo 0)
     if [ $((now - ks)) -lt 5 ]; then echo "REFUSED: key pressed $((now - ks)) s ago"; exit 3; fi
   fi
 fi

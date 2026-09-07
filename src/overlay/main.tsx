@@ -56,6 +56,28 @@ const LABELS: Record<string, Record<OverlayState, string>> = {
 
 const RETRY_TITLE: Record<string, string> = { en: "Try again", el: "Ξαναπροσπάθησε" };
 
+// The extra line under the spinner, for the afternoon when a one second
+// dictation turns into thirty because the card filled up with other programs.
+//
+// It needs two things to be true at once, and the second one is what keeps it
+// honest: the wait has to be dragging, AND the gauge has to say the model no
+// longer fits on the card. A machine with no card at all reads "ok" (see the
+// gauge's fallback arm in commands.rs), so a slow transcription on the
+// processor never gets blamed on graphics hardware that is not doing the work.
+//
+// Three seconds sits in an empty gap, measured over 160 real dictations on
+// history.inference_ms, which is the column for the state this timer watches.
+// The healthy group runs to 2,870 ms at its very slowest, 613 ms at the median.
+// The broken group starts at 7,593 ms and reaches 19,924 ms, and holds 11 of
+// the 160. Nothing at all lands in between, so the threshold catches the broken
+// afternoons without ever firing on an ordinary long sentence.
+const STRESS_AFTER_MS = 3000;
+
+const STRESS_LINE: Record<string, string> = {
+  en: "GPU is getting stressed",
+  el: "Ζορίζεται η κάρτα γραφικών",
+};
+
 // The overlay has no settings of its own: it asks the app which language the
 // dashboard uses. The app may not be ready when the window first loads, so keep
 // asking for a few seconds, and ask again at the start of every dictation so a
@@ -95,6 +117,7 @@ function Overlay() {
   const [seconds, setSeconds] = useState(0);
   const [lang, setLang] = useState("en");
   const [style, setStyle] = useState("full");
+  const [stressed, setStressed] = useState(false);
   const applyPrefs = (pr: { lang: string; style: string } | null) => { if (pr) { setLang(pr.lang); setStyle(pr.style); } };
 
   useEffect(() => {
@@ -114,16 +137,45 @@ function Overlay() {
     };
   }, []);
 
+  // Time the wait, then ask the card once. One question per slow dictation,
+  // asked only after the threshold, so a fast machine never pays for it.
+  useEffect(() => {
+    if (p.state !== "processing") {
+      setStressed(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      invoke<{ state: string }>("gpu_gauge")
+        .then((g) => setStressed(g.state === "tight" || g.state === "spilled"))
+        // Swallowing this silently would leave a dead feature with no trace to
+        // follow when someone reports that the line never shows up. It reaches
+        // the webview console rather than the diagnostics file, which is thin,
+        // but it is the difference between a clue and nothing.
+        .catch((e) => console.error("gpu_gauge failed, stress line suppressed", e));
+    }, STRESS_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [p.state]);
+
   const recording = p.state === "recording" || p.state === "hands_free";
   const busy = p.state === "processing" || p.state === "cleaning" || p.state === "starting";
   const error = ["failed", "mic_unavailable", "model_unavailable", "offline", "sensitive"].includes(p.state);
   const warn = ["no_speech", "cancelled", "target_changed"].includes(p.state);
   const cls = ["pill", p.state, recording ? "rec" : "", busy ? "busy" : "", error ? "err" : "", warn ? "warn" : ""].join(" ");
+  // The state guard covers the one render between leaving "processing" and the
+  // effect above clearing the flag, so the line never flashes over "Done".
+  const stress = stressed && p.state === "processing" ? STRESS_LINE[lang] : null;
 
   if (style === "minimal") {
     // One dot with a coloured ring: red listening, amber working, green done.
+    // The dot has no room for a line, so the warning rides in the tooltip.
     return (
-      <div className={cls + " mini"} role="status" aria-live="polite" title={LABELS[lang][p.state]} data-tauri-drag-region>
+      <div
+        className={cls + " mini"}
+        role="status"
+        aria-live="polite"
+        title={LABELS[lang][p.state] + (stress ? ` · ${stress}` : "")}
+        data-tauri-drag-region
+      >
         <div className="dot" />
       </div>
     );
@@ -141,6 +193,7 @@ function Overlay() {
           </button>
         )}
       </div>
+      {stress ? <div className="stress">{stress}</div> : null}
       {recording ? <Bars level={level} active /> : null}
       {p.message && !recording && p.state !== "success" && <div className="sub">{p.message}</div>}
     </div>

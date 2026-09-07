@@ -1,6 +1,6 @@
 [package]
 name = "lalia"
-version = "0.9.1"
+version = "0.9.3"
 description = "Lalia: local-first voice keyboard for Windows (Greek + English)"
 authors = ["Luram AI Agency"]
 edition = "2021"
@@ -19,6 +19,7 @@ tauri-plugin-opener = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
@@ -44,6 +45,9 @@ tracing-appender = "0.2"
 dirs = "6"
 once_cell = "1"
 async-trait = "0.1"
+# Reads sound files the user already has (voice notes, meeting recordings) so
+# they can be turned into text without ffmpeg on the machine.
+symphonia = { version = "0.5", features = ["mp3", "aac", "isomp4", "alac", "flac", "ogg", "vorbis", "wav", "pcm", "adpcm", "mkv", "caf", "aiff"] }
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.62"
@@ -64,6 +68,7 @@ features = [
   "Win32_System_Com",
   "Win32_System_LibraryLoader",
   "Win32_System_ProcessStatus",
+  "Win32_System_Performance",
   "Win32_System_SystemInformation",
   "Win32_Security",
   "Win32_Graphics_Gdi",

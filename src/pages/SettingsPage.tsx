@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, ModelStatus, RuntimeStatus, Settings, LanguageMode } from "../api";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, ModelStatus, RuntimeStatus, Settings, LanguageMode, UpdateInfo } from "../api";
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
 
@@ -10,7 +11,14 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
   const { settings, setSettings, t, toast } = useApp();
   const [tab, setTab] = useState<Tab>("general");
   const [draft, setDraft] = useState<Settings>(settings);
-  useEffect(() => setDraft(settings), [settings]);
+  // Take the new copy only when nothing is half typed here. The notepad's "do
+  // not show again" box writes the settings from the program side, and that
+  // used to wipe whatever the user had changed on this page and not saved.
+  const settingsRef = useRef<Settings>(settings);
+  useEffect(() => {
+    setDraft((d) => (JSON.stringify(d) === JSON.stringify(settingsRef.current) ? settings : d));
+    settingsRef.current = settings;
+  }, [settings]);
 
   const patch = (p: (s: Settings) => Settings) => setDraft((d) => p(structuredClone(d)));
   const save = async () => {
@@ -42,6 +50,8 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
           <Toggle label={t("autostart")} checked={draft.general.autostart} onChange={(v) => patch((s) => { s.general.autostart = v; return s; })} />
         </Card>
       )}
+
+      {tab === "general" && <UpdatesCard />}
 
       {tab === "mic" && <MicTab draft={draft} patch={patch} />}
 
@@ -85,6 +95,7 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
           </Field>
           <Toggle label={t("restore_clip")} checked={draft.insertion.restore_clipboard} onChange={(v) => patch((s) => { s.insertion.restore_clipboard = v; return s; })} />
           <Toggle label={t("trailing_space")} checked={draft.insertion.trailing_space} onChange={(v) => patch((s) => { s.insertion.trailing_space = v; return s; })} />
+          <Toggle label={t("notepad_when_lost")} hint={t("notepad_when_lost_hint")} checked={draft.insertion.notepad_when_lost} onChange={(v) => patch((s) => { s.insertion.notepad_when_lost = v; return s; })} />
           <Field label={t("settle")}>
             <input type="number" min={40} max={2000} value={draft.insertion.paste_settle_ms} onChange={(e) => patch((s) => { s.insertion.paste_settle_ms = Number(e.target.value); return s; })} style={{ maxWidth: 160 }} />
           </Field>
@@ -155,6 +166,59 @@ function dictationOptions(uiLanguage: string, t: (k: "lang_multi" | "lang_greek"
   const english = { value: "english" as const, label: t("lang_english") };
   const auto = { value: "auto" as const, label: t("lang_auto") };
   return uiLanguage === "el" ? [multi, greek, english, auto] : [english, auto, multi, greek];
+}
+
+/// The manual check. The app also asks the server on its own, fifteen seconds
+/// after it starts, and shows a bar at the top when something is waiting.
+function UpdatesCard() {
+  const { t, toast } = useApp();
+  const [state, setState] = useState<"idle" | "checking" | "installing">("idle");
+  const [answer, setAnswer] = useState<UpdateInfo | null>(null);
+  // Shown the moment the page opens, straight from the running program, so the
+  // line is never a label with nothing after it.
+  const [version, setVersion] = useState("");
+  useEffect(() => { api.appVersion().then(setVersion).catch(() => {}); }, []);
+  const check = async () => {
+    setState("checking");
+    try {
+      const u = await api.checkForUpdate();
+      setAnswer(u);
+    } catch (err) {
+      toast(`${t("update_failed")}: ${err}`, "err");
+    } finally {
+      setState("idle");
+    }
+  };
+  const install = () => {
+    setState("installing");
+    api
+      .installUpdate()
+      .then(() => setState("idle"))
+      .catch((err) => { toast(String(err), "err"); setState("idle"); });
+  };
+  return (
+    <Card title={t("update_section")}>
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <span>{t("update_version_now")}: <strong>{answer?.current || version}</strong></span>
+        <Button onClick={check} disabled={state !== "idle"}>{state === "checking" ? t("update_checking") : t("update_check")}</Button>
+      </div>
+      {answer && !answer.available && <p className="hint">{t("update_none")}</p>}
+      {answer && answer.available && (
+        <div className="row">
+          <span>{t("update_ready").replace("{v}", answer.version).replace("{c}", answer.current)}</span>
+          {answer.small_download ? (
+            <Button kind="primary" onClick={install} disabled={state !== "idle"}>
+              {state === "installing" ? t("update_installing") : t("update_now")}
+            </Button>
+          ) : (
+            <Button kind="primary" onClick={() => openUrl("https://fuckyouflow.app")}>{t("update_site")}</Button>
+          )}
+        </div>
+      )}
+      {answer?.available && !answer.small_download && <p className="hint">{t("update_big")}</p>}
+      {answer?.available && answer.notes && <p className="hint">{answer.notes}</p>}
+    </Card>
+  );
 }
 
 function ModelsTab({ draft, patch, engine }: { draft: Settings; patch: (p: (s: Settings) => Settings) => void; engine: EngineInfo | null }) {

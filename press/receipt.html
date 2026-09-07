@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The bill</title>
+<style>
+/* The receipt, set as text rather than rendered as an image, so every figure on
+   it can actually be read. Photographed by press/make_key.py at 1000x1250,
+   which is the 4:5 slot the page gives it.
+   Every number here also appears in the table above it on the page, with its
+   source: the Wispr Flow pricing page read on 6 September 2026, and TechCrunch,
+   17 August 2026. */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1000px;height:1250px;overflow:hidden}
+body{
+  background:
+    radial-gradient(80% 60% at 50% 42%, #171717, #000 70%),
+    #000;
+  display:flex;align-items:center;justify-content:center;
+  font:17px/1.6 Consolas,"Cascadia Mono",ui-monospace,Menlo,monospace;
+  -webkit-font-smoothing:antialiased;
+}
+
+.wrap{transform:rotate(-2.6deg)}
+
+.paper{
+  position:relative;
+  width:600px;
+  background:linear-gradient(178deg,#f7f6f0,#efeee6 46%,#f4f3ec);
+  color:#12120f;
+  padding:52px 46px 78px;
+  box-shadow:0 44px 90px rgba(0,0,0,.85), 0 6px 16px rgba(0,0,0,.6);
+  /* the torn bottom edge of thermal paper */
+  clip-path:polygon(0 0,100% 0,
+    100% calc(100% - 16px),96% 100%,92% calc(100% - 16px),88% 100%,84% calc(100% - 16px),
+    80% 100%,76% calc(100% - 16px),72% 100%,68% calc(100% - 16px),64% 100%,
+    60% calc(100% - 16px),56% 100%,52% calc(100% - 16px),48% 100%,44% calc(100% - 16px),
+    40% 100%,36% calc(100% - 16px),32% 100%,28% calc(100% - 16px),24% 100%,
+    20% calc(100% - 16px),16% 100%,12% calc(100% - 16px),8% 100%,4% calc(100% - 16px),
+    0 100%);
+}
+/* the faint mottling of thermal paper, kept subtle enough to read through */
+.paper::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(50% 30% at 18% 12%, rgba(0,0,0,.05), transparent 70%),
+    radial-gradient(60% 26% at 82% 46%, rgba(0,0,0,.045), transparent 72%),
+    radial-gradient(40% 22% at 30% 84%, rgba(0,0,0,.05), transparent 70%);
+}
+
+.head{text-align:center;margin-bottom:30px}
+.head .co{font-weight:700;font-size:26px;letter-spacing:.06em}
+.head .sub{color:#5a5f52;font-size:15px;margin-top:6px;letter-spacing:.1em;text-transform:uppercase}
+
+.rule{border-top:2px dashed #9a9e8e;margin:22px 0}
+.rule.thin{border-top-width:1px}
+
+.blk-name{font-weight:700;font-size:19px;letter-spacing:.04em;margin-bottom:14px}
+
+.ln{display:flex;align-items:center;gap:8px;white-space:nowrap;margin:11px 0;font-size:18px}
+.ln .dots{flex:1;height:0;border-bottom:2px dotted #a8ac9c;min-width:14px;align-self:center;margin-top:6px}
+.ln .v{font-weight:700}
+.ln.muted{color:#4d5246}
+.ln.muted .v{font-weight:400}
+
+.total{display:flex;align-items:center;gap:8px;white-space:nowrap;
+  margin-top:16px;padding-top:16px;border-top:2px solid #12120f;
+  font-size:22px;font-weight:700}
+.total .dots{flex:1;min-width:14px}
+
+.zero{font-size:56px;font-weight:700;letter-spacing:-.02em}
+
+.stamp-row{text-align:center;margin-top:30px}
+.stamp{
+  display:inline-block;
+  transform:rotate(-6.5deg);
+  border:5px solid #6f9b00;color:#5c8100;
+  padding:10px 22px;font-size:30px;font-weight:700;letter-spacing:.06em;
+  opacity:.88;
+}
+
+.foot{text-align:center;color:#5a5f52;font-size:14px;margin-top:34px;line-height:1.7}
+.foot b{color:#12120f;letter-spacing:.08em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="paper">
+    <div class="head">
+      <div class="co">WISPR AI, INC.</div>
+      <div class="sub">Subscription receipt</div>
+    </div>
+
+    <div class="blk-name">WISPR FLOW PRO</div>
+    <div class="ln"><span>Per month</span><i class="dots"></i><span class="v">$15.00</span></div>
+    <div class="ln"><span>x 12 months</span><i class="dots"></i><span class="v">$180.00</span></div>
+    <div class="ln muted"><span>Free plan cap</span><i class="dots"></i><span class="v">2,000 words a week</span></div>
+    <div class="ln muted"><span>Your voice</span><i class="dots"></i><span class="v">their servers</span></div>
+    <div class="ln muted"><span>Account</span><i class="dots"></i><span class="v">required</span></div>
+    <div class="ln muted"><span>Investor money raised</span><i class="dots"></i><span class="v">$361,000,000</span></div>
+    <div class="ln muted"><span>Company valuation</span><i class="dots"></i><span class="v">$2,000,000,000</span></div>
+    <div class="total"><span>TOTAL, ONE YEAR</span><i class="dots"></i><span>$180.00</span></div>
+
+    <div class="rule"></div>
+
+    <div class="blk-name">FUCK YOU FLOW</div>
+    <div class="ln muted"><span>Words a week</span><i class="dots"></i><span class="v">as many as you say</span></div>
+    <div class="ln muted"><span>Your voice</span><i class="dots"></i><span class="v">into the text, then gone</span></div>
+    <div class="ln muted"><span>Account</span><i class="dots"></i><span class="v">none</span></div>
+    <div class="ln muted"><span>Right Alt key</span><i class="dots"></i><span class="v">included</span></div>
+    <div class="ln muted"><span>Source code</span><i class="dots"></i><span class="v">open, MIT</span></div>
+    <div class="total"><span>TOTAL, FOREVER</span><i class="dots"></i><span class="zero">$0.00</span></div>
+
+    <div class="stamp-row"><span class="stamp">PAID $0.00</span></div>
+
+    <div class="rule thin"></div>
+    <div class="foot">
+      <b>FUCKYOUFLOW.APP</b><br>
+      Prices read on the Wispr Flow pricing page, 6 September 2026.<br>
+      Funding and valuation: TechCrunch, 17 August 2026.
+    </div>
+  </div>
+</div>
+</body>
+</html>

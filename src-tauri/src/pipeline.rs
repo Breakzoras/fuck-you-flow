@@ -748,6 +748,10 @@ async fn process(
     // 6. Insert.
     let target_alive = insertion::window_alive(ctx.target.hwnd);
     let mut insertion_method = "paste".to_string();
+    // When the words cannot reach the window the user was in, they are not
+    // allowed to vanish into the clipboard unseen: this holds the line that
+    // explains where they went, and the notepad below shows them.
+    let mut not_landed: Option<&'static str> = None;
     let (status, state, message) = if !target_alive {
         let r = tokio::task::spawn_blocking({
             let t = final_text.clone();
@@ -756,6 +760,7 @@ async fn process(
         .await
         .unwrap_or(insertion::InsertReport { outcome: InsertOutcome::Failed, method: "copy".into(), message: None, elapsed_ms: 0 });
         insertion_method = r.method;
+        not_landed = Some("window_closed");
         ("copied".to_string(), OverlayState::TargetChanged, Some("the window closed; the text is on the clipboard".to_string()))
     } else {
         let method = if ctx.target.elevated { InsertionMethod::CopyOnly } else { settings.insertion.method.clone() };
@@ -796,13 +801,36 @@ async fn process(
         insertion_method = r.method.clone();
         match r.outcome {
             InsertOutcome::Pasted | InsertOutcome::PastedNoRestore | InsertOutcome::Typed => ("success".to_string(), OverlayState::Success, r.message),
-            InsertOutcome::CopiedOnly if ctx.target.elevated => ("copied".to_string(), OverlayState::TargetChanged, Some("the app runs as administrator; the text is on the clipboard (Ctrl+V)".to_string())),
-            InsertOutcome::CopiedOnly if focus_lost => ("copied".to_string(), OverlayState::TargetChanged, Some("the active window changed; the text is on the clipboard (Ctrl+V)".to_string())),
+            InsertOutcome::CopiedOnly if ctx.target.elevated => {
+                not_landed = Some("elevated");
+                ("copied".to_string(), OverlayState::TargetChanged, Some("the app runs as administrator; the text is on the clipboard (Ctrl+V)".to_string()))
+            }
+            InsertOutcome::CopiedOnly if focus_lost => {
+                not_landed = Some("focus_lost");
+                ("copied".to_string(), OverlayState::TargetChanged, Some("the active window changed; the text is on the clipboard (Ctrl+V)".to_string()))
+            }
             InsertOutcome::CopiedOnly => ("copied".to_string(), OverlayState::Success, Some("copied to the clipboard".to_string())),
-            InsertOutcome::PasteNotConsumed => ("copied".to_string(), OverlayState::TargetChanged, Some("the app did not accept the paste; the text is on the clipboard".to_string())),
-            InsertOutcome::Failed => ("failed".to_string(), OverlayState::Failed, r.message),
+            InsertOutcome::PasteNotConsumed => {
+                not_landed = Some("not_taken");
+                ("copied".to_string(), OverlayState::TargetChanged, Some("the app did not accept the paste; the text is on the clipboard".to_string()))
+            }
+            InsertOutcome::Failed => {
+                not_landed = Some("insert_failed");
+                ("failed".to_string(), OverlayState::Failed, r.message)
+            }
         }
     };
+
+    // The words exist and the user cannot see them anywhere. Show them, unless
+    // the user has said that a window appearing mid-work costs them more than
+    // the loss does; the clipboard still holds the text either way.
+    if let Some(reason) = not_landed {
+        if settings.insertion.notepad_when_lost {
+            crate::scratch::show(app, &final_text, reason, Some(ctx.friendly_name.clone()), "insert");
+        } else {
+            tracing::info!("notepad suppressed by settings; the text is on the clipboard");
+        }
+    }
 
     let latency_ms = released_at.elapsed().as_millis() as u64;
     let preview: String = final_text.trim().chars().take(60).collect();

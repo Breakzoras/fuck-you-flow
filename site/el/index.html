@@ -39,23 +39,73 @@
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "Speech to text",
       "operatingSystem": "Windows 10, Windows 11",
-      "softwareVersion": "0.9.1",
+      "softwareVersion": "0.9.2",
       "inLanguage": ["en", "el"],
       "description": "Δωρεάν υπαγόρευση για Windows με ελληνικά και αγγλικά. Τρέχει εξ ολοκλήρου στον υπολογιστή του χρήστη. Εναλλακτική του Wispr Flow χωρίς συνδρομή και χωρίς όριο λέξεων.",
       "url": "https://fuckyouflow.app/el/",
-      "downloadUrl": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.1/Fuck.You.Flow.Setup.0.9.1.exe",
+      "downloadUrl": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.2/Fuck.You.Flow.Setup.0.9.2.exe",
       "installUrl": "https://github.com/Breakzoras/fuck-you-flow/releases",
       "fileSize": "1464MB",
       "license": "https://opensource.org/licenses/MIT",
       "isAccessibleForFree": true,
-      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
-      "publisher": {"@type": "Organization", "name": "Luram AI Agency", "url": "https://luram.gr/"}
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR",
+                 "availability": "https://schema.org/InStock"},
+      "softwareRequirements": "Windows 10 or 11, 64-bit. A graphics card from NVIDIA, AMD or Intel makes it faster; without one it runs on the processor.",
+      "memoryRequirements": "8 GB RAM",
+      "storageRequirements": "3 GB",
+      "featureList": [
+        "One hotkey dictation into any Windows program, using the right Alt key",
+        "Speech recognition on the user's own machine, with no server and no account",
+        "English and Greek, mixed inside a single sentence",
+        "No word limit and no subscription",
+        "A personal dictionary that learns from corrections",
+        "Snippets: one spoken phrase expands into a block of text",
+        "Local history and statistics, kept in SQLite on the user's disk",
+        "Works offline after installation",
+        "Password fields are detected and left empty",
+        "Open source under the MIT license"
+      ],
+      "keywords": "free dictation Windows, Wispr Flow alternative, offline speech to text, local Whisper, Greek dictation, open source voice typing",
+      "datePublished": "2026-09-06",
+      "dateModified": "2026-09-08",
+      "author": {"@id": "https://luram.gr/#org"},
+      "publisher": {"@id": "https://luram.gr/#org"},
+      "maintainer": {"@id": "https://luram.gr/#org"},
+      "codeRepository": "https://github.com/Breakzoras/fuck-you-flow",
+      "programmingLanguage": ["Rust", "TypeScript", "C++"],
+      "isBasedOn": {
+        "@type": "SoftwareApplication",
+        "name": "Whisper",
+        "author": {"@type": "Organization", "name": "OpenAI"},
+        "license": "https://opensource.org/licenses/MIT",
+        "url": "https://github.com/openai/whisper"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://luram.gr/#org",
+      "name": "Luram AI Agency",
+      "url": "https://luram.gr/",
+      "email": "info@luram.gr",
+      "description": "AI tools, agents and automation for Greek businesses.",
+      "address": {"@type": "PostalAddress", "addressLocality": "Thessaloniki",
+                  "addressCountry": "GR"},
+      "sameAs": ["https://github.com/Breakzoras"]
+    },
+    {
+      "@type": "HowTo",
+      "@id": "https://fuckyouflow.app/el/#howto",
+      "inLanguage": "el",
+      "name": "Πώς να υπαγορεύσετε κείμενο σε κάθε πρόγραμμα των Windows με το Fuck You Flow",
+      "totalTime": "PT10S",
+      "estimatedCost": {"@type": "MonetaryAmount", "currency": "EUR", "value": "0"},
+      "step": [{"@type":"HowToStep","position":1,"name":"Πατήστε το δεξί Alt","text":"Εμφανίζεται ένα μικρό παράθυρο με κυματομορφή και η εφαρμογή αρχίζει να ακούει."},{"@type":"HowToStep","position":2,"name":"Μιλήστε","text":"Ελληνικά, αγγλικά, ή και τα δύο στην ίδια πρόταση. Κάθε φράση που τελειώνει μεταγράφεται όσο εσείς συνεχίζετε."},{"@type":"HowToStep","position":3,"name":"Ξαναπατήστε το δεξί Alt","text":"Το κείμενο προσγειώνεται εκεί που ήταν ο κέρσορας, με τα σημεία στίξης. Το Escape ακυρώνει."}]
     },
     {
       "@type": "FAQPage",
       "@id": "https://fuckyouflow.app/el/#faq",
       "inLanguage": "el",
-      "mainEntity": [{"@type":"Question","name":"Είναι δωρεάν εναλλακτική του Wispr Flow;","acceptedAnswer":{"@type":"Answer","text":"Ναι. Ίδια δουλειά, υπαγόρευση με ένα πλήκτρο σε κάθε πρόγραμμα των Windows, χωρίς συνδρομή, χωρίς λογαριασμό, χωρίς εβδομαδιαίο όριο λέξεων. Ανοιχτός κώδικας με άδεια MIT στο GitHub."}},{"@type":"Question","name":"Πού πάει η φωνή μου;","acceptedAnswer":{"@type":"Answer","text":"Πουθενά. Η αναγνώριση τρέχει στο δικό σας μηχάνημα με το μοντέλο Whisper. Μετά την εγκατάσταση καμία σύνδεση στο ίντερνετ δεν χρειάζεται. Τα πεδία κωδικών αναγνωρίζονται και μένουν άδεια."}},{"@type":"Question","name":"Χρειάζεται κάρτα NVIDIA;","acceptedAnswer":{"@type":"Answer","text":"Όχι. NVIDIA, AMD και Intel μέσα από το Vulkan. Χωρίς κάρτα γραφικών τρέχει στον επεξεργαστή, πιο αργά."}},{"@type":"Question","name":"Γιατί βγάζουν τα Windows μπλε προειδοποίηση στην εγκατάσταση;","acceptedAnswer":{"@type":"Answer","text":"Ο εγκαταστάτης δεν έχει αγορασμένο πιστοποιητικό υπογραφής κώδικα. Πατήστε Περισσότερες πληροφορίες, μετά Εκτέλεση ούτως ή άλλως. Το άθροισμα ελέγχου SHA256 βρίσκεται στο GitHub."}},{"@type":"Question","name":"Τι σημαίνει beta;","acceptedAnswer":{"@type":"Answer","text":"Τρέχει καθημερινά στα δικά μας μηχανήματα και τώρα βγαίνει και στα δικά σας. Κάποια προγράμματα μπορεί να αρνηθούν την επικόλληση, κάποιες κάρτες μένουν αδοκίμαστες. Ό,τι χαλάσει, θέλουμε να το μάθουμε."}},{"@type":"Question","name":"Γιατί αυτό το όνομα;","acceptedAnswer":{"@type":"Answer","text":"Μια εταιρεία υπαγόρευσης αποτιμήθηκε στα 2 δισεκατομμύρια δολάρια για κάτι που τα ανοιχτά μοντέλα κάνουν δωρεάν εδώ και δύο χρόνια. Το όνομα είναι η απάντηση. Στα κοινωνικά δίκτυα γράφουμε FU Flow."}}]
+      "mainEntity": [{"@type":"Question","name":"Είναι δωρεάν εναλλακτική του Wispr Flow;","acceptedAnswer":{"@type":"Answer","text":"Ναι. Ίδια δουλειά, υπαγόρευση με ένα πλήκτρο σε κάθε πρόγραμμα των Windows, χωρίς συνδρομή, χωρίς λογαριασμό, χωρίς εβδομαδιαίο όριο λέξεων. Ανοιχτός κώδικας με άδεια MIT στο GitHub."}},{"@type":"Question","name":"Πού πάει η φωνή μου;","acceptedAnswer":{"@type":"Answer","text":"Πουθενά. Η αναγνώριση τρέχει στο δικό σας μηχάνημα με το μοντέλο Whisper. Μετά την εγκατάσταση καμία σύνδεση στο ίντερνετ δεν χρειάζεται. Τα πεδία κωδικών αναγνωρίζονται και μένουν άδεια."}},{"@type":"Question","name":"Χρειάζεται κάρτα NVIDIA;","acceptedAnswer":{"@type":"Answer","text":"Όχι. NVIDIA, AMD και Intel μέσα από το Vulkan. Χωρίς κάρτα γραφικών τρέχει στον επεξεργαστή, πιο αργά."}},{"@type":"Question","name":"Γιατί βγάζουν τα Windows μπλε προειδοποίηση στην εγκατάσταση;","acceptedAnswer":{"@type":"Answer","text":"Ο εγκαταστάτης δεν έχει αγορασμένο πιστοποιητικό υπογραφής κώδικα. Πατήστε Περισσότερες πληροφορίες, μετά Εκτέλεση ούτως ή άλλως. Το άθροισμα ελέγχου SHA256 βρίσκεται στο GitHub."}},{"@type":"Question","name":"Τι σημαίνει beta;","acceptedAnswer":{"@type":"Answer","text":"Τρέχει καθημερινά στα δικά μας μηχανήματα και τώρα βγαίνει και στα δικά σας. Κάποια προγράμματα μπορεί να αρνηθούν την επικόλληση, κάποιες κάρτες μένουν αδοκίμαστες. Ό,τι χαλάσει, θέλουμε να το μάθουμε."}},{"@type":"Question","name":"Γιατί αυτό το όνομα;","acceptedAnswer":{"@type":"Answer","text":"Μια εταιρεία υπαγόρευσης αποτιμήθηκε στα 2 δισεκατομμύρια δολάρια για κάτι που τα ανοιχτά μοντέλα κάνουν δωρεάν από τον Σεπτέμβριο του 2022. Το όνομα είναι η απάντηση. Στα κοινωνικά δίκτυα γράφουμε FU Flow."}}]
     },
     {
       "@type": "WebSite",
@@ -88,6 +138,7 @@ document.dispatchEvent(new CustomEvent("fyf-theme"))})});})();
   --acid:#c8ff5a;--acid-deep:#8fd400;--acid-fg:#0c0c0c;--acid-text:#c8ff5a;
   --coral:#fa5f79;--coral-deep:#e23f5c;--coral-fg:#2c0410;--coral-text:#fa5f79;
   --focus:#c8ff5a;--glow:rgba(250,95,121,.16);
+  --pane-them:#140b0e;--pane-us:#0e1206;
   color-scheme:dark;
 }
 html[data-theme="light"]{
@@ -96,6 +147,7 @@ html[data-theme="light"]{
   --acid:#c8ff5a;--acid-deep:#6fae00;--acid-fg:#0c0c0c;--acid-text:#2f6b00;
   --coral:#fa5f79;--coral-deep:#b41738;--coral-fg:#fff;--coral-text:#b41738;
   --focus:#2f6b00;--glow:rgba(180,23,56,.18);
+  --pane-them:#fdf0f2;--pane-us:#f2f7e6;
   color-scheme:light;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -114,10 +166,18 @@ p{max-width:70ch}
 
 /* header */
 .top{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line)}
-.top-in{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:32px;min-height:64px}
+.top{--wrap:1320px}
+.top .wrap{max-width:var(--wrap)}
+.top-in{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:24px;min-height:64px}
+/* every track may shrink, so a long nav can never slide under the brand name.
+   The Greek nav is the wide one and it was overlapping the logo at 1000px. */
+.top-in>*{min-width:0}
 .brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-weight:700;white-space:nowrap}
 .brand img{width:32px;height:32px}
-.nav{display:flex;gap:28px;justify-content:center;font-size:16px}
+/* the gap closes up before anything is lost. The Greek labels are the long ones,
+   and the whole set needs about 860px, which is why the header gets a wider wrap
+   than the page and the links go away below 1360px. */
+.nav{display:flex;gap:clamp(12px,1.3vw,24px);justify-content:center;font-size:16px}
 .nav a{text-decoration:none;color:var(--muted);white-space:nowrap}
 .nav a:hover{color:var(--coral-text)}
 .tools{display:flex;gap:10px;align-items:center}
@@ -267,6 +327,61 @@ table.bill td:first-child{color:var(--coral-text)}
 table.bill td:nth-child(2){color:var(--muted)}
 table.bill td:last-child{color:var(--acid-text);font-weight:700}
 table.bill th:last-child{color:var(--acid-text)}
+/* speed: one card per measurement, with the two times drawn to scale so the
+   gap between talking and waiting is visible before it is read */
+.meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;
+margin-top:34px}
+.meter{border:1px solid var(--line);background:var(--card);padding:26px 24px 24px;
+position:relative}
+.meter::before{content:"";position:absolute;left:0;top:0;width:100%;height:3px;
+background:var(--acid)}
+.meter .m-words{display:flex;align-items:baseline;gap:9px;margin-bottom:22px}
+.meter .m-n{font-size:44px;font-weight:700;letter-spacing:-.03em;
+font-variant-numeric:tabular-nums;line-height:1}
+.meter .m-u{color:var(--muted);font-size:15px;letter-spacing:.08em;text-transform:uppercase}
+.meter .m-line{margin-bottom:16px}
+.meter .m-line:last-child{margin-bottom:0}
+.meter .m-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+margin-bottom:8px;font-size:16px}
+.meter .m-k{color:var(--muted)}
+.meter .m-v{font-weight:700;font-variant-numeric:tabular-nums}
+.meter .m-track{height:12px;background:var(--line2);border:1px solid var(--line)}
+.meter .m-fill{display:block;height:100%;min-width:3px}
+.meter .m-spoke .m-fill{background:var(--coral)}
+.meter .m-spoke .m-v{color:var(--coral-text)}
+.meter .m-wait .m-fill{background:var(--acid)}
+.meter .m-wait .m-v{color:var(--acid-text)}
+.scale{color:var(--muted);font-size:15px;margin-top:18px}
+
+/* the bill: two columns painted as two panels, so the two offers read as two
+   objects, and the nine rows read as one comparison */
+table.bill{border-collapse:separate;border-spacing:0}
+table.bill th,table.bill td{border-bottom:1px solid var(--line)}
+table.bill th{padding-top:22px;padding-bottom:18px;font-size:17px;font-weight:700;
+letter-spacing:0;text-transform:none}
+table.bill th:nth-child(2),table.bill td:nth-child(2){background:var(--pane-them);
+border-left:1px solid var(--line);border-right:1px solid var(--line)}
+table.bill th:last-child,table.bill td:last-child{background:var(--pane-us);
+border-right:1px solid var(--line)}
+table.bill th:nth-child(2){border-top:3px solid var(--coral);color:var(--coral-text)}
+table.bill th:last-child{border-top:3px solid var(--acid);color:var(--acid-text)}
+table.bill tr:last-child td:nth-child(2),table.bill tr:last-child td:last-child{
+border-bottom:1px solid var(--line)}
+table.bill td:first-child{color:var(--fg);font-weight:700;padding-left:0;
+background:transparent;width:23%}
+table.bill td:nth-child(2){color:var(--muted)}
+table.bill td:last-child{color:var(--fg);font-weight:700}
+.price-tag{display:block;font-size:15px;font-weight:400;color:var(--muted);margin-top:4px}
+
+/* honourable mentions */
+.thanks{list-style:none;display:grid;gap:20px;
+grid-template-columns:repeat(auto-fill,minmax(300px,420px));justify-content:start}
+.thanks li{border:1px solid var(--line);background:var(--card);padding:24px}
+.thanks .th-name{display:block;font-size:21px;font-weight:700;margin-bottom:8px}
+.thanks .th-what{color:var(--muted);font-size:17px}
+.thanks .th-tag{display:inline-block;margin-bottom:12px;font-size:14px;letter-spacing:.08em;
+text-transform:uppercase;color:var(--acid-text);border:1px solid var(--acid);padding:3px 10px}
+
 blockquote{margin-top:44px;border-left:3px solid var(--coral);padding:4px 0 4px 24px;font-size:21px}
 blockquote footer{color:var(--muted);font-size:15px;margin-top:10px}
 
@@ -286,6 +401,20 @@ details p{margin:0 0 22px;color:var(--muted)}
 .door a{color:var(--coral-text);font-weight:700}
 
 /* footer */
+/* the agency that pays for this, given room of its own in the footer */
+.sponsor{border-top:1px solid var(--line);margin-top:52px;padding-top:44px;text-align:center}
+.sponsor .spon-k{color:var(--muted);font-size:15px;letter-spacing:.14em;text-transform:uppercase;
+margin-bottom:26px}
+.spon-btn{display:inline-block;border:1px solid var(--line);background:var(--card);
+padding:34px 52px;transition:border-color .15s,background .15s;text-decoration:none}
+.spon-btn:hover,.spon-btn:focus-visible{border-color:var(--acid);background:var(--bg2)}
+.spon-btn img{width:min(420px,74vw);height:auto}
+.spon-btn .lt{display:none}
+html[data-theme="light"] .spon-btn .lt{display:block}
+html[data-theme="light"] .spon-btn .dk{display:none}
+.sponsor .spon-line{color:var(--muted);font-size:17px;margin:24px auto 0;max-width:60ch}
+.sponsor .spon-line a{color:var(--coral-text);font-weight:700}
+
 .foot{padding:56px 0 72px;color:var(--muted);font-size:16px;border-top:1px solid var(--line)}
 .foot-top{display:flex;flex-wrap:wrap;gap:26px;justify-content:space-between;align-items:start}
 .foot-top p{color:var(--fg)}
@@ -295,6 +424,8 @@ details p{margin:0 0 22px;color:var(--muted)}
 .foot-links a:hover{color:var(--coral-text);text-decoration:underline}
 .legal{margin-top:34px;font-size:15px;max-width:100%}
 
+/* the section links need room. Below this the brand and the buttons keep the bar. */
+@media (max-width:1240px){.nav{display:none}}
 @media (max-width:900px){
 .top-in{grid-template-columns:auto auto;gap:14px;padding:10px 0}
 .nav{display:none}
@@ -303,6 +434,8 @@ h1{font-size:38px}.lead{font-size:19px}
 h2{font-size:29px}.row h2{font-size:26px}
 section{padding:64px 0}
 .row,.key,.two,.close{grid-template-columns:1fr;gap:32px}
+.meters{grid-template-columns:1fr}
+table.bill td:first-child{width:auto}
 .band{height:150px}
 .row.flip .txt{order:0}
 .rows{gap:64px;margin-top:64px}
@@ -324,7 +457,7 @@ section{padding:64px 0}
       <a href="#bill">Ο λογαριασμός</a>
       <a href="/wispr-flow-alternative/">vs Wispr Flow</a>
       <a href="#faq">Ερωτήσεις</a>
-      <a href="https://github.com/Breakzoras/fuck-you-flow">GitHub</a>
+      <a href="#thanks">Ευχαριστίες</a>
     </nav>
     <div class="tools">
       <a href="/?lang=en" hreflang="en" lang="en">EN</a>
@@ -344,15 +477,15 @@ section{padding:64px 0}
       <h1 id="h1">Δωρεάν υπαγόρευση που ζει στον υπολογιστή σας.</h1>
       <p class="lead">Το Wispr Flow σήκωσε 361 εκατομμύρια δολάρια και σας δίνει 2.000 λέξεις την εβδομάδα πριν αρχίσει ο μετρητής στα 15 δολάρια τον μήνα. Εμείς βάλαμε το ίδιο πράγμα πίσω από ένα πλήκτρο και αφήσαμε τον μετρητή κλειστό. Ελληνικά και αγγλικά, όλα στον υπολογιστή σας, τίποτα στο σύννεφο.</p>
       <div class="cta">
-        <a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.1/Fuck.You.Flow.Setup.0.9.1.exe"><svg class="winmark" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path fill="currentColor" d="M1 1h10v10H1zM13 1h10v10H13zM1 13h10v10H1zM13 13h10v10H13z"/></svg>Κατεβάστε το για Windows</a>
+        <a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.2/Fuck.You.Flow.Setup.0.9.2.exe"><svg class="winmark" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path fill="currentColor" d="M1 1h10v10H1zM13 1h10v10H13zM1 13h10v10H1zM13 13h10v10H13z"/></svg>Κατεβάστε το για Windows</a>
         <a class="btn btn-coral" href="https://github.com/Breakzoras/fuck-you-flow">Δείτε τον κώδικα</a>
       </div>
-      <p class="fine">Windows 10 και 11. Έκδοση 0.9.1 beta. 1,4 GB με όλα τα μοντέλα μέσα. Καμία σύνδεση στο ίντερνετ μετά την εγκατάσταση. Άδεια MIT. Το άθροισμα ελέγχου SHA256 βρίσκεται στη <a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.1">σελίδα της έκδοσης</a>.</p>
+      <p class="fine">Windows 10 και 11. Έκδοση 0.9.2 beta. 1,7 GB με όλα τα μοντέλα μέσα. Καμία σύνδεση στο ίντερνετ μετά την εγκατάσταση. Άδεια MIT. Το άθροισμα ελέγχου SHA256 βρίσκεται στη <a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.2">σελίδα της έκδοσης</a>. Τι άλλαξε σε κάθε έκδοση βρίσκεται στο <a href="/el/changelog/">ιστορικό αλλαγών</a>.</p>
     </div>
 
     <div class="frame hero-frame">
       <div class="frame-bar"><span>Fuck You Flow</span><i aria-hidden="true"><b></b><b></b><b></b></i></div>
-      <img src="/assets/1-home.png" width="1280" height="820" alt="Η αρχική οθόνη του Fuck You Flow: η μηχανή large-v3 στην κάρτα γραφικών, το δεξί Alt για ξεκίνημα και σταμάτημα, οι λέξεις που υπαγορεύτηκαν σήμερα και οι πέντε τελευταίες μεταγραφές σε ελληνικά και αγγλικά.">
+      <img src="/assets/1-home-el.png" width="1280" height="820" alt="Η αρχική οθόνη του Fuck You Flow: η μηχανή large-v3 στην κάρτα γραφικών, το δεξί Alt για ξεκίνημα και σταμάτημα, οι λέξεις που υπαγορεύτηκαν σήμερα και οι πέντε τελευταίες μεταγραφές σε ελληνικά και αγγλικά.">
       <div class="listen" role="img" aria-label="Το παράθυρο ακρόασης: μια κοραλί τελεία, Ακούει 4,2 δ και μια πράσινη κυματομορφή.">
         <div class="st"><span class="dot"></span><span>Ακούει 4,2 δ</span></div>
         <div class="bars" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></div>
@@ -405,7 +538,7 @@ section{padding:64px 0}
         </div>
         <div class="frame">
           <div class="frame-bar"><span>Ιστορικό</span><i aria-hidden="true"><b></b><b></b><b></b></i></div>
-          <img src="/assets/2-history.png" width="1280" height="820" alt="Η οθόνη Ιστορικό: μια λίστα με παλιές υπαγορεύσεις, την ώρα, τον αριθμό λέξεων και την αναμονή και ένα πεδίο για διορθώσεις." loading="lazy">
+          <img src="/assets/2-history-el.png" width="1280" height="820" alt="Η οθόνη Ιστορικό: μια λίστα με παλιές υπαγορεύσεις, την ώρα, τον αριθμό λέξεων και την αναμονή και ένα πεδίο για διορθώσεις." loading="lazy">
         </div>
       </div>
 
@@ -416,7 +549,7 @@ section{padding:64px 0}
         </div>
         <div class="frame">
           <div class="frame-bar"><span>Λεξικό</span><i aria-hidden="true"><b></b><b></b><b></b></i></div>
-          <img src="/assets/3-dictionary.png" width="1280" height="820" alt="Η οθόνη Λεξικό: ένας πίνακας με τις προφορικές μορφές και τις γραπτές μορφές που πρέπει να γίνουν." loading="lazy">
+          <img src="/assets/3-dictionary-el.png" width="1280" height="820" alt="Η οθόνη Λεξικό: ένας πίνακας με τις προφορικές μορφές και τις γραπτές μορφές που πρέπει να γίνουν." loading="lazy">
         </div>
       </div>
 
@@ -427,7 +560,7 @@ section{padding:64px 0}
         </div>
         <div class="frame">
           <div class="frame-bar"><span>Στατιστικά</span><i aria-hidden="true"><b></b><b></b><b></b></i></div>
-          <img src="/assets/5-statistics.png" width="1280" height="820" alt="Η οθόνη Στατιστικά: λέξεις που υπαγορεύτηκαν ανά μέρα, μέση αναμονή και χρόνος που γλιτώθηκε, σε νούμερα και μπάρες." loading="lazy">
+          <img src="/assets/5-statistics-el.png" width="1280" height="820" alt="Η οθόνη Στατιστικά: λέξεις που υπαγορεύτηκαν ανά μέρα, μέση αναμονή και χρόνος που γλιτώθηκε, σε νούμερα και μπάρες." loading="lazy">
         </div>
       </div>
 
@@ -438,7 +571,7 @@ section{padding:64px 0}
         </div>
         <div class="frame">
           <div class="frame-bar"><span>Ρυθμίσεις</span><i aria-hidden="true"><b></b><b></b><b></b></i></div>
-          <img src="/assets/6-settings.png" width="1280" height="820" alt="Η οθόνη Ρυθμίσεις: το μοντέλο ομιλίας, η κάρτα γραφικών που χρησιμοποιείται, το μικρόφωνο και τα πλήκτρα συντόμευσης." loading="lazy">
+          <img src="/assets/6-settings-el.png" width="1280" height="820" alt="Η οθόνη Ρυθμίσεις: το μοντέλο ομιλίας, η κάρτα γραφικών που χρησιμοποιείται, το μικρόφωνο και τα πλήκτρα συντόμευσης." loading="lazy">
         </div>
       </div>
     </div>
@@ -449,7 +582,7 @@ section{padding:64px 0}
   <div class="wrap">
     <div class="key">
       <div class="art">
-        <img src="/assets/art-key-macro.webp" width="1600" height="900" alt="Ένα μαύρο πληκτρολόγιο, από κοντά, με ένα πλήκτρο φωτισμένο από μέσα σε έντονο πράσινο." onerror="this.parentElement.classList.add('art-missing')">
+        <img src="/assets/art-key-macro.webp" width="1600" height="900" alt="Ένα μαύρο πληκτρολόγιο στο σκοτάδι. Το πλήκτρο Alt αμέσως δεξιά από το πλήκτρο διαστήματος είναι φωτισμένο από μέσα σε έντονο πράσινο." onerror="this.parentElement.classList.add('art-missing')">
         <div class="cap" aria-hidden="true"><b>Alt</b><span>το δεξί</span></div>
       </div>
       <div>
@@ -466,23 +599,58 @@ section{padding:64px 0}
 </section>
 
 <section id="speed">
-  <div class="wrap two">
-    <div>
+  <div class="wrap">
+    <div class="sec-head">
       <h2>Ταχύτητα</h2>
-      <p class="sub">Μετρημένο σε RTX 3070 με το μεγάλο μοντέλο. Αναμονή είναι ο χρόνος από το άφημα του πλήκτρου ως το κείμενο στην οθόνη.</p>
-      <p class="note">Η αναμονή εξαρτάται μόνο από την τελευταία φράση, γιατί οι προηγούμενες μεταγράφηκαν όσο μιλούσατε. Οι κάρτες AMD και Intel περνούν από το Vulkan με την ίδια ταχύτητα. Χωρίς κάρτα γραφικών τρέχει στον επεξεργαστή, με αναμονή λίγων δευτερολέπτων.</p>
+      <p class="sub">Τέσσερις πραγματικές υπαγορεύσεις σε RTX 3070 με το μεγάλο μοντέλο. Η κοραλί μπάρα είναι πόση ώρα μίλησε ο άνθρωπος. Η πράσινη είναι πόση ώρα περίμενε μετά για το κείμενο. Οι δύο μπάρες είναι στην ίδια κλίμακα.</p>
     </div>
-    <div class="tbl">
-      <table>
-        <thead><tr><th scope="col">Λέξεις</th><th scope="col">Ομιλία</th><th scope="col">Αναμονή</th></tr></thead>
-        <tbody>
-          <tr><td>32</td><td>17,5 δ</td><td class="num">0,59 δ</td></tr>
-          <tr><td>108</td><td>82 δ</td><td class="num">0,17 δ</td></tr>
-          <tr><td>179</td><td>77 δ</td><td class="num">0,53 δ</td></tr>
-          <tr><td>312</td><td>152 δ</td><td class="num">0,88 δ</td></tr>
-        </tbody>
-      </table>
+    <div class="meters">
+      <div class="meter">
+        <div class="m-words"><span class="m-n">32</span><span class="m-u">λέξεις</span></div>
+        <div class="m-line m-spoke">
+          <div class="m-top"><span class="m-k">Μιλήσατε</span><span class="m-v">17,5 δ</span></div>
+          <div class="m-track"><i class="m-fill" style="width:11.5%"></i></div>
+        </div>
+        <div class="m-line m-wait">
+          <div class="m-top"><span class="m-k">Περιμένατε</span><span class="m-v">0,59 δ</span></div>
+          <div class="m-track"><i class="m-fill" style="width:0.39%"></i></div>
+        </div>
+      </div>
+      <div class="meter">
+        <div class="m-words"><span class="m-n">108</span><span class="m-u">λέξεις</span></div>
+        <div class="m-line m-spoke">
+          <div class="m-top"><span class="m-k">Μιλήσατε</span><span class="m-v">82 δ</span></div>
+          <div class="m-track"><i class="m-fill" style="width:53.9%"></i></div>
+        </div>
+        <div class="m-line m-wait">
+          <div class="m-top"><span class="m-k">Περιμένατε</span><span class="m-v">0,17 δ</span></div>
+          <div class="m-track"><i class="m-fill" style="width:0.11%"></i></div>
+        </div>
+      </div>
+      <div class="meter">
+        <div class="m-words"><span class="m-n">179</span><span class="m-u">λέξεις</span></div>
+        <div class="m-line m-spoke">
+          <div class="m-top"><span class="m-k">Μιλήσατε</span><span class="m-v">77 δ</span></div>
+          <div class="m-track"><i class="m-fill" style="width:50.7%"></i></div>
+        </div>
+        <div class="m-line m-wait">
+          <div class="m-top"><span class="m-k">Περιμένατε</span><span class="m-v">0,53 δ</span></div>
+          <div class="m-track"><i class="m-fill" style="width:0.35%"></i></div>
+        </div>
+      </div>
+      <div class="meter">
+        <div class="m-words"><span class="m-n">312</span><span class="m-u">λέξεις</span></div>
+        <div class="m-line m-spoke">
+          <div class="m-top"><span class="m-k">Μιλήσατε</span><span class="m-v">152 δ</span></div>
+          <div class="m-track"><i class="m-fill" style="width:100.0%"></i></div>
+        </div>
+        <div class="m-line m-wait">
+          <div class="m-top"><span class="m-k">Περιμένατε</span><span class="m-v">0,88 δ</span></div>
+          <div class="m-track"><i class="m-fill" style="width:0.58%"></i></div>
+        </div>
+      </div>
     </div>
+    <p class="note">Η αναμονή εξαρτάται μόνο από την τελευταία φράση, γιατί ό,τι προηγήθηκε μεταγράφηκε όσο ακόμα μιλούσατε. Οι κάρτες AMD και Intel περνούν από το Vulkan με την ίδια ταχύτητα. Χωρίς κάρτα γραφικών τρέχει στον επεξεργαστή, με αναμονή λίγων δευτερολέπτων.</p>
   </div>
 </section>
 
@@ -498,9 +666,9 @@ section{padding:64px 0}
     </div>
     <div class="tbl">
       <table class="bill">
-        <thead><tr><th scope="col"></th><th scope="col">Wispr Flow</th><th scope="col">Fuck You Flow</th></tr></thead>
+        <thead><tr><th scope="col"></th><th scope="col">Wispr Flow<span class="price-tag">12 ως 15 δολάρια τον μήνα</span></th><th scope="col">Fuck You Flow<span class="price-tag">0 δολάρια, για πάντα</span></th></tr></thead>
         <tbody>
-          <tr><td>Τιμή</td><td>Δωρεάν ως 2.000 λέξεις την εβδομάδα, μετά 12 ως 15 δολάρια τον μήνα</td><td>0, για πάντα</td></tr>
+          <tr><td>Τιμή</td><td>Δωρεάν ως 2.000 λέξεις την εβδομάδα, μετά ξεκινά ο μετρητής</td><td>Μηδέν, και μηδέν μένει</td></tr>
           <tr><td>Λέξεις την εβδομάδα</td><td>2.000 στο δωρεάν πακέτο</td><td>Όσες προλαβαίνετε να πείτε</td></tr>
           <tr><td>Αποτίμηση εταιρείας</td><td>2 δισεκατομμύρια δολάρια (Αύγουστος 2026)</td><td>Ένα όνομα χώρου</td></tr>
           <tr><td>Χρήματα επενδυτών</td><td>361 εκατομμύρια δολάρια</td><td>Ένα σαββατοκύριακο</td></tr>
@@ -519,7 +687,7 @@ section{padding:64px 0}
         <footer>Luram AI Agency, Θεσσαλονίκη</footer>
       </blockquote>
       <div class="shot">
-        <img src="/assets/art-receipt.webp" width="1000" height="1250" alt="Μια απόδειξη σε θερμικό χαρτί πάνω σε μαύρη επιφάνεια, με πράσινη σφραγίδα από πάνω της.">
+        <img src="/assets/art-receipt.webp" width="1000" height="1250" alt="Μια τυπωμένη απόδειξη σε μαύρο φόντο: ένας χρόνος Wispr Flow που βγάζει 180 δολάρια, η ίδια δουλειά με το Fuck You Flow στο μηδέν, με σφραγίδα πληρωμένο, μηδέν δολάρια.">
       </div>
     </div>
   </div>
@@ -550,7 +718,7 @@ section{padding:64px 0}
     </details>
     <details>
       <summary>Γιατί αυτό το όνομα;</summary>
-      <p>Μια εταιρεία υπαγόρευσης αποτιμήθηκε στα 2 δισεκατομμύρια δολάρια για κάτι που τα ανοιχτά μοντέλα κάνουν δωρεάν εδώ και δύο χρόνια. Το όνομα είναι η απάντηση. Στα κοινωνικά δίκτυα γράφουμε FU Flow.</p>
+      <p>Μια εταιρεία υπαγόρευσης αποτιμήθηκε στα 2 δισεκατομμύρια δολάρια για κάτι που τα ανοιχτά μοντέλα κάνουν δωρεάν από τον Σεπτέμβριο του 2022. Το όνομα είναι η απάντηση. Στα κοινωνικά δίκτυα γράφουμε FU Flow.</p>
     </details>
   </div>
 </section>
@@ -580,12 +748,28 @@ section{padding:64px 0}
     </div>
   </div>
 </section>
+
+<section id="thanks">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Ευχαριστίες</h2>
+      <p class="sub">Άνθρωποι που έβαλαν το δικό τους μηχάνημα και τις δικές τους ώρες σε αυτό, χωρίς αντάλλαγμα.</p>
+    </div>
+    <ul class="thanks">
+      <li>
+        <span class="th-tag">Κάρτες γραφικών AMD</span>
+        <span class="th-name">Τάσος Μηνάς</span>
+        <span class="th-what">Έτρεξε την εφαρμογή σε μηχάνημα με AMD και μας είπε τι έγινε, και έτσι ο δρόμος του Vulkan έπαψε να είναι εικασία.</span>
+      </li>
+    </ul>
+  </div>
+</section>
 </main>
 
 <footer class="foot">
   <div class="wrap">
     <div class="foot-top">
-      <p>Φτιαγμένο από τη <a href="https://luram.gr">luram.gr</a>, Luram AI Agency. Φτιάχνουμε εργαλεία και αυτοματισμούς για ελληνικές επιχειρήσεις.</p>
+      <p>Fuck You Flow, έκδοση 0.9.2 beta. Δωρεάν για όλους, και δωρεάν μένει.</p>
       <nav class="foot-links" aria-label="Footer">
         <a href="https://github.com/Breakzoras/fuck-you-flow">Κώδικας στο GitHub</a>
         <a href="https://github.com/Breakzoras/fuck-you-flow/releases">Όλες οι εκδόσεις</a>
@@ -593,6 +777,14 @@ section{padding:64px 0}
         <a href="/llms.txt">llms.txt</a>
         <a href="/?lang=en" lang="en" hreflang="en">English</a>
       </nav>
+    </div>
+    <div class="sponsor">
+      <div class="spon-k">Ευγενική χορηγία από</div>
+      <a class="spon-btn" href="https://luram.gr" rel="noopener">
+        <img class="dk" src="/assets/luram-dark.webp" width="777" height="159" alt="Luram AI Agency, συνεργάτης μετασχηματισμού με τεχνητή νοημοσύνη" loading="lazy">
+        <img class="lt" src="/assets/luram-light.webp" width="900" height="176" alt="Luram AI Agency, συνεργάτης μετασχηματισμού με τεχνητή νοημοσύνη" loading="lazy">
+      </a>
+      <p class="spon-line">Το Fuck You Flow το πληρώνει και το χαρίζει η <a href="https://luram.gr">Luram AI Agency</a> στη Θεσσαλονίκη. Φτιάχνουμε εργαλεία και αυτοματισμούς για ελληνικές επιχειρήσεις. Αυτό εδώ το φτιάξαμε για όλους.</p>
     </div>
     <p class="legal">Άδεια MIT. Η μηχανή whisper.cpp και τα μοντέλα έχουν τις δικές τους άδειες. Το Wispr Flow είναι σήμα κατατεθέν της Wispr AI, Inc. Δεν έχουμε καμία σχέση μαζί τους. Το πλήκτρο είναι δικό σας.</p>
   </div>

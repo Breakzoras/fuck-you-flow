@@ -24,18 +24,31 @@ pub fn get_settings(state: State<'_, Arc<AppState>>) -> Settings {
 }
 
 #[tauri::command]
-pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, settings: Settings) -> R<Settings> {
+pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, mut settings: Settings) -> R<Settings> {
     // validate shortcuts first
     for (name, chord) in [("push_to_talk", &settings.hotkeys.push_to_talk), ("hands_free", &settings.hotkeys.hands_free), ("paste_last", &settings.hotkeys.paste_last)] {
         crate::hotkey::Chord::parse(chord).map_err(|err| format!("{name}: {err}"))?;
     }
     let old = state.shared.settings.read().clone();
+    // Once the user has touched the card switch or the acceleration, startup
+    // stops correcting them: their choice outranks our hardware guess.
+    if old.asr.use_gpu != settings.asr.use_gpu || old.asr.backend != settings.asr.backend {
+        settings.general.gpu_choice_by_user = true;
+    }
     settings.save(&crate::paths::settings_file()).map_err(e)?;
     *state.shared.settings.write() = settings.clone();
     crate::app::apply_hotkeys(&settings);
     crate::logging::set_redaction(settings.privacy.redact_logs);
     let _ = state.shared.tx.send(PipelineMsg::SettingsChanged);
-    if old.asr.model_id != settings.asr.model_id || old.asr.provider != settings.asr.provider || old.asr.use_gpu != settings.asr.use_gpu || old.asr.vad != settings.asr.vad || old.asr.threads != settings.asr.threads {
+    // `backend` belongs in this list: changing the acceleration on its own used
+    // to leave the old engine running, so the setting looked ignored.
+    if old.asr.model_id != settings.asr.model_id
+        || old.asr.provider != settings.asr.provider
+        || old.asr.use_gpu != settings.asr.use_gpu
+        || old.asr.backend != settings.asr.backend
+        || old.asr.vad != settings.asr.vad
+        || old.asr.threads != settings.asr.threads
+    {
         let engine = state.shared.engine.clone();
         let s2 = settings.clone();
         let app2 = app.clone();
@@ -132,6 +145,108 @@ pub fn runtime_status() -> serde_json::Value {
         "vad_model": crate::models::vad_path().is_some(),
         "spec": crate::models::runtime_spec(),
     })
+}
+
+/// Everything the memory gauge draws, in one poll.
+#[derive(serde::Serialize)]
+pub struct GpuGauge {
+    /// `None` on a machine whose card will not report its memory.
+    pub card: Option<crate::hw::GpuMemory>,
+    pub model_id: String,
+    pub model_name: String,
+    /// What this model has to fit inside.
+    pub needs_mb: u32,
+    pub greek_errors_pct: Option<u32>,
+    pub median_ms: Option<u32>,
+    /// Of the model, how much is still on the card and how much Windows pushed
+    /// out to system RAM. `None` until the engine is running locally.
+    pub on_card_mb: Option<u64>,
+    pub pushed_out_mb: Option<u64>,
+    /// "ok", "tight" or "spilled". "spilled" is the state that makes dictation
+    /// take thirty seconds instead of one.
+    pub state: String,
+    /// The most accurate model already installed that would fit in the room
+    /// there is, offered only when the current one does not fit.
+    pub fits_instead: Option<String>,
+    pub fits_instead_name: Option<String>,
+}
+
+/// Read on a timer by the gauge in the sidebar, and once after each dictation.
+/// Every number here is measured at the moment of the call: a card that had
+/// room this morning can be full by the afternoon without anything in this app
+/// changing, which is exactly the failure this gauge exists to show.
+#[tauri::command]
+pub fn gpu_gauge(state: State<'_, Arc<AppState>>) -> GpuGauge {
+    let settings = state.shared.settings.read().clone();
+    let id = settings.asr.model_id.clone();
+    let spec = crate::models::catalog().into_iter().find(|m| m.id == id);
+    let needs_mb = spec.as_ref().map(|s| s.vram_mb).unwrap_or(0);
+
+    let card = crate::hw::gpu_memory();
+    let residency = state.shared.engine.local_pid().and_then(crate::hw::process_gpu_memory);
+    let (on_card_mb, pushed_out_mb) = match residency {
+        Some((on, out)) => (Some(on), Some(out)),
+        None => (None, None),
+    };
+
+    // What the card could offer this model: what is free now, plus whatever the
+    // model is already holding there (it would give that back on a reload).
+    let free_mb = card.map(|c| c.free_mb).unwrap_or(0);
+    let room_mb = free_mb + on_card_mb.unwrap_or(0);
+
+    let state_word = match (residency, card) {
+        // Measured: the model is running and part of it is off the card.
+        (Some((on, out)), _) if on + out > 0 => {
+            let resident = on as f64 / (on + out) as f64;
+            if resident < 0.95 {
+                "spilled"
+            } else if room_mb < (needs_mb as f64 * 1.15) as u64 {
+                "tight"
+            } else {
+                "ok"
+            }
+        }
+        // Not running yet: judged from the room there is.
+        (_, Some(_)) if needs_mb > 0 => {
+            if room_mb < needs_mb as u64 {
+                "spilled"
+            } else if room_mb < (needs_mb as f64 * 1.15) as u64 {
+                "tight"
+            } else {
+                "ok"
+            }
+        }
+        _ => "ok",
+    };
+
+    // Offered only when the current model does not fit: the most accurate one
+    // already on disk that would. A model with no measured accuracy is skipped
+    // rather than guessed at.
+    let fits = (state_word == "spilled")
+        .then(|| {
+            let mut options: Vec<_> = crate::models::list_status()
+                .into_iter()
+                .filter(|m| m.installed && m.spec.id != id && (m.spec.vram_mb as u64) < room_mb)
+                .filter(|m| m.spec.greek_errors_pct.is_some())
+                .collect();
+            options.sort_by_key(|m| m.spec.greek_errors_pct.unwrap_or(u32::MAX));
+            options.into_iter().next()
+        })
+        .flatten();
+
+    GpuGauge {
+        card,
+        model_name: spec.as_ref().map(|s| s.display_name.clone()).unwrap_or_else(|| id.clone()),
+        model_id: id,
+        needs_mb,
+        greek_errors_pct: spec.as_ref().and_then(|s| s.greek_errors_pct),
+        median_ms: spec.as_ref().and_then(|s| s.median_ms),
+        on_card_mb,
+        pushed_out_mb,
+        state: state_word.into(),
+        fits_instead_name: fits.as_ref().map(|m| m.spec.display_name.clone()),
+        fits_instead: fits.map(|m| m.spec.id),
+    }
 }
 
 #[tauri::command]
@@ -631,9 +746,339 @@ pub fn debug_bundle(state: State<'_, Arc<AppState>>) -> R<String> {
     for line in recent_problems().into_iter().take(60) {
         let _ = writeln!(out, "{line}");
     }
+    // Crashes leave nothing anywhere else: the buffered log dies with the
+    // process and Windows Error Reporting can be switched off. This file is
+    // written by the panic hook itself, so it is the only account of a sudden
+    // death and belongs at the top of anything sent to us.
+    if let Ok(panics) = std::fs::read_to_string(crate::paths::logs_dir().join("panic.log")) {
+        let _ = writeln!(out, "\n== crashes recorded (panic.log) ==");
+        for line in panics.lines().rev().take(20) {
+            let _ = writeln!(out, "{line}");
+        }
+    }
     let path = crate::paths::logs_dir().join("debug-bundle.txt");
     if let Err(e) = std::fs::write(&path, &out) {
         tracing::warn!("could not write {}: {e}", path.display());
     }
     Ok(out)
+}
+
+// ----- a sound file the user already has -----
+
+/// Turn a recording on disk into text. Decoding, cutting and transcription all
+/// happen here rather than in the dictation pipeline, because there is no
+/// window to insert into, no key held down and no hurry: a long recording is
+/// allowed to take a minute and to report how far it has got.
+///
+/// The result lands in the notepad window, in the clipboard and in History,
+/// so it is reachable three ways and cannot be lost.
+#[tauri::command]
+pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, path: String) -> R<String> {
+    let file = std::path::PathBuf::from(&path);
+    let name = file.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.clone());
+    let started = std::time::Instant::now();
+    let progress = |app: &tauri::AppHandle, done: usize, total: usize, phase: &str| {
+        let _ = app.emit_to("main", "lalia://file-progress", serde_json::json!({ "done": done, "total": total, "phase": phase, "file": name }));
+    };
+
+    progress(&app, 0, 1, "reading");
+    let f2 = file.clone();
+    let samples = tokio::task::spawn_blocking(move || crate::audiofile::decode_to_engine_rate(&f2)).await.map_err(e)??;
+    let audio_ms = (samples.len() as u64 * 1000) / crate::audio::TARGET_RATE as u64;
+
+    let (settings, engine) = {
+        let s = state.shared.settings.read().clone();
+        (s, state.shared.engine.clone())
+    };
+    let lang = settings.language.mode.whisper_code().to_string();
+    // Two minutes a piece: long enough that the engine keeps its context, short
+    // enough that a failure costs little and progress moves visibly.
+    let cuts = crate::audiofile::cut_points(samples.len(), 120, &samples);
+    let total = cuts.len();
+    let mut raw = String::new();
+    let mut engine_name = String::new();
+    let mut model_name = String::new();
+    let mut inference_ms = 0u64;
+    let mut start = 0usize;
+    for (i, end) in cuts.iter().copied().enumerate() {
+        progress(&app, i, total, "transcribing");
+        let piece = &samples[start..end];
+        start = end;
+        if crate::audio::is_silent(piece) {
+            continue;
+        }
+        let wav = crate::audio::encode_wav(piece);
+        // The tail of what came before is the recognition hint, exactly as it
+        // is while dictating: names and endings carry across a cut that way.
+        let tail: String = raw.chars().rev().take(200).collect::<Vec<_>>().into_iter().rev().collect();
+        let req = crate::asr::TranscriptionRequest {
+            wav,
+            language: lang.clone(),
+            prompt: if tail.trim().is_empty() { None } else { Some(tail.trim().to_string()) },
+            beam_size: settings.asr.beam_size,
+            vad: settings.asr.vad,
+        };
+        match engine.transcribe(req).await {
+            Ok(t) => {
+                if !t.text.trim().is_empty() {
+                    if !raw.is_empty() {
+                        raw.push(' ');
+                    }
+                    raw.push_str(t.text.trim());
+                }
+                engine_name = t.engine;
+                model_name = t.model;
+                inference_ms += t.inference_ms;
+            }
+            Err(err) => {
+                tracing::error!("file transcription failed on piece {}/{total}: {err}", i + 1);
+                return Err(format!("piece {} of {total} could not be transcribed: {err}", i + 1));
+            }
+        }
+    }
+    if raw.trim().is_empty() {
+        return Err("no speech was found in this recording".into());
+    }
+
+    progress(&app, total, total, "cleaning");
+    let opts = crate::cleanup::CleanupOptions {
+        intensity: settings.cleanup.intensity.clone(),
+        remove_fillers: settings.cleanup.remove_fillers,
+        resolve_self_corrections: settings.cleanup.resolve_self_corrections,
+        auto_punctuate: settings.cleanup.auto_punctuate,
+        auto_capitalize: settings.cleanup.auto_capitalize,
+        trailing_punctuation: true,
+        capitalize_first: true,
+        language: if lang == "auto" {
+            if crate::cleanup::deterministic::looks_greek(&raw) { "el".into() } else { "en".into() }
+        } else {
+            lang.clone()
+        },
+    };
+    let outcome = {
+        let dict = state.shared.dict.read();
+        let snips = state.shared.snippets.read();
+        crate::cleanup::run_deterministic(&raw, &opts, &dict, &snips)
+    };
+    let text = outcome.cleaned.trim().to_string();
+
+    // On the clipboard straight away: the user asked for text, and text they
+    // can paste is the whole point.
+    let t2 = text.clone();
+    let _ = tokio::task::spawn_blocking(move || crate::insertion::copy_only(&t2)).await;
+
+    if settings.privacy.keep_history {
+        let word_count = crate::cleanup::deterministic::word_count(&text);
+        let entry = HistoryEntry {
+            id: crate::db::new_id(),
+            created_at: crate::db::ts_now(),
+            raw_text: raw.clone(),
+            cleaned_text: outcome.cleaned.clone(),
+            final_text: text.clone(),
+            language: lang.clone(),
+            detected_language: None,
+            app_name: Some("Sound file".into()),
+            app_process: Some(name.clone()),
+            app_category: Some("file".into()),
+            cleanup_mode: format!("{:?}", settings.cleanup.intensity).to_lowercase(),
+            rules_applied: outcome.applied.clone(),
+            audio_ms,
+            latency_ms: started.elapsed().as_millis() as u64,
+            inference_ms,
+            word_count,
+            engine: Some(engine_name),
+            model: Some(model_name),
+            insertion_method: Some("file".into()),
+            status: "success".into(),
+            audio_path: Some(path.clone()),
+            context_used: false,
+            retried: false,
+            undone: false,
+            edited_text: None,
+        };
+        if let Err(err) = state.shared.db.insert_history(&entry) {
+            tracing::error!("history insert failed for {name}: {err}");
+        }
+        let _ = app.emit_to("main", "lalia://history-changed", ());
+        let _ = state.shared.db.bump_daily(word_count, audio_ms, outcome.rule_ids.len() as u64);
+    }
+
+    tracing::info!("file transcribed: {name}, {} s audio, {} pieces, {} ms inference, {} chars", audio_ms / 1000, total, inference_ms, text.chars().count());
+    crate::journal::info(
+        "file.transcribed",
+        serde_json::json!({ "audio_ms": audio_ms, "pieces": total, "inference_ms": inference_ms, "chars": text.chars().count(), "took_ms": started.elapsed().as_millis() as u64 }),
+    );
+    crate::scratch::show(&app, &text, "file", Some(name.clone()), "file");
+    Ok(text)
+}
+
+/// What the notepad window should hold right now, for a webview that has just
+/// come up and missed the event.
+#[tauri::command]
+pub fn scratch_last() -> Option<crate::scratch::ScratchPayload> {
+    crate::scratch::last()
+}
+
+/// The file endings the picker offers.
+#[tauri::command]
+pub fn audio_file_extensions() -> Vec<String> {
+    crate::audiofile::SUPPORTED.iter().map(|s| s.to_string()).collect()
+}
+
+/// The native "choose a file" box, filtered to sound the app can read. Done in
+/// Rust so the interface needs no extra package for it.
+#[tauri::command]
+pub async fn pick_audio_file(app: tauri::AppHandle) -> R<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .add_filter("Sound", crate::audiofile::SUPPORTED)
+        .pick_file(move |chosen| {
+            let _ = tx.send(chosen);
+        });
+    let picked = rx.await.map_err(e)?;
+    Ok(picked.map(|p| p.to_string()))
+}
+
+/// The "do not show this again" box at the bottom of the notepad window. It is
+/// the same switch as the one in Settings, reachable at the moment the window
+/// is in the way, which is the only moment a user actually wants it.
+#[tauri::command]
+pub async fn set_notepad_when_lost(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, enabled: bool) -> R<()> {
+    let mut settings = state.shared.settings.read().clone();
+    settings.insertion.notepad_when_lost = enabled;
+    settings.save(&crate::paths::settings_file()).map_err(e)?;
+    *state.shared.settings.write() = settings.clone();
+    let _ = state.shared.tx.send(PipelineMsg::SettingsChanged);
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    tracing::info!("notepad when text is lost: {}", if enabled { "on" } else { "off" });
+    Ok(())
+}
+
+// ----- updates -----
+
+/// The version of the running program. Answered from the binary itself, so the
+/// Settings page can show it without asking the server anything.
+#[tauri::command]
+pub fn app_version(app: tauri::AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+/// What the UI shows when it asks "there is a new version, shall I get it?".
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct UpdateInfo {
+    pub available: bool,
+    /// The version waiting on the server, empty when there is none.
+    pub version: String,
+    pub current: String,
+    /// The release notes, as written in the manifest.
+    pub notes: Option<String>,
+    pub date: Option<String>,
+    /// False when the models still sit inside the install folder. The update
+    /// that is published carries the program alone, so installing it would
+    /// take the models with the old version and leave the app with no engine
+    /// to speak of. In that state the user is sent to the site for the full
+    /// installer, and `install_update` refuses.
+    pub small_download: bool,
+}
+
+/// What the last check found, kept so that the install button gets exactly the
+/// version the user was shown. Asking the server a second time could hand them
+/// a different one, or nothing at all if the server hiccups in between.
+static FOUND_UPDATE: std::sync::Mutex<Option<tauri_plugin_updater::Update>> = std::sync::Mutex::new(None);
+
+/// True while a download is on its way. The check runs on its own fifteen
+/// seconds after any window opens, so without this it could land in the middle
+/// of an install and swap the answer under it.
+static INSTALLING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+async fn look_for_update(app: &tauri::AppHandle) -> R<Option<tauri_plugin_updater::Update>> {
+    use tauri_plugin_updater::UpdaterExt;
+    app.updater().map_err(e)?.check().await.map_err(e)
+}
+
+/// Asks the update server whether a newer version exists. Downloads nothing.
+#[tauri::command]
+pub async fn check_for_update(app: tauri::AppHandle) -> R<UpdateInfo> {
+    let current = app.package_info().version.to_string();
+    let found = look_for_update(&app).await?;
+    let info = match &found {
+        Some(u) => UpdateInfo {
+            available: true,
+            version: u.version.clone(),
+            current,
+            notes: u.body.clone(),
+            date: u.date.map(|d| d.to_string()),
+            small_download: crate::models::models_are_external(),
+        },
+        None => UpdateInfo { available: false, version: String::new(), current, notes: None, date: None, small_download: crate::models::models_are_external() },
+    };
+    if INSTALLING.load(std::sync::atomic::Ordering::Relaxed) {
+        tracing::info!("an install is under way; the answer already in hand stays");
+    } else {
+        *FOUND_UPDATE.lock().map_err(|_| "update lock")? = found;
+    }
+    tracing::info!("update check: {} (running {})", if info.available { info.version.as_str() } else { "nothing newer" }, info.current);
+    crate::journal::info("update.checked", serde_json::json!({ "available": info.available, "version": info.version }));
+    Ok(info)
+}
+
+/// Downloads and installs the update the user just said yes to. The installer
+/// closes the app and starts the new one, so this call normally never returns.
+#[tauri::command]
+pub async fn install_update(app: tauri::AppHandle) -> R<()> {
+    // The published update has no models in it. Installing it over a copy
+    // whose models still live in the install folder would delete them, and
+    // the app would come back up with nothing to transcribe with.
+    if !crate::models::models_are_external() {
+        tracing::warn!("update refused: the models are still inside the install folder");
+        return Err("this copy has to be updated from the site: fuckyouflow.app".into());
+    }
+    // Whatever the last check found, and nothing else.
+    INSTALLING.store(true, std::sync::atomic::Ordering::Relaxed);
+    let update = FOUND_UPDATE.lock().map_err(|_| "update lock")?.take();
+    let Some(update) = update else {
+        INSTALLING.store(false, std::sync::atomic::Ordering::Relaxed);
+        return Err("ask the server first".into());
+    };
+    let version = update.version.clone();
+    tracing::info!("downloading update {version}");
+    let got = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let app2 = app.clone();
+    let got2 = got.clone();
+    let got_it = update
+        .download(
+            move |chunk, total| {
+                let sofar = got2.fetch_add(chunk as u64, std::sync::atomic::Ordering::Relaxed) + chunk as u64;
+                let _ = app2.emit("lalia://update-progress", serde_json::json!({ "received": sofar, "total": total }));
+            },
+            || {
+                tracing::info!("update downloaded, handing over to the installer");
+            },
+        )
+        .await;
+    if let Err(err) = got_it {
+        // Put it back, so the button works on a second try without another
+        // trip to the server.
+        if let Ok(mut slot) = FOUND_UPDATE.lock() {
+            *slot = Some(update);
+        }
+        INSTALLING.store(false, std::sync::atomic::Ordering::Relaxed);
+        return Err(e(err));
+    }
+    crate::journal::info("update.installing", serde_json::json!({ "version": version }));
+    let _ = app.emit("lalia://update-progress", serde_json::json!({ "received": 0, "total": 0, "installing": true }));
+    // The installer ends this process itself, so the normal way out never
+    // runs. Take the tray icon down here, or it stays painted on the taskbar
+    // until the user waves the mouse over it.
+    crate::app::drop_tray(&app);
+    if let Err(err) = update.install(got_it.expect("checked just above")) {
+        if let Ok(mut slot) = FOUND_UPDATE.lock() {
+            *slot = Some(update);
+        }
+        INSTALLING.store(false, std::sync::atomic::Ordering::Relaxed);
+        return Err(e(err));
+    }
+    Ok(())
 }

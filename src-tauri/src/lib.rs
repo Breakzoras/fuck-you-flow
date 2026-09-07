@@ -1,6 +1,7 @@
 pub mod app;
 pub mod asr;
 pub mod audio;
+pub mod audiofile;
 pub mod cleanup;
 pub mod commands;
 pub mod context;
@@ -17,6 +18,7 @@ pub mod models;
 pub mod overlay;
 pub mod paths;
 pub mod pipeline;
+pub mod scratch;
 pub mod settings;
 
 use tauri::Manager;
@@ -26,6 +28,21 @@ pub fn run() {
     logging::init();
     tracing::info!("Lalia {} starting", env!("CARGO_PKG_VERSION"));
     std::panic::set_hook(Box::new(|info| {
+        // Write it to disk here and now, with our own hands. The normal log goes
+        // through a buffered writer on another thread (tracing_appender's
+        // non_blocking), and `panic = "abort"` kills the process before that
+        // thread ever gets to flush, so the line below is the only one that
+        // survives. Windows Error Reporting cannot be relied on either: it is
+        // switched off on the development machine, which is why the crash of
+        // 7 September 2026 at 19:15:37, in the middle of a dictation, left
+        // nothing behind at all.
+        use std::io::Write;
+        let line = format!("{} PANIC: {info}\n", chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z"));
+        let path = paths::logs_dir().join("panic.log");
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = f.write_all(line.as_bytes());
+            let _ = f.flush();
+        }
         tracing::error!("PANIC: {info}");
     }));
 
@@ -39,6 +56,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--autostart"])))
         .setup(|app| {
             app::build(app)?;
@@ -69,6 +87,7 @@ pub fn run() {
             commands::engine_restart,
             commands::list_models,
             commands::runtime_status,
+            commands::gpu_gauge,
             commands::download_model,
             commands::install_runtime,
             commands::remove_model,
@@ -110,6 +129,14 @@ pub fn run() {
             commands::record_shortcut,
             commands::show_main_window,
             commands::quit_app,
+            commands::transcribe_audio_file,
+            commands::audio_file_extensions,
+            commands::scratch_last,
+            commands::pick_audio_file,
+            commands::set_notepad_when_lost,
+            commands::app_version,
+            commands::check_for_update,
+            commands::install_update,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -119,6 +146,11 @@ pub fn run() {
             // until the user waves the mouse over it ("ghost icon").
             if matches!(event, tauri::RunEvent::Exit) {
                 app::drop_tray(app);
+                // The last line of a normal run. Its absence at the end of a
+                // day's log means the process was killed rather than closed,
+                // which is the only way to tell a crash from a quit here:
+                // panics write panic.log, and Windows Error Reporting is off.
+                tracing::info!("Lalia exiting cleanly");
             }
         });
 }

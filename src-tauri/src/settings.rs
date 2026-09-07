@@ -193,6 +193,17 @@ pub struct InsertionSettings {
     pub paste_settle_ms: u64,
     /// Add a trailing space after inserted text (useful for chat apps).
     pub trailing_space: bool,
+    /// Open the notepad window when the words could not reach their target.
+    /// On by default, because a first tester lost a whole dictation to the
+    /// clipboard without knowing it on 7 September 2026. Off for anyone who
+    /// finds a window appearing mid-work more disruptive than the loss, which
+    /// Lu did the same evening: the clipboard alone is then the fallback.
+    #[serde(default = "yes")]
+    pub notepad_when_lost: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl Default for InsertionSettings {
@@ -204,6 +215,7 @@ impl Default for InsertionSettings {
             // 2 to 3 ms after Ctrl+V. 60 ms of quiet is plenty; 180 was dead time.
             paste_settle_ms: 60,
             trailing_space: true,
+            notepad_when_lost: true,
         }
     }
 }
@@ -280,6 +292,12 @@ pub struct GeneralSettings {
     /// five times; nothing in the normal interface mentions it.
     #[serde(default)]
     pub debug_mode: bool,
+    /// The user chose the graphics-card switch or the acceleration themselves.
+    /// Until they do, the app is allowed to correct a machine that ended up on
+    /// the processor while a usable card sits in it, which is what happened to
+    /// the first AMD tester on 7 September 2026.
+    #[serde(default)]
+    pub gpu_choice_by_user: bool,
 }
 
 impl Default for GeneralSettings {
@@ -292,6 +310,7 @@ impl Default for GeneralSettings {
             play_sounds: true,
             machine_profiled: false,
             debug_mode: false,
+            gpu_choice_by_user: false,
         }
     }
 }

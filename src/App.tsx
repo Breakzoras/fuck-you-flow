@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, EngineInfo, PipelineSnapshot, Settings } from "./api";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { api, EngineInfo, PipelineSnapshot, Settings, UpdateInfo } from "./api";
 import { AppCtx, makeT, makeTk } from "./hooks";
 import Home from "./pages/Home";
 import History from "./pages/History";
@@ -10,6 +11,7 @@ import Learning from "./pages/Learning";
 import Stats from "./pages/Stats";
 import SettingsPage from "./pages/SettingsPage";
 import Diagnostics from "./pages/Diagnostics";
+import GpuGauge from "./GpuGauge";
 
 type Page = "home" | "history" | "dictionary" | "snippets" | "learning" | "stats" | "settings" | "diagnostics";
 
@@ -20,6 +22,8 @@ export default function App() {
   const [snap, setSnap] = useState<PipelineSnapshot | null>(null);
   const [toastMsg, setToastMsg] = useState<{ msg: string; kind: "ok" | "err" } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [updating, setUpdating] = useState<{ received: number; total: number; installing?: boolean } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,13 +47,29 @@ export default function App() {
     load();
     const un1 = listen<EngineInfo>("lalia://engine", (e) => setEngine(e.payload));
     const un2 = listen("lalia://overlay", () => api.snapshot().then(setSnap).catch(() => {}));
+    // The notepad's "do not show again" box writes the settings from the
+    // program side. Without this the open Settings page would still hold the
+    // old copy and put the window back on the next save.
+    const un3 = listen("lalia://settings-changed", () => api.getSettings().then(setSettingsState).catch(() => {}));
     const iv = setInterval(() => api.snapshot().then(setSnap).catch(() => {}), 2000);
     return () => {
       cancelled = true;
       un1.then((f) => f());
       un2.then((f) => f());
+      un3.then((f) => f());
       clearInterval(iv);
     };
+  }, []);
+
+  // Ask the update server once, fifteen seconds in. Nothing is downloaded
+  // here: the answer only decides whether the bar at the top appears, and the
+  // download waits for the user to press the button on it.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      api.checkForUpdate().then((u) => { if (u.available) setUpdate(u); }).catch(() => {});
+    }, 15000);
+    const un = listen<{ received: number; total: number; installing?: boolean }>("lalia://update-progress", (e) => setUpdating(e.payload));
+    return () => { clearTimeout(timer); un.then((f) => f()); };
   }, []);
 
   useEffect(() => {
@@ -140,6 +160,49 @@ export default function App() {
           </div>
         </nav>
         <main className="main">
+          {update && (
+            <div className="update-bar" role="status">
+              <strong>{t("update_title")}</strong>
+              <span>{t("update_ready").replace("{v}", update.version).replace("{c}", update.current)}</span>
+              {!update.small_download && <span className="muted">{t("update_big")}</span>}
+              {!update.small_download ? (
+                <>
+                  <span className="grow" />
+                  <button className="primary" onClick={() => { openUrl("https://fuckyouflow.app"); }}>{t("update_site")}</button>
+                  <button onClick={() => setUpdate(null)}>{t("update_later")}</button>
+                </>
+              ) : updating ? (
+                <span className="grow">
+                  {updating.installing
+                    ? t("update_installing")
+                    : `${t("update_downloading")} ${updating.total > 0 ? Math.round((updating.received / updating.total) * 100) + "%" : ""}`}
+                </span>
+              ) : (
+                <>
+                  <span className="grow" />
+                  <button
+                    className="primary"
+                    onClick={() => {
+                      setUpdating({ received: 0, total: 0 });
+                      api
+                        .installUpdate()
+                        // The installer normally ends this process, so the line
+                        // below runs only when it did not. Give the buttons
+                        // back rather than leave the bar stuck at Installing.
+                        .then(() => setUpdating(null))
+                        .catch((err) => {
+                          toast(String(err), "err");
+                          setUpdating(null);
+                        });
+                    }}
+                  >
+                    {t("update_now")}
+                  </button>
+                  <button onClick={() => setUpdate(null)}>{t("update_later")}</button>
+                </>
+              )}
+            </div>
+          )}
           <div className="page">
             {page === "home" && <Home engine={engine} snap={snap} goSettings={() => setPage("settings")} />}
             {page === "history" && <History />}
@@ -151,6 +214,7 @@ export default function App() {
             {page === "diagnostics" && <Diagnostics engine={engine} />}
           </div>
         </main>
+        <GpuGauge />
         {toastMsg && <div className={`toast ${toastMsg.kind}`} role="status">{toastMsg.msg}</div>}
       </div>
     </AppCtx.Provider>

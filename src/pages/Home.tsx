@@ -14,6 +14,24 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
   const [busy, setBusy] = useState<string | null>(null);
   const [recent, setRecent] = useState<HistoryEntry[]>([]);
   const [stats, setStats] = useState<StatsSummary | null>(null);
+  // A recording the user already has, turned into text. One at a time: the
+  // engine holds a single model, so a second job would only wait behind this.
+  const [fileWork, setFileWork] = useState<string | null>(null);
+
+  const transcribeFile = async () => {
+    try {
+      const path = await api.pickAudioFile();
+      if (!path) return;
+      setFileWork(t("file_reading"));
+      const text = await api.transcribeAudioFile(path);
+      setFileWork(null);
+      toast(`${t("file_done")} · ${text.split(/\s+/).filter(Boolean).length}w`);
+      refreshLog();
+    } catch (err) {
+      setFileWork(null);
+      toast(`${t("file_failed")}: ${err}`);
+    }
+  };
 
   const refresh = () => {
     api.runtimeStatus().then(setRuntime).catch(() => {});
@@ -31,7 +49,15 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
       if (e.payload.phase === "done" || e.payload.phase === "error") setTimeout(refresh, 300);
     });
     const un2 = listen("lalia://history-changed", () => refreshLog());
-    return () => { un.then((f) => f()); un2.then((f) => f()); };
+    // How far a sound file has got. A long recording is cut into pieces, so
+    // the line below the buttons counts them rather than sitting still.
+    const un3 = listen<{ done: number; total: number; phase: string }>("lalia://file-progress", (e) => {
+      const { done, total, phase } = e.payload;
+      if (phase === "reading") setFileWork(t("file_reading"));
+      else if (phase === "cleaning") setFileWork(t("file_cleaning"));
+      else setFileWork(total > 1 ? `${t("file_transcribing")} ${done + 1}/${total}` : t("file_transcribing"));
+    });
+    return () => { un.then((f) => f()); un2.then((f) => f()); un3.then((f) => f()); };
   }, []);
 
   const current = models.find((m) => m.id === settings.asr.model_id);
@@ -160,7 +186,11 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
           <Button kind="primary" onClick={() => api.toggle()} disabled={engine?.status !== "ready"}>{t("test_dictation")}</Button>
         )}
         <Button onClick={() => api.pasteLast()}>{t("paste_last")}</Button>
+        <Button onClick={transcribeFile} disabled={engine?.status !== "ready" || fileWork !== null} title={t("transcribe_file_hint")}>
+          {t("transcribe_file")}
+        </Button>
       </div>
+      {fileWork && <div className="muted" style={{ margin: "-16px 0 22px" }}>{fileWork}</div>}
 
       <h2>{t("last_transcripts")}</h2>
       <div className="log" style={{ marginTop: 8 }}>

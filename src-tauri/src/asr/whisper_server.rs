@@ -246,6 +246,13 @@ impl WhisperServer {
         self.inner.lock().status == EngineStatus::Ready
     }
 
+    /// The child's process id, so its graphics memory can be read. The model
+    /// lives in this process, not in ours, so "is the model still on the card"
+    /// is a question about this number.
+    pub fn pid(&self) -> Option<u32> {
+        self.inner.lock().child.as_ref().and_then(|c| c.id())
+    }
+
     /// True when the child process is still alive.
     pub fn is_alive(&self) -> bool {
         let mut g = self.inner.lock();

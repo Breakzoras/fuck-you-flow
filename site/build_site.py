@@ -9,10 +9,13 @@ Output:
 Nothing here touches the live server. Run from anywhere:
     "C:/Python314/python.exe" "C:/Claude Projects/lalia/site/build_site.py"
 """
+import datetime
 import io
 import os
 import re
 import sys
+
+import llms_source
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "variants", "v4-coral.html")
@@ -20,9 +23,15 @@ OUT_EN = os.path.join(HERE, "index.html")
 OUT_EL = os.path.join(HERE, "el", "index.html")
 
 BASE = "https://fuckyouflow.app"
-VERSION = "0.9.1"
+VERSION = "0.9.2"
 DL = ("https://github.com/Breakzoras/fuck-you-flow/releases/download/"
-      "v0.9.1/Fuck.You.Flow.Setup.0.9.1.exe")
+      "v0.9.2/Fuck.You.Flow.Setup.0.9.2.exe")
+SIZE = "1.7 GB"        # 1,729,386,366 bytes, built on 8 September 2026. Larger than 0.9.1
+                       # on purpose: the payload is no longer compressed, so the install
+                       # writes the files straight out instead of unpacking them.
+OUT_LLMS = os.path.join(HERE, "llms.txt")
+OUT_LLMS_FULL = os.path.join(HERE, "llms-full.txt")
+OUT_SITEMAP = os.path.join(HERE, "sitemap.xml")
 
 # ---------------------------------------------------------------- head blocks
 
@@ -82,6 +91,10 @@ def jsonld(lang):
     for question, answer in faq:
         q.append('{"@type":"Question","name":%s,"acceptedAnswer":{"@type":"Answer","text":%s}}'
                  % (jstr(question), jstr(answer)))
+    howto_name, howto_steps = HOWTO[lang]
+    steps = ",".join(
+        '{"@type":"HowToStep","position":%d,"name":%s,"text":%s}' % (i + 1, jstr(n), jstr(t))
+        for i, (n, t) in enumerate(howto_steps))
     return """<script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -103,8 +116,58 @@ def jsonld(lang):
       "fileSize": "1464MB",
       "license": "https://opensource.org/licenses/MIT",
       "isAccessibleForFree": true,
-      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
-      "publisher": {"@type": "Organization", "name": "%(pub)s", "url": "https://luram.gr/"}
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR",
+                 "availability": "https://schema.org/InStock"},
+      "softwareRequirements": "Windows 10 or 11, 64-bit. A graphics card from NVIDIA, AMD or Intel makes it faster; without one it runs on the processor.",
+      "memoryRequirements": "8 GB RAM",
+      "storageRequirements": "3 GB",
+      "featureList": [
+        "One hotkey dictation into any Windows program, using the right Alt key",
+        "Speech recognition on the user's own machine, with no server and no account",
+        "English and Greek, mixed inside a single sentence",
+        "No word limit and no subscription",
+        "A personal dictionary that learns from corrections",
+        "Snippets: one spoken phrase expands into a block of text",
+        "Local history and statistics, kept in SQLite on the user's disk",
+        "Works offline after installation",
+        "Password fields are detected and left empty",
+        "Open source under the MIT license"
+      ],
+      "keywords": "free dictation Windows, Wispr Flow alternative, offline speech to text, local Whisper, Greek dictation, open source voice typing",
+      "datePublished": "2026-09-06",
+      "dateModified": "%(today)s",
+      "author": {"@id": "https://luram.gr/#org"},
+      "publisher": {"@id": "https://luram.gr/#org"},
+      "maintainer": {"@id": "https://luram.gr/#org"},
+      "codeRepository": "https://github.com/Breakzoras/fuck-you-flow",
+      "programmingLanguage": ["Rust", "TypeScript", "C++"],
+      "isBasedOn": {
+        "@type": "SoftwareApplication",
+        "name": "Whisper",
+        "author": {"@type": "Organization", "name": "OpenAI"},
+        "license": "https://opensource.org/licenses/MIT",
+        "url": "https://github.com/openai/whisper"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://luram.gr/#org",
+      "name": "%(pub)s",
+      "url": "https://luram.gr/",
+      "email": "info@luram.gr",
+      "description": "AI tools, agents and automation for Greek businesses.",
+      "address": {"@type": "PostalAddress", "addressLocality": "Thessaloniki",
+                  "addressCountry": "GR"},
+      "sameAs": ["https://github.com/Breakzoras"]
+    },
+    {
+      "@type": "HowTo",
+      "@id": "%(url)s#howto",
+      "inLanguage": "%(lang)s",
+      "name": %(howto_name)s,
+      "totalTime": "PT10S",
+      "estimatedCost": {"@type": "MonetaryAmount", "currency": "EUR", "value": "0"},
+      "step": [%(steps)s]
     },
     {
       "@type": "FAQPage",
@@ -122,11 +185,36 @@ def jsonld(lang):
   ]
 }
 </script>""" % {"base": BASE, "ver": VERSION, "desc": jstr(desc), "url": url, "dl": DL,
-                "pub": pub, "lang": lang, "q": ",".join(q)}
+                "pub": pub, "lang": lang, "q": ",".join(q),
+                "today": datetime.date.today().isoformat(),
+                "howto_name": jstr(howto_name), "steps": steps}
 
 
 def jstr(s):
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+HOWTO = {
+    "en": ("How to dictate text into any Windows program with Fuck You Flow", [
+        ("Press the right Alt key",
+         "A small window with a waveform appears and the app starts listening."),
+        ("Speak",
+         "English, Greek, or both in the same sentence. Each finished phrase is transcribed "
+         "while you keep talking."),
+        ("Press the right Alt key again",
+         "The text lands where your cursor was, with punctuation. Escape cancels instead."),
+    ]),
+    "el": ("Πώς να υπαγορεύσετε κείμενο σε κάθε πρόγραμμα των Windows με το Fuck You Flow", [
+        ("Πατήστε το δεξί Alt",
+         "Εμφανίζεται ένα μικρό παράθυρο με κυματομορφή και η εφαρμογή αρχίζει να ακούει."),
+        ("Μιλήστε",
+         "Ελληνικά, αγγλικά, ή και τα δύο στην ίδια πρόταση. Κάθε φράση που τελειώνει "
+         "μεταγράφεται όσο εσείς συνεχίζετε."),
+        ("Ξαναπατήστε το δεξί Alt",
+         "Το κείμενο προσγειώνεται εκεί που ήταν ο κέρσορας, με τα σημεία στίξης. Το Escape "
+         "ακυρώνει."),
+    ]),
+}
 
 
 FAQ_EN = [
@@ -147,7 +235,7 @@ FAQ_EN = [
      "the paste, some cards are untested. Whatever breaks, we want it written down."),
     ("Why the name?",
      "A dictation company was valued at 2 billion dollars for something open models have done "
-     "for free for two years. The name is the reply. On social media we write FU Flow."),
+     "for free since September 2022. The name is the reply. On social media we write FU Flow."),
 ]
 
 FAQ_EL = [
@@ -171,8 +259,8 @@ FAQ_EL = [
      "χαλάσει, θέλουμε να το μάθουμε."),
     ("Γιατί αυτό το όνομα;",
      "Μια εταιρεία υπαγόρευσης αποτιμήθηκε στα 2 δισεκατομμύρια δολάρια για κάτι που τα "
-     "ανοιχτά μοντέλα κάνουν δωρεάν εδώ και δύο χρόνια. Το όνομα είναι η απάντηση. Στα "
-     "κοινωνικά δίκτυα γράφουμε FU Flow."),
+     "ανοιχτά μοντέλα κάνουν δωρεάν από τον Σεπτέμβριο του 2022. Το όνομα είναι η απάντηση. "
+     "Στα κοινωνικά δίκτυα γράφουμε FU Flow."),
 ]
 
 # ---------------------------------------------------------------- translations
@@ -184,6 +272,7 @@ TR = [
     (">Speed</a>", ">Ταχύτητα</a>"),
     (">The bill</a>", ">Ο λογαριασμός</a>"),
     (">Questions</a>", ">Ερωτήσεις</a>"),
+    (">Thanks</a>", ">Ευχαριστίες</a>"),
 
     # hero
     ("Windows 10 and 11", "Windows 10 και 11"),
@@ -198,10 +287,13 @@ TR = [
      "σας, τίποτα στο σύννεφο."),
     ("Download for Windows", "Κατεβάστε το για Windows"),
     (">Read the code</a>", ">Δείτε τον κώδικα</a>"),
-    ("Version 0.9.1 beta. 1.4 GB with every model inside. No internet connection after setup. "
+    ("Version 0.9.2 beta. 1.7 GB with every model inside. No internet connection after setup. "
      "MIT license. The SHA256 checksum is on the ",
-     "Έκδοση 0.9.1 beta. 1,4 GB με όλα τα μοντέλα μέσα. Καμία σύνδεση στο ίντερνετ μετά την "
+     "Έκδοση 0.9.2 beta. 1,7 GB με όλα τα μοντέλα μέσα. Καμία σύνδεση στο ίντερνετ μετά την "
      "εγκατάσταση. Άδεια MIT. Το άθροισμα ελέγχου SHA256 βρίσκεται στη "),
+    # The changelog sits under the download on both pages, each in its own language.
+    (". What changed in each version is on the <a href=\"/changelog/\">changelog</a>.",
+     ". Τι άλλαξε σε κάθε έκδοση βρίσκεται στο <a href=\"/el/changelog/\">ιστορικό αλλαγών</a>."),
     (">release page</a>", ">σελίδα της έκδοσης</a>"),
     ("The listening window: a coral dot, Listening 4.2 s, and a green waveform.",
      "Το παράθυρο ακρόασης: μια κοραλί τελεία, Ακούει 4,2 δ και μια πράσινη κυματομορφή."),
@@ -304,30 +396,39 @@ TR = [
 
     # speed
     (">Speed</h2>", ">Ταχύτητα</h2>"),
-    ("Measured on an RTX 3070 with the large model. Wait is the time from key release to text "
-     "on screen.",
-     "Μετρημένο σε RTX 3070 με το μεγάλο μοντέλο. Αναμονή είναι ο χρόνος από το άφημα του "
-     "πλήκτρου ως το κείμενο στην οθόνη."),
-    ("The wait depends only on the last phrase, because earlier phrases were transcribed while "
-     "you spoke. AMD and Intel cards run through Vulkan at the same speed. Without a graphics "
-     "card it runs on the processor, with a wait of a few seconds.",
-     "Η αναμονή εξαρτάται μόνο από την τελευταία φράση, γιατί οι προηγούμενες μεταγράφηκαν όσο "
-     "μιλούσατε. Οι κάρτες AMD και Intel περνούν από το Vulkan με την ίδια ταχύτητα. Χωρίς "
-     "κάρτα γραφικών τρέχει στον επεξεργαστή, με αναμονή λίγων δευτερολέπτων."),
-    ('>Words</th>', '>Λέξεις</th>'),
-    ('>Speech</th>', '>Ομιλία</th>'),
-    ('>Wait</th>', '>Αναμονή</th>'),
-    ("<td>17.5 s</td>", "<td>17,5 δ</td>"),
+    ("Four real dictations on an RTX 3070 with the large model. The coral bar is how long the "
+     "person talked. The green bar is how long they then waited for the text. Both bars are "
+     "drawn on the same scale.",
+     "Τέσσερις πραγματικές υπαγορεύσεις σε RTX 3070 με το μεγάλο μοντέλο. Η κοραλί μπάρα είναι "
+     "πόση ώρα μίλησε ο άνθρωπος. Η πράσινη είναι πόση ώρα περίμενε μετά για το κείμενο. Οι "
+     "δύο μπάρες είναι στην ίδια κλίμακα."),
+    ('<span class="m-u">words</span>', '<span class="m-u">λέξεις</span>'),
+    ('<span class="m-k">You spoke for</span>', '<span class="m-k">Μιλήσατε</span>'),
+    ('<span class="m-k">You waited</span>', '<span class="m-k">Περιμένατε</span>'),
+    ('>17.5 s<', '>17,5 δ<'),
     ('>0.59 s<', '>0,59 δ<'),
-    ("<td>82 s</td>", "<td>82 δ</td>"),
+    ('>82 s<', '>82 δ<'),
     ('>0.17 s<', '>0,17 δ<'),
-    ("<td>77 s</td>", "<td>77 δ</td>"),
+    ('>77 s<', '>77 δ<'),
     ('>0.53 s<', '>0,53 δ<'),
-    ("<td>152 s</td>", "<td>152 δ</td>"),
+    ('>152 s<', '>152 δ<'),
     ('>0.88 s<', '>0,88 δ<'),
+    ("The wait depends only on the last phrase, because everything before it was transcribed "
+     "while you were still speaking. AMD and Intel cards run through Vulkan at the same speed. "
+     "Without a graphics card it runs on the processor, with a wait of a few seconds.",
+     "Η αναμονή εξαρτάται μόνο από την τελευταία φράση, γιατί ό,τι προηγήθηκε μεταγράφηκε όσο "
+     "ακόμα μιλούσατε. Οι κάρτες AMD και Intel περνούν από το Vulkan με την ίδια ταχύτητα. "
+     "Χωρίς κάρτα γραφικών τρέχει στον επεξεργαστή, με αναμονή λίγων δευτερολέπτων."),
 
     # the bill
     (">The bill</h2>", ">Ο λογαριασμός</h2>"),
+    ('<span class="price-tag">12 to 15 dollars a month</span>',
+     '<span class="price-tag">12 ως 15 δολάρια τον μήνα</span>'),
+    ('<span class="price-tag">0 dollars, forever</span>',
+     '<span class="price-tag">0 δολάρια, για πάντα</span>'),
+    ("<td>Free to 2,000 words a week, then the meter starts</td>",
+     "<td>Δωρεάν ως 2.000 λέξεις την εβδομάδα, μετά ξεκινά ο μετρητής</td>"),
+    ("<td>Zero, and it stays zero</td>", "<td>Μηδέν, και μηδέν μένει</td>"),
     ("Every row verified. The valuation and the funding are from TechCrunch, 17 August 2026. "
      "The prices and the weekly word count are from the Wispr Flow pricing page, read on "
      "6 September 2026.",
@@ -335,9 +436,6 @@ TR = [
      "17 Αυγούστου 2026. Οι τιμές και οι εβδομαδιαίες λέξεις είναι από τη σελίδα τιμών του "
      "Wispr Flow, όπως διαβάστηκε στις 6 Σεπτεμβρίου 2026."),
     ("<td>Price</td>", "<td>Τιμή</td>"),
-    ("<td>Free to 2,000 words a week, then 12 to 15 dollars a month</td>",
-     "<td>Δωρεάν ως 2.000 λέξεις την εβδομάδα, μετά 12 ως 15 δολάρια τον μήνα</td>"),
-    ("<td>0, forever</td>", "<td>0, για πάντα</td>"),
     ("<td>Words per week</td>", "<td>Λέξεις την εβδομάδα</td>"),
     ("<td>2,000 on the free plan</td>", "<td>2.000 στο δωρεάν πακέτο</td>"),
     ("<td>As many as you can say</td>", "<td>Όσες προλαβαίνετε να πείτε</td>"),
@@ -395,10 +493,31 @@ TR = [
     ("An email is enough. Humans answer.", "Ένα email αρκεί. Απαντούν άνθρωποι."),
     ("Write to info@luram.gr", "Γράψτε στο info@luram.gr"),
 
+    # honourable mentions
+    (">Honourable mentions</h2>", ">Ευχαριστίες</h2>"),
+    ("People who put their own machine and their own hours into this, for nothing.",
+     "Άνθρωποι που έβαλαν το δικό τους μηχάνημα και τις δικές τους ώρες σε αυτό, χωρίς αντάλλαγμα."),
+    (">AMD graphics cards<", ">Κάρτες γραφικών AMD<"),
+    (">Tasos Minas<", ">Τάσος Μηνάς<"),
+    ("Ran the app on AMD hardware and reported back what happened, which is how the Vulkan path "
+     "stopped being a guess.",
+     "Έτρεξε την εφαρμογή σε μηχάνημα με AMD και μας είπε τι έγινε, και έτσι ο δρόμος του "
+     "Vulkan έπαψε να είναι εικασία."),
+
+    # the agency block in the footer
+    (">A gift from</div>", ">Ευγενική χορηγία από</div>"),
+    ("Luram AI Agency, AI transformation partner",
+     "Luram AI Agency, συνεργάτης μετασχηματισμού με τεχνητή νοημοσύνη"),
+    ("Fuck You Flow is paid for and given away by ",
+     "Το Fuck You Flow το πληρώνει και το χαρίζει η "),
+    (" in Thessaloniki. We build tools and automations for Greek businesses. This one we built "
+     "for everybody.",
+     " στη Θεσσαλονίκη. Φτιάχνουμε εργαλεία και αυτοματισμούς για ελληνικές επιχειρήσεις. "
+     "Αυτό εδώ το φτιάξαμε για όλους."),
+    ("Fuck You Flow, version 0.9.2 beta. Free for everybody, and it stays free.",
+     "Fuck You Flow, έκδοση 0.9.2 beta. Δωρεάν για όλους, και δωρεάν μένει."),
+
     # footer
-    ("Created by", "Φτιαγμένο από τη"),
-    (", Luram AI Agency. We build tools and automations for Greek businesses.",
-     ", Luram AI Agency. Φτιάχνουμε εργαλεία και αυτοματισμούς για ελληνικές επιχειρήσεις."),
     ("Code on GitHub", "Κώδικας στο GitHub"),
     ("All releases", "Όλες οι εκδόσεις"),
     ("Known limits", "Γνωστά όρια"),
@@ -410,7 +529,7 @@ TR = [
 
     # alt text
     ("The Fuck You Flow home screen: the large-v3 engine on the GPU, the right Alt key for "
-     "start and stop, words dictated today and the last five transcripts in Greek and English.",
+     "start and stop, words dictated today and the last five transcripts.",
      "Η αρχική οθόνη του Fuck You Flow: η μηχανή large-v3 στην κάρτα γραφικών, το δεξί Alt για "
      "ξεκίνημα και σταμάτημα, οι λέξεις που υπαγορεύτηκαν σήμερα και οι πέντε τελευταίες "
      "μεταγραφές σε ελληνικά και αγγλικά."),
@@ -429,14 +548,18 @@ TR = [
      "hotkeys.",
      "Η οθόνη Ρυθμίσεις: το μοντέλο ομιλίας, η κάρτα γραφικών που χρησιμοποιείται, το "
      "μικρόφωνο και τα πλήκτρα συντόμευσης."),
-    ("A black keyboard, close up, with one key lit from inside in acid green.",
-     "Ένα μαύρο πληκτρολόγιο, από κοντά, με ένα πλήκτρο φωτισμένο από μέσα σε έντονο πράσινο."),
+    ("A black keyboard in the dark. The Alt key immediately to the right of the spacebar is "
+     "lit from inside in acid green.",
+     "Ένα μαύρο πληκτρολόγιο στο σκοτάδι. Το πλήκτρο Alt αμέσως δεξιά από το πλήκτρο διαστήματος "
+     "είναι φωτισμένο από μέσα σε έντονο πράσινο."),
     ("A green sound wave on the left breaks into drifting particles that settle into rows of "
      "writing on the right.",
      "Ένα πράσινο ηχητικό κύμα στα αριστερά διαλύεται σε σωματίδια που κατακάθονται σε σειρές "
      "γραφής στα δεξιά."),
-    ("A thermal paper receipt on a black surface with a green stamp across it.",
-     "Μια απόδειξη σε θερμικό χαρτί πάνω σε μαύρη επιφάνεια, με πράσινη σφραγίδα από πάνω της."),
+    ("A printed receipt on black: a year of Wispr Flow adding up to 180 dollars, the same job "
+     "on Fuck You Flow at zero, stamped paid, zero dollars.",
+     "Μια τυπωμένη απόδειξη σε μαύρο φόντο: ένας χρόνος Wispr Flow που βγάζει 180 δολάρια, η "
+     "ίδια δουλειά με το Fuck You Flow στο μηδέν, με σφραγίδα πληρωμένο, μηδέν δολάρια."),
 
     # the theme button and the language switch
     ('?"Dark":"Light"', '?"Σκοτεινό":"Φωτεινό"'),
@@ -507,6 +630,12 @@ history.replaceState(null,"",location.pathname+location.hash)}}catch(e){}})();
     # ---- Greek
     el = before + HEAD_EL + "\n" + jsonld("el") + after
     el = el.replace('<html lang="en"', '<html lang="el"')
+    # The app pictures come in two sets. The English page shows English sample
+    # dictations and an English sample dictionary; the Greek page shows the Greek
+    # ones, which are what proves the Greek actually works. Both sets are built by
+    # press/make_shots.py.
+    for stem in ("1-home", "2-history", "3-dictionary", "5-statistics", "6-settings"):
+        el = el.replace("/assets/%s.png" % stem, "/assets/%s-el.png" % stem)
     el = rebuild_faq(el, FAQ_EL)
     missing = []
     for a, b in TR:
@@ -522,6 +651,33 @@ history.replaceState(null,"",location.pathname+location.hash)}}catch(e){}})();
     write(OUT_EL, el)
 
     check_greek(el)
+    write_llms()
+
+
+def write_llms():
+    """Write llms.txt and llms-full.txt from the same constants the pages use.
+
+    Both files used to be edited by hand and both went stale: on 7 September 2026
+    they still announced 0.9.0 and linked an installer that returned 404.
+    """
+    fields = {
+        "ver": VERSION,
+        "dl": DL,
+        "base": BASE,
+        "size": SIZE,
+        "today": datetime.date.today().strftime("%-d %B %Y")
+        if os.name != "nt" else datetime.date.today().strftime("%d %B %Y").lstrip("0"),
+    }
+    write(OUT_LLMS, llms_source.LLMS.format(**fields))
+    write(OUT_LLMS_FULL, llms_source.LLMS_FULL.format(**fields))
+    write_sitemap()
+    # the old files carried a dead download link, so the check is worth keeping
+    for path in (OUT_LLMS, OUT_LLMS_FULL):
+        body = io.open(path, encoding="utf-8").read()
+        stale = re.findall(r"v?0\.9\.1|Setup\.0\.9\.1", body)
+        if stale:
+            print("STALE VERSION in %s: %s" % (os.path.basename(path), set(stale)))
+            sys.exit(1)
 
 
 # words that are meant to stay in Latin script on the Greek page
@@ -555,6 +711,30 @@ def check_greek(el):
             print("   ", b)
         sys.exit(1)
     print("clean: every visible string on the Greek page is Greek")
+
+
+
+ALT = ('    <xhtml:link rel="alternate" hreflang="en" href="{b}/"/>\n'
+       '    <xhtml:link rel="alternate" hreflang="el" href="{b}/el/"/>\n'
+       '    <xhtml:link rel="alternate" hreflang="x-default" href="{b}/"/>\n').format(b=BASE)
+
+
+def write_sitemap():
+    """The sitemap is generated too, so lastmod cannot be left behind by an edit."""
+    today = datetime.date.today().isoformat()
+    log_alt = ('    <xhtml:link rel="alternate" hreflang="en" href="{b}/changelog/"/>\n'
+               '    <xhtml:link rel="alternate" hreflang="el" href="{b}/el/changelog/"/>\n'
+               '    <xhtml:link rel="alternate" hreflang="x-default" href="{b}/changelog/"/>\n').format(b=BASE)
+    urls = [(BASE + "/", ALT), (BASE + "/el/", ALT),
+            (BASE + "/wispr-flow-alternative/", ""),
+            (BASE + "/changelog/", log_alt), (BASE + "/el/changelog/", log_alt)]
+    body = "".join(
+        "  <url>\n    <loc>%s</loc>\n    <lastmod>%s</lastmod>\n%s  </url>\n" % (u, today, a)
+        for u, a in urls)
+    write(OUT_SITEMAP,
+          '<?xml version="1.0" encoding="UTF-8"?>\n'
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+          'xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' + body + "</urlset>\n")
 
 
 def write(path, text):
