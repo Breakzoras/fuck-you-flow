@@ -1,62 +1,95 @@
 # Fuck You Flow
 
-Dictation for Windows that runs entirely on your own machine. Hold a key, speak,
-and the text lands wherever your cursor is: Word, Chrome, Slack, a terminal,
-anywhere. Greek and English are first class, mixed in the same sentence too.
+Free, open-source dictation for Windows 10 and 11, focused on Greek and English.
+Press Right Alt, speak, then press it again to insert text into a compatible
+Windows text field. The default Whisper engine processes speech on your own PC.
 
-Nothing leaves the computer. No account, no subscription, no server, no
-internet connection required after setup.
+Local dictation works offline after setup, with no account, subscription or word
+cap. An optional remote speech provider sends audio to the provider you configure;
+its fees and privacy terms apply. The app also checks online for updates, and
+destination apps can store or upload text you insert into them.
 
-Free and open source, from [Luram AI Agency](https://luram.gr).
+Made by [Luram AI Agency](https://luram.gr) in Thessaloniki, Greece. Current release:
+**v0.9.3 beta**, under MIT.
+
+- [Official website and Windows download](https://fuckyouflow.app/)
+- [Ελληνική σελίδα και λήψη](https://fuckyouflow.app/el/)
+- [FU Flow vs Wispr Flow](https://fuckyouflow.app/wispr-flow-alternative/)
+  and [FU Flow vs OpenWhispr](https://fuckyouflow.app/openwhispr-alternative/)
+- [Free offline dictation alternatives](https://fuckyouflow.app/free-offline-dictation-alternatives/)
+- [Dictation guides](https://fuckyouflow.app/guides/),
+  [οδηγοί στα ελληνικά](https://fuckyouflow.app/el/guides/)
+  and [privacy and offline operation](https://fuckyouflow.app/privacy/)
 
 ![Home](press/shots/1-home.png)
 
 ## Why it exists
 
-Commercial dictation apps charge a monthly fee, send the audio to a server, and
-treat Greek as an afterthought. The speech models that do Greek well have been
-free and open for two years. This puts them behind a key on your keyboard.
+We wanted a free Windows workflow for local Greek and English dictation, with a
+hotkey, editable dictionary and no recurring charge for the local engine. FU Flow
+builds that workflow around openly released Whisper models and whisper.cpp.
+
+Other dictation products offer different platforms, models and features. FU Flow
+is an independent project; the sourced comparisons above explain the tradeoffs
+without claiming to replace every competitor feature.
 
 ## What you get
 
 - **Right Alt starts, Right Alt stops.** Press, speak, press again. The text is
-  inserted where the cursor was. Escape cancels.
-- **Text appears in well under a second**, even after two minutes of speech: the
-  engine transcribes each finished phrase while you are still talking, so only
-  the last sentence is left when you stop.
-- **Greek and English**, and both in the same sentence.
-- **Cleanup that respects the meaning.** Filler words go, spoken self-corrections
-  ("Τρίτη, όχι όχι, Παρασκευή") are applied, and question marks are added from
-  the wording using a rule set built from Greek grammar sources.
-- **A dictionary that learns.** Correct a word once in History and it becomes a
-  rule; names and technical terms come out right from then on.
+  inserted through the normal Windows paste workflow. Escape cancels. Ctrl+Win
+  remains available for hold-to-talk, and shortcuts can be changed in Settings.
+- **Transcription while you speak.** Finished phrases are processed during
+  recording to reduce the work left when you stop. The remaining wait depends on
+  the model, speech, hardware, drivers and available memory.
+- **Greek and English**, including mixed sentences. Review names and punctuation;
+  recognition can make mistakes.
+- **Rule-based cleanup.** Rules can remove filler words, apply spoken corrections
+  such as "Τρίτη, όχι όχι, Παρασκευή", and add question marks from the wording.
+  They can misinterpret speech, so review the result before sharing it.
+- **A dictionary you control.** Save recurring corrections as editable rules.
+  When learning from edits is enabled, suitable History edits produce suggestions
+  you can accept or dismiss. This does not retrain Whisper or guarantee that a
+  word will always be recognized correctly.
 - **Snippets.** Say a phrase, get a block of text.
 - **History, statistics and per-application styles**, all on your disk.
-- **Nothing is sent anywhere.** A password field is detected and refused. An
-  optional cloud provider exists and is off.
+- **Local speech processing by default.** The local adapter talks to an engine
+  process on the same PC. Selecting the optional remote provider uploads audio
+  instead. The app attempts to reject detected password fields; this is not a
+  guarantee that every sensitive field can be identified.
+
+Some applications, protected documents or elevated windows can refuse automatic
+paste. Copy the transcript from History and paste it manually if needed. Local
+history and clipboard contents can be read by someone with access to the PC;
+local recognition does not make a cloud document or conversation offline.
 
 ![Dictionary](press/shots/3-dictionary.png)
 
 ## Install
 
 Download the installer from
-[Releases](https://github.com/Breakzoras/fuck-you-flow/releases) and run it. It needs
-no administrator rights and about 1.7 GB of disk.
+[Releases](https://github.com/Breakzoras/fuck-you-flow/releases) and run it. The
+v0.9.3 full installer is about **1.7 GB to download**, including the speech models.
+This is the installer size, not a verified installed-disk minimum. Allow additional
+space for installation, local models, history and updates. The installer uses
+per-user installation mode.
 
-Windows shows a blue "Windows protected your PC" dialog because the installer
-carries no purchased signature. Click "More info", then "Run anyway".
+The beta installer is unsigned, so Windows may show a "Windows protected your PC"
+dialog. Use the linked project release and compare its published SHA256 checksum
+before deciding whether to continue through "More info" and "Run anyway".
 
-The installer carries everything: the speech engine built with the Vulkan
-backend (it runs on AMD, Intel and NVIDIA cards, and on the processor when there
-is no card), both speech models, and the voice activity detector. The first
-start reads the machine, picks the model that fits the graphics memory and the
-thread count that fits the processor, and the Speech models tab in Settings
-shows what it found.
+The full installer includes the Vulkan speech engine, large-v3 and turbo models,
+and the voice activity detector. Supported AMD, Intel and NVIDIA cards can use
+Vulkan; a CPU fallback is available. Compatibility and speed vary by device and
+driver. Initial setup examines the machine to select a model and thread count;
+review the selection in the Speech models tab in Settings.
+
+The app checks for available updates after startup. Downloading an update waits
+for your choice. Local dictation does not require a successful update check.
 
 ## Speed
 
-Measured on an RTX 3070 with `large-v3-q5_0`, from the moment the key is
-released to the text appearing:
+Four recorded maker observations on an RTX 3070 with `large-v3-q5_0`, measuring
+the wait after finishing dictation until text appeared:
 
 | Words | Speech | Wait |
 |---:|---:|---:|
@@ -65,27 +98,32 @@ released to the text appearing:
 | 179 | 77 s | 0.53 s |
 | 312 | 152 s | 0.88 s |
 
-The wait depends on the length of the last phrase only. A short pause before
-pressing the key again gives the fastest result.
+These are project measurements, not a controlled comparison with Wispr Flow,
+OpenWhispr or another product, and not a promise of subsecond results on every PC.
+The last phrase is one source of remaining work; total recording length, model
+state, memory pressure and other running applications can also affect the wait.
+See the [model benchmark summary](eval/bench-summary.md) for separate recognition
+accuracy and processing-time measurements on the project's test corpus.
 
-Engine comparison on the same card and phrase (5 s of Greek, `large-v3-q5_0`):
-Vulkan 593 ms, CUDA 663 ms, processor alone 12.5 s. Vulkan is what ships, so an
-AMD or Intel card gets the same speed as an NVIDIA one; a machine with no card
-at all falls back to the processor and the turbo model.
+An earlier engine comparison on that machine used one 5-second Greek phrase with
+`large-v3-q5_0`: Vulkan 593 ms, CUDA 663 ms, processor alone 12.5 s. Those figures
+describe that setup. Shipping Vulkan support does not establish equal speed on
+AMD, Intel and NVIDIA cards. A smaller model or CPU fallback has its own tradeoffs;
+test a short dictation on your machine before relying on it.
 
 ## Speaking well
 
-Speed is fine: 68 to 158 words per minute all transcribed correctly in testing.
-What helps most:
+Speak at a comfortable pace and check the transcript. Microphone quality, noise,
+pronunciation and model choice affect recognition. Practical things to try:
 
-- A half-second pause at the end of each sentence. It gives correct punctuation
-  and speed at the same time.
-- Pronounce the last word of a sentence fully. Swallowed endings are the first
-  thing that breaks Greek text.
+- A short pause between sentences can help the engine separate phrases. It does
+  not guarantee punctuation or a particular processing time.
+- Pronounce the last word of a sentence fully, especially Greek word endings.
 - Names and foreign words: say them clearly and in one piece.
-- A question with no question word gets its mark from the rise of your voice;
-  say "ερωτηματικό" to force one.
-- To fix yourself mid-sentence: "όχι όχι" and then the right word.
+- Check question marks after dictation. You can try saying "ερωτηματικό" as an
+  explicit punctuation command, then review the result.
+- With self-correction cleanup enabled, try "όχι όχι" followed by the right word.
+  Check that the intended correction was applied.
 
 ## Build it yourself
 
@@ -121,5 +159,5 @@ and Greek words the dictionary should know.
 MIT. See [LICENSE](LICENSE). The speech engine and the models carry their own
 licenses, listed in the third-party notices.
 
-This is a clean-room implementation. It contains no code, assets or branding
-from any other dictation product.
+FU Flow is independent of Wispr Flow and OpenWhispr. Third-party components retain
+their own licenses and attribution requirements.
