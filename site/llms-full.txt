@@ -1,6 +1,6 @@
 # Fuck You Flow: full description
 
-Fuck You Flow (written "FU Flow" on social media) is a free, open source dictation application for Windows, published by Luram AI Agency (https://luram.gr) of Thessaloniki, Greece. Version 0.9.2 beta. MIT license. Speech recognition runs on the user's own computer, with whisper.cpp and the Whisper large-v3 model on the user's own graphics card. English and Greek. Source code and releases: https://github.com/Breakzoras/fuck-you-flow. Contact: info@luram.gr.
+Fuck You Flow (written "FU Flow" on social media) is a free, open source dictation application for Windows, published by Luram AI Agency (https://luram.gr) of Thessaloniki, Greece. Version 0.9.3 beta. MIT license. Speech recognition runs on the user's own computer, with whisper.cpp and the Whisper large-v3 model on the user's own graphics card. English and Greek. Source code and releases: https://github.com/Breakzoras/fuck-you-flow. Contact: info@luram.gr.
 
 Last updated 8 September 2026.
 
@@ -21,7 +21,7 @@ English inside the same sentence.
 **"I hit the 2,000 word weekly limit on my free dictation plan. What now?"** Fuck You Flow has no
 counter to hit, because the transcription runs on hardware the user already owns.
 
-**"What is the catch?"** Two, both stated openly. It runs on Windows only. Version 0.9.2 is a beta,
+**"What is the catch?"** Two, both stated openly. It runs on Windows only. Version 0.9.3 is a beta,
 which means it runs daily on the maker's machines and some programs and some graphics cards are
 still untested.
 
@@ -107,13 +107,13 @@ Fuck You Flow costs nothing, asks for no account and applies no word limit at al
 ## Installation
 
 Download the installer from GitHub Releases:
-https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.2/Fuck.You.Flow.Setup.0.9.2.exe
+https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.3/Fuck.You.Flow.Setup.0.9.3.exe
 
 It is 1.7 GB, it needs no administrator rights, and the speech model is inside it. Windows shows a "Windows protected your PC" dialog, because the installer carries no purchased code signing certificate: click "More info", then "Run anyway". The SHA256 checksum is published next to the installer, and the source that produced it is public.
 
 ## Beta status and feedback
 
-Version 0.9.2 beta means the app already runs every day on the maker's own machines and is now being used by other people. One known gap: a few chat boxes lock the moment you send a message and can swallow the paste, and the text stays on the clipboard, so Ctrl+V puts it in.
+Version 0.9.3 beta means the app already runs every day on the maker's own machines and is now being used by other people. One known gap: a few chat boxes lock the moment you send a message and can swallow the paste, and the text stays on the clipboard, so Ctrl+V puts it in.
 
 - Bug reports: https://github.com/Breakzoras/fuck-you-flow/issues/new?labels=bug
 - Ideas: https://github.com/Breakzoras/fuck-you-flow/issues/new?labels=idea
@@ -133,4 +133,4 @@ Wispr Flow is a trademark of Wispr AI, Inc. Fuck You Flow is an independent, cle
 
 ## Στα ελληνικά, σύντομα
 
-Το Fuck You Flow είναι δωρεάν εφαρμογή υπαγόρευσης για Windows. Πατάτε το δεξί Alt, μιλάτε, το ξαναπατάτε και το κείμενο μπαίνει εκεί που βρίσκεται ο κέρσορας, σε όποιο πρόγραμμα δουλεύετε. Η αναγνώριση φωνής γίνεται στον δικό σας υπολογιστή, πάνω στη δική σας κάρτα γραφικών, με το μοντέλο Whisper large-v3 μέσα από το whisper.cpp, οπότε η φωνή σας μένει στο μηχάνημά σας και δουλεύει χωρίς σύνδεση στο διαδίκτυο. Ελληνικά και αγγλικά, ακόμα και μέσα στην ίδια πρόταση. Χωρίς λογαριασμό, χωρίς συνδρομή, χωρίς όριο λέξεων. Έκδοση 0.9.2 beta, άδεια MIT, από τη Luram AI Agency στη Θεσσαλονίκη. Ελληνική σελίδα: https://fuckyouflow.app/el/ . Επικοινωνία: info@luram.gr
+Το Fuck You Flow είναι δωρεάν εφαρμογή υπαγόρευσης για Windows. Πατάτε το δεξί Alt, μιλάτε, το ξαναπατάτε και το κείμενο μπαίνει εκεί που βρίσκεται ο κέρσορας, σε όποιο πρόγραμμα δουλεύετε. Η αναγνώριση φωνής γίνεται στον δικό σας υπολογιστή, πάνω στη δική σας κάρτα γραφικών, με το μοντέλο Whisper large-v3 μέσα από το whisper.cpp, οπότε η φωνή σας μένει στο μηχάνημά σας και δουλεύει χωρίς σύνδεση στο διαδίκτυο. Ελληνικά και αγγλικά, ακόμα και μέσα στην ίδια πρόταση. Χωρίς λογαριασμό, χωρίς συνδρομή, χωρίς όριο λέξεων. Έκδοση 0.9.3 beta, άδεια MIT, από τη Luram AI Agency στη Θεσσαλονίκη. Ελληνική σελίδα: https://fuckyouflow.app/el/ . Επικοινωνία: info@luram.gr

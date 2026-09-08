@@ -23,9 +23,9 @@ OUT_EN = os.path.join(HERE, "index.html")
 OUT_EL = os.path.join(HERE, "el", "index.html")
 
 BASE = "https://fuckyouflow.app"
-VERSION = "0.9.2"
+VERSION = "0.9.3"
 DL = ("https://github.com/Breakzoras/fuck-you-flow/releases/download/"
-      "v0.9.2/Fuck.You.Flow.Setup.0.9.2.exe")
+      "v0.9.3/Fuck.You.Flow.Setup.0.9.3.exe")
 SIZE = "1.7 GB"        # 1,729,386,366 bytes, built on 8 September 2026. Larger than 0.9.1
                        # on purpose: the payload is no longer compressed, so the install
                        # writes the files straight out instead of unpacking them.
@@ -287,9 +287,9 @@ TR = [
      "σας, τίποτα στο σύννεφο."),
     ("Download for Windows", "Κατεβάστε το για Windows"),
     (">Read the code</a>", ">Δείτε τον κώδικα</a>"),
-    ("Version 0.9.2 beta. 1.7 GB with every model inside. No internet connection after setup. "
+    ("Version 0.9.3 beta. 1.7 GB with every model inside. No internet connection after setup. "
      "MIT license. The SHA256 checksum is on the ",
-     "Έκδοση 0.9.2 beta. 1,7 GB με όλα τα μοντέλα μέσα. Καμία σύνδεση στο ίντερνετ μετά την "
+     "Έκδοση 0.9.3 beta. 1,7 GB με όλα τα μοντέλα μέσα. Καμία σύνδεση στο ίντερνετ μετά την "
      "εγκατάσταση. Άδεια MIT. Το άθροισμα ελέγχου SHA256 βρίσκεται στη "),
     # The changelog sits under the download on both pages, each in its own language.
     (". What changed in each version is on the <a href=\"/changelog/\">changelog</a>.",
@@ -514,8 +514,8 @@ TR = [
      "for everybody.",
      " στη Θεσσαλονίκη. Φτιάχνουμε εργαλεία και αυτοματισμούς για ελληνικές επιχειρήσεις. "
      "Αυτό εδώ το φτιάξαμε για όλους."),
-    ("Fuck You Flow, version 0.9.2 beta. Free for everybody, and it stays free.",
-     "Fuck You Flow, έκδοση 0.9.2 beta. Δωρεάν για όλους, και δωρεάν μένει."),
+    ("Fuck You Flow, version 0.9.3 beta. Free for everybody, and it stays free.",
+     "Fuck You Flow, έκδοση 0.9.3 beta. Δωρεάν για όλους, και δωρεάν μένει."),
 
     # footer
     ("Code on GitHub", "Κώδικας στο GitHub"),
@@ -674,7 +674,7 @@ def write_llms():
     # the old files carried a dead download link, so the check is worth keeping
     for path in (OUT_LLMS, OUT_LLMS_FULL):
         body = io.open(path, encoding="utf-8").read()
-        stale = re.findall(r"v?0\.9\.1|Setup\.0\.9\.1", body)
+        stale = re.findall(r"v?0\.9\.2|Setup\.0\.9\.2", body)
         if stale:
             print("STALE VERSION in %s: %s" % (os.path.basename(path), set(stale)))
             sys.exit(1)

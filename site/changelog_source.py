@@ -18,6 +18,27 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.3",
+        "date": "2026-09-08",
+        "summary": (
+            "Two small repairs on the update itself, found the same night 0.9.2 went out.",
+            "Δύο μικρές διορθώσεις πάνω στην ίδια την ενημέρωση, που βρέθηκαν το ίδιο βράδυ "
+            "που βγήκε η 0.9.2.",
+        ),
+        "lines": [
+            ("fixed",
+             "The bar that announces a new version said the word version twice.",
+             "Η μπάρα που ανακοινώνει νέα έκδοση έλεγε τη λέξη έκδοση δύο φορές."),
+            ("fixed",
+             "The check that runs on its own fifteen seconds after a window opens could land "
+             "in the middle of a download and swap the version being installed. It now waits "
+             "for the install to finish.",
+             "Ο έλεγχος που τρέχει μόνος του δεκαπέντε δευτερόλεπτα αφού ανοίξει ένα παράθυρο "
+             "μπορούσε να πέσει μέσα σε ένα κατέβασμα και να αλλάξει την έκδοση που "
+             "εγκαθίσταται. Τώρα περιμένει να τελειώσει η εγκατάσταση."),
+        ],
+    },
+    {
         "version": "0.9.2",
         "date": "2026-09-08",
         "summary": (
