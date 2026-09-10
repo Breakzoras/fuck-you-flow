@@ -25,9 +25,25 @@ pub fn get_settings(state: State<'_, Arc<AppState>>) -> Settings {
 
 #[tauri::command]
 pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, mut settings: Settings) -> R<Settings> {
-    // validate shortcuts first
+    // Validate the shortcuts first. One bad one used to throw away the whole
+    // save, including every change on every other tab, and the message named a
+    // field the user could not see. It now says which shortcut and in a form the
+    // interface can translate.
     for (name, chord) in [("push_to_talk", &settings.hotkeys.push_to_talk), ("hands_free", &settings.hotkeys.hands_free), ("paste_last", &settings.hotkeys.paste_last)] {
-        crate::hotkey::Chord::parse(chord).map_err(|err| format!("{name}: {err}"))?;
+        if chord.trim().is_empty() {
+            // An empty box means the user wants that shortcut switched off,
+            // which is a decision, not a mistake.
+            continue;
+        }
+        crate::hotkey::Chord::parse(chord).map_err(|err| format!("bad_shortcut|{name}|{err}"))?;
+    }
+    // Zero here means "delete everything older than zero days", which is
+    // everything. The box on screen refuses it but the box is only HTML, and a
+    // saved zero quietly emptied the whole history and its recordings on the
+    // next start.
+    if settings.privacy.retention_days == Some(0) {
+        tracing::warn!("retention of 0 days would erase the whole history; keeping 1");
+        settings.privacy.retention_days = Some(1);
     }
     let old = state.shared.settings.read().clone();
     // Once the user has touched the card switch or the acceleration, startup
@@ -55,7 +71,15 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
         tauri::async_runtime::spawn(async move { engine.apply(&app2, &s2).await });
     }
     if old.general.autostart != settings.general.autostart {
-        crate::app::set_autostart(&app, settings.general.autostart);
+        if !crate::app::set_autostart(&app, settings.general.autostart) {
+            // Nothing was written to Windows, so the switch goes back off and
+            // the saved file follows it. Leaving it on promised a start that
+            // was never going to happen.
+            settings.general.autostart = false;
+            let _ = settings.save(&crate::paths::settings_file());
+            *state.shared.settings.write() = settings.clone();
+            tracing::warn!("the startup switch was turned back off: this copy cannot claim it");
+        }
     }
     if let Some(w) = app.get_webview_window("overlay") {
         crate::overlay::place(&w, &settings.overlay, 0);
@@ -732,7 +756,7 @@ pub fn debug_mode_get(state: State<'_, Arc<AppState>>) -> bool {
 }
 
 #[tauri::command]
-pub fn debug_mode_set(on: bool, state: State<'_, Arc<AppState>>) -> R<()> {
+pub fn debug_mode_set(app: tauri::AppHandle, on: bool, state: State<'_, Arc<AppState>>) -> R<()> {
     let mut s = state.shared.settings.read().clone();
     s.general.debug_mode = on;
     s.save(&crate::paths::settings_file()).map_err(e)?;
@@ -740,6 +764,9 @@ pub fn debug_mode_set(on: bool, state: State<'_, Arc<AppState>>) -> R<()> {
     crate::journal::set_verbose(on);
     crate::journal::info("debug.mode", serde_json::json!({ "on": on }));
     tracing::info!("debug mode {}", if on { "on" } else { "off" });
+    // Without this the Settings screen keeps an older copy in its hands, and the
+    // next Save there quietly switches debug mode back off.
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
     Ok(())
 }
 

@@ -48,19 +48,24 @@ pub fn reload_engines(state: &AppState) {
 /// every boot started that build while the installed copy sat unused and could
 /// never update itself (measured 10 September 2026). Switching autostart off is
 /// always allowed, from any copy.
-pub fn set_autostart(app: &tauri::AppHandle, enabled: bool) {
+/// Returns whether the Windows entry now matches what was asked. A caller that
+/// gets `false` must not leave the switch showing on: it did nothing, and a
+/// switch that lies is worse than one that refuses.
+pub fn set_autostart(app: &tauri::AppHandle, enabled: bool) -> bool {
     if enabled && !is_installed_copy() {
         tracing::info!(
             "startup entry left alone: this copy is not the installed one ({})",
             std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default()
         );
-        return;
+        return false;
     }
     let manager = app.autolaunch();
     let r = if enabled { manager.enable() } else { manager.disable() };
     if let Err(e) = r {
         tracing::warn!("autostart change failed: {e}");
+        return false;
     }
+    true
 }
 
 /// Whether `exe` is the copy the installer put down. The installer leaves its

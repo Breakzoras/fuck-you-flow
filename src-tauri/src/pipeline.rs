@@ -285,7 +285,7 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                     }
                     HotkeyEvent::Released(ChordId::HandsFree) => {}
                     HotkeyEvent::Pressed(ChordId::PasteLast) => {
-                        paste_last(&app, &shared, None).await;
+                        paste_last(&app, &shared, &mut idle_timer, None).await;
                     }
                     HotkeyEvent::Released(ChordId::PasteLast) => {}
                     HotkeyEvent::Escape => {
@@ -307,8 +307,8 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                         cancel(&app, &shared, s, &mut level_task, &mut idle_timer).await;
                     }
                 }
-                PipelineMsg::PasteLast => paste_last(&app, &shared, None).await,
-                PipelineMsg::PasteHistory(id) => paste_last(&app, &shared, Some(id)).await,
+                PipelineMsg::PasteLast => paste_last(&app, &shared, &mut idle_timer, None).await,
+                PipelineMsg::PasteHistory(id) => paste_last(&app, &shared, &mut idle_timer, Some(id)).await,
                 PipelineMsg::Retry => {
                     let rec = last_recovery.lock().clone();
                     if let Some((samples, ctx)) = rec {
@@ -363,7 +363,15 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                 schedule_idle(app, shared, idle_timer, 2500);
                 return None;
             }
-            Err(_) => return None,
+            Err(_) => {
+                // The thread that opens the microphone died. Nothing here can
+                // recover it, but leaving the badge spinning for the rest of
+                // the session helps nobody.
+                tracing::error!("the microphone thread died while opening the device");
+                overlay::emit_state(app, OverlayPayload { state: OverlayState::MicUnavailable, message: Some("msg_mic_thread_died".into()), preview: None, can_retry: false, seconds: 0.0 });
+                schedule_idle(app, shared, idle_timer, 2500);
+                return None;
+            }
         }
     }
     shared.audio.start_recording();
@@ -709,26 +717,38 @@ async fn process(
     };
     let result = match result {
         Ok(Ok(r)) => r,
+        // Only the last piece failed. Everything said before the final pause was
+        // already turned into words while the user was still speaking, and
+        // throwing that away loses a whole dictation over a single stumble at
+        // the end. Keep what exists and carry on with it.
         Ok(Err(e)) => {
             tracing::error!("transcription failed: {e}");
-            let state = match e {
-                crate::asr::AsrError::Offline(_) => OverlayState::Offline,
-                _ => OverlayState::Failed,
-            };
-            overlay::emit_state(app, OverlayPayload { state, message: Some(e.to_string()), preview: None, can_retry: true, seconds: 0.0 });
-            shared.snapshot.lock().last_error = Some(e.to_string());
-            finish_idle(shared, app, idle_timer, 3500);
-            return;
+            if head_parts.is_empty() {
+                let state = match e {
+                    crate::asr::AsrError::Offline(_) => OverlayState::Offline,
+                    _ => OverlayState::Failed,
+                };
+                overlay::emit_state(app, OverlayPayload { state, message: Some(e.to_string()), preview: None, can_retry: true, seconds: 0.0 });
+                shared.snapshot.lock().last_error = Some(e.to_string());
+                finish_idle(shared, app, idle_timer, 3500);
+                return;
+            }
+            tracing::warn!("keeping the {} piece(s) already transcribed while speaking", head_parts.len());
+            crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
         }
         Err(_) => {
             tracing::error!("transcription timed out; restarting the engine");
-            overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("transcription took longer than the limit; restarting the speech engine".into()), preview: None, can_retry: true, seconds: 0.0 });
             let engine = shared.engine.clone();
             let app2 = app.clone();
             let s2 = settings.clone();
             tokio::spawn(async move { engine.apply(&app2, &s2).await });
-            finish_idle(shared, app, idle_timer, 3500);
-            return;
+            if head_parts.is_empty() {
+                overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("transcription took longer than the limit; restarting the speech engine".into()), preview: None, can_retry: true, seconds: 0.0 });
+                finish_idle(shared, app, idle_timer, 3500);
+                return;
+            }
+            tracing::warn!("the tail timed out; keeping the {} piece(s) already transcribed", head_parts.len());
+            crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
         }
     };
     let tail_pitch = crate::audio::tail_pitch_features(&speech);
@@ -797,9 +817,16 @@ async fn process(
         })
         .await
         .unwrap_or(insertion::InsertReport { outcome: InsertOutcome::Failed, method: "copy".into(), message: None, elapsed_ms: 0 });
-        insertion_method = r.method;
+        insertion_method = r.method.clone();
         not_landed = Some("window_closed");
-        ("copied".to_string(), OverlayState::TargetChanged, Some("the window closed; the text is on the clipboard".to_string()))
+        // The copy is the only thing standing between the user and a lost
+        // dictation here, so its result decides what they are told and whether
+        // the recovery recording may be thrown away below.
+        if r.outcome == InsertOutcome::Failed {
+            ("failed".to_string(), OverlayState::Failed, Some("msg_window_closed_no_clipboard".to_string()))
+        } else {
+            ("copied".to_string(), OverlayState::TargetChanged, Some("msg_window_closed".to_string()))
+        }
     } else {
         let method = if ctx.target.elevated { InsertionMethod::CopyOnly } else { settings.insertion.method.clone() };
         let opts = InsertOptions { restore_clipboard: settings.insertion.restore_clipboard, settle_ms: settings.insertion.paste_settle_ms, shift_paste: ctx.shift_paste };
@@ -841,16 +868,21 @@ async fn process(
             InsertOutcome::Pasted | InsertOutcome::PastedNoRestore | InsertOutcome::Typed => ("success".to_string(), OverlayState::Success, r.message),
             InsertOutcome::CopiedOnly if ctx.target.elevated => {
                 not_landed = Some("elevated");
-                ("copied".to_string(), OverlayState::TargetChanged, Some("the app runs as administrator; the text is on the clipboard (Ctrl+V)".to_string()))
+                ("copied".to_string(), OverlayState::TargetChanged, Some("msg_elevated".to_string()))
             }
             InsertOutcome::CopiedOnly if focus_lost => {
                 not_landed = Some("focus_lost");
-                ("copied".to_string(), OverlayState::TargetChanged, Some("the active window changed; the text is on the clipboard (Ctrl+V)".to_string()))
+                ("copied".to_string(), OverlayState::TargetChanged, Some("msg_focus_lost".to_string()))
             }
-            InsertOutcome::CopiedOnly => ("copied".to_string(), OverlayState::Success, Some("copied to the clipboard".to_string())),
+            InsertOutcome::CopiedOnly => ("copied".to_string(), OverlayState::Success, Some("msg_copied".to_string())),
             InsertOutcome::PasteNotConsumed => {
                 not_landed = Some("not_taken");
-                ("copied".to_string(), OverlayState::TargetChanged, Some("the app did not accept the paste; the text is on the clipboard".to_string()))
+                // Keep what the insertion layer said. It knows whether the
+                // clipboard actually took the words, and replacing its answer
+                // with a fixed sentence told the user they were on the clipboard
+                // even when the copy had failed.
+                let msg = r.message.clone().unwrap_or_else(|| "msg_not_taken".to_string());
+                ("copied".to_string(), OverlayState::TargetChanged, Some(msg))
             }
             InsertOutcome::Failed => {
                 not_landed = Some("insert_failed");
@@ -877,6 +909,8 @@ async fn process(
     if status == "success" || status == "copied" {
         *last_recovery.lock() = None;
         let _ = std::fs::remove_file(&recovery_file);
+    } else {
+        tracing::info!("the recording is kept: the words did not reach the window or the clipboard");
     }
 
     // 7. History and stats.
@@ -941,7 +975,18 @@ async fn process(
         let app_for_db = app.clone();
         let _ = tokio::task::spawn_blocking(move || {
             if let Err(e) = db.insert_history(&entry) {
+                // History is the last place the words exist once the clipboard
+                // moves on, so a failure here has to reach the user rather than
+                // sit in a log nobody opens.
                 tracing::error!("history insert failed: {e}");
+                crate::journal::warn("history.insert_failed", serde_json::json!({ "error": e.to_string() }));
+                overlay::emit_state(&app_for_db, OverlayPayload {
+                    state: OverlayState::Failed,
+                    message: Some("msg_history_not_saved".into()),
+                    preview: None,
+                    can_retry: false,
+                    seconds: 0.0,
+                });
             }
             if counted {
                 let _ = db.bump_daily(word_count, audio_ms, rules_used);
@@ -964,20 +1009,51 @@ fn finish_idle(shared: &Arc<Shared>, app: &tauri::AppHandle, idle_timer: &mut Op
     schedule_idle(app, shared, idle_timer, ms);
 }
 
-async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, history_id: Option<String>) {
+async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>, history_id: Option<String>) {
+    // Whatever the user corrected by hand is the version they want back. The
+    // row on the screen already shows the correction, so pasting the original
+    // silently undoes their edit.
+    fn best_text(h: crate::db::HistoryEntry) -> String {
+        match h.edited_text {
+            Some(t) if !t.trim().is_empty() => t,
+            _ => h.final_text,
+        }
+    }
     let text = match history_id {
-        Some(id) => shared.db.get_history(&id).ok().flatten().map(|h| h.final_text),
+        Some(id) => shared.db.get_history(&id).ok().flatten().map(best_text),
         None => {
             let mem = shared.snapshot.lock().last_transcript.clone();
-            mem.or_else(|| shared.db.last_successful_history().ok().flatten().map(|h| h.final_text))
+            mem.or_else(|| shared.db.last_successful_history().ok().flatten().map(best_text))
         }
     };
     let Some(text) = text else {
-        overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("no previous transcript".into()), preview: None, can_retry: false, seconds: 0.0 });
+        overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("msg_no_previous".into()), preview: None, can_retry: false, seconds: 0.0 });
+        // Without this the badge sat on "Failed" until the next dictation, or
+        // stayed on screen for ever when it is set to hide when idle.
+        schedule_idle(app, shared, idle_timer, 2500);
         return;
     };
     let settings = shared.settings.read().clone();
     let target = tokio::task::spawn_blocking(insertion::capture_target).await.unwrap_or_default();
+    // The Paste button lives inside this program, so pressing it makes this
+    // program the window in front. Pasting there puts the words into our own
+    // History screen, which is never what the button meant, and the badge then
+    // reported that the paste was refused. Hand them over instead.
+    if target.process_id == std::process::id() {
+        overlay::show(app, &settings.overlay, target.hwnd);
+        let t = text.clone();
+        let r = tokio::task::spawn_blocking(move || insertion::copy_only(&t)).await.ok();
+        let ok = matches!(r.as_ref().map(|r| &r.outcome), Some(InsertOutcome::CopiedOnly));
+        overlay::emit_state(app, OverlayPayload {
+            state: if ok { OverlayState::TargetChanged } else { OverlayState::Failed },
+            message: Some(if ok { "msg_copied_click_target" } else { "msg_not_taken_no_clipboard" }.to_string()),
+            preview: Some(text.chars().take(60).collect()),
+            can_retry: false,
+            seconds: 0.0,
+        });
+        schedule_idle(app, shared, idle_timer, 3000);
+        return;
+    }
     overlay::show(app, &settings.overlay, target.hwnd);
     let opts = InsertOptions { restore_clipboard: settings.insertion.restore_clipboard, settle_ms: settings.insertion.paste_settle_ms, shift_paste: false };
     let t = format!("{text} ");
@@ -987,15 +1063,11 @@ async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, history_id: Op
         _ => OverlayState::TargetChanged,
     };
     overlay::emit_state(app, OverlayPayload { state, message: r.and_then(|r| r.message), preview: Some(text.chars().take(60).collect()), can_retry: false, seconds: 0.0 });
-    let app2 = app.clone();
-    let hide = settings.overlay.hide_when_idle;
-    tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_millis(1400)).await;
-        overlay::emit_state(&app2, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0 });
-        if hide {
-            overlay::hide(&app2);
-        }
-    });
+    // Through the shared timer, so starting a dictation within the next second
+    // and a half cancels it. As a loose task it kept its appointment and hid the
+    // badge a moment after the new recording had shown it, leaving the user
+    // dictating with nothing on screen for the rest of the session.
+    schedule_idle(app, shared, idle_timer, 1400);
 }
 
 #[cfg(test)]

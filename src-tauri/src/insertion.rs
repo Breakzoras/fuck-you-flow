@@ -128,8 +128,8 @@ pub mod win {
     use windows::Win32::Foundation::{CloseHandle, GetLastError, SetLastError, HANDLE, HGLOBAL, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM};
     use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
     use windows::Win32::System::DataExchange::{
-        CloseClipboard, EmptyClipboard, EnumClipboardFormats, GetClipboardData, IsClipboardFormatAvailable,
-        OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
+        CloseClipboard, EmptyClipboard, EnumClipboardFormats, GetClipboardData, GetOpenClipboardWindow,
+        IsClipboardFormatAvailable, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
     };
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE};
@@ -162,6 +162,15 @@ pub mod win {
         /// When we pressed Ctrl+V. Renders before that are clipboard managers, not the target.
         keystroke_at: Option<Instant>,
         rendered_after_keystroke: u32,
+        /// The process that had focus when Ctrl+V was sent. Only a read by this
+        /// process proves the target took the text.
+        target_pid: u32,
+        /// Reads by that process, after the key. This is the one that decides.
+        rendered_by_target: u32,
+        /// Everyone else who read the clipboard, by name, for the log. Windows
+        /// gives no way to ask "did that application paste", so the only honest
+        /// answer comes from watching who asked for the data.
+        other_readers: Vec<String>,
         last_render: Option<Instant>,
         publish_result: Option<Result<(), String>>,
     }
@@ -351,8 +360,20 @@ pub mod win {
         Some(hg)
     }
 
-    unsafe fn set_optout_formats() {
-        for name in [w!("ExcludeClipboardContentFromMonitorProcessing"), w!("CanIncludeInClipboardHistory"), w!("CanUploadToCloudClipboard")] {
+    /// Tell Windows what may be done with what we just put on the clipboard.
+    ///
+    /// `recoverable` is for the last-resort copy, the one the user is asked to
+    /// paste by hand. Refusing the local clipboard history there means that if
+    /// they copy anything else first, the dictation is gone from every place
+    /// they would think to look. The cloud is refused either way: a transcript
+    /// of someone's voice has no business on another company's servers.
+    unsafe fn set_optout_formats_ex(recoverable: bool) {
+        let mut names: Vec<PCWSTR> = vec![w!("CanUploadToCloudClipboard")];
+        if !recoverable {
+            names.push(w!("ExcludeClipboardContentFromMonitorProcessing"));
+            names.push(w!("CanIncludeInClipboardHistory"));
+        }
+        for name in names {
             let fmt = RegisterClipboardFormatW(name);
             if fmt != 0 {
                 if let Some(h) = hglobal_dword(0) {
@@ -362,6 +383,10 @@ pub mod win {
         }
     }
 
+    unsafe fn set_optout_formats() {
+        set_optout_formats_ex(false);
+    }
+
     unsafe fn render_pending(st: &State) {
         let text = st.shared.lock().pending_text.clone();
         if let Some(t) = text {
@@ -369,11 +394,44 @@ pub mod win {
                 let _ = SetClipboardData(CF_UNICODETEXT.0 as u32, Some(HANDLE(h.0)));
             }
         }
+        // Who is asking. GetOpenClipboardWindow names the window that holds the
+        // clipboard open, which is the one calling GetClipboardData right now.
+        // Without this the app counted any read as proof the target had pasted,
+        // and on 10 September 2026 that made eight dictations in a row report
+        // success while the words never reached the window.
+        let mut reader_pid = 0u32;
+        if let Ok(owner) = GetOpenClipboardWindow() {
+            if !owner.is_invalid() {
+                GetWindowThreadProcessId(owner, Some(&mut reader_pid));
+            }
+        }
+
         let mut sh = st.shared.lock();
         let now = Instant::now();
         if let Some(k) = sh.keystroke_at {
             if now >= k {
                 sh.rendered_after_keystroke += 1;
+                // An unknown reader counts as the target. Guessing the other way
+                // would turn every paste the app cannot see into a failure.
+                if reader_pid == 0 {
+                    // OpenClipboard(NULL) leaves no window to name. Counting it
+                    // as the target avoids inventing a failure, and saying so in
+                    // the log keeps it from passing as proof. Without this line
+                    // "one read by the target, other readers: none" would look
+                    // the same whether the window really read it or not.
+                    sh.rendered_by_target += 1;
+                    let unknown = "unknown".to_string();
+                    if !sh.other_readers.contains(&unknown) {
+                        sh.other_readers.push(unknown);
+                    }
+                } else if reader_pid == sh.target_pid {
+                    sh.rendered_by_target += 1;
+                } else {
+                    let name = process_name(reader_pid);
+                    if !sh.other_readers.contains(&name) {
+                        sh.other_readers.push(name);
+                    }
+                }
             }
         }
         sh.last_render = Some(now);
@@ -441,7 +499,7 @@ pub mod win {
                     let _ = EmptyClipboard();
                     let text = st.shared.lock().pending_text.clone().unwrap_or_default();
                     let ok = hglobal_from_wide(&text).map(|hg| SetClipboardData(CF_UNICODETEXT.0 as u32, Some(HANDLE(hg.0))).is_ok()).unwrap_or(false);
-                    set_optout_formats();
+                    set_optout_formats_ex(true);
                     let _ = CloseClipboard();
                     if ok {
                         Ok(())
@@ -515,7 +573,7 @@ pub mod win {
         let (render_tx, render_rx) = crossbeam_channel::bounded::<()>(64);
         let (done_tx, done_rx) = crossbeam_channel::bounded::<Result<(), String>>(8);
         let st = Arc::new(State {
-            shared: Mutex::new(Shared { pending_text: None, saved_formats: Vec::new(), keystroke_at: None, rendered_after_keystroke: 0, last_render: None, publish_result: None }),
+            shared: Mutex::new(Shared { pending_text: None, saved_formats: Vec::new(), keystroke_at: None, rendered_after_keystroke: 0, target_pid: 0, rendered_by_target: 0, other_readers: Vec::new(), last_render: None, publish_result: None }),
             render_tx,
             done_tx,
             hwnd: AtomicU32::new(0),
@@ -738,11 +796,22 @@ pub mod win {
                 drain_done();
             let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
             }
-            let _ = wait_done(Duration::from_secs(2));
+            // Same rule as below: only promise the clipboard when it took them.
+            let message = match wait_done(Duration::from_secs(2)) {
+                // A key, not a sentence. The window that shows this to the user
+                // is the only place that knows which language they read, and
+                // until 10 September 2026 every one of these came out in English
+                // in an otherwise Greek program.
+                Ok(()) => "msg_cannot_hold".to_string(),
+                Err(e) => {
+                    tracing::error!("{what} cannot hold text and the rescue copy failed too, the words are only in History: {e}");
+                    "msg_cannot_hold_no_clipboard".to_string()
+                }
+            };
             return InsertReport {
                 outcome: InsertOutcome::PasteNotConsumed,
                 method: "paste".into(),
-                message: Some(format!("{what} was in front, which cannot hold text; the text is on the clipboard")),
+                message: Some(message),
                 elapsed_ms: started.elapsed().as_millis() as u64,
             };
         }
@@ -761,9 +830,19 @@ pub mod win {
             let rx = RENDER_RX.get().unwrap().lock();
             while rx.try_recv().is_ok() {}
         }
+        let mut fg_pid = 0u32;
+        unsafe {
+            let fg = GetForegroundWindow();
+            if !fg.is_invalid() {
+                GetWindowThreadProcessId(fg, Some(&mut fg_pid));
+            }
+        }
         {
             let mut sh = st.shared.lock();
             sh.rendered_after_keystroke = 0;
+            sh.rendered_by_target = 0;
+            sh.other_readers.clear();
+            sh.target_pid = fg_pid;
             sh.keystroke_at = Some(Instant::now());
         }
         send_paste_chord(opts.shift_paste);
@@ -786,7 +865,7 @@ pub mod win {
         let consumed = {
             let rx = RENDER_RX.get().unwrap().lock();
             loop {
-                if st.shared.lock().rendered_after_keystroke > 0 {
+                if st.shared.lock().rendered_by_target > 0 {
                     // Chromium reads twice; wait until no new read for settle_ms.
                     while rx.recv_timeout(Duration::from_millis(opts.settle_ms.max(60))).is_ok() {}
                     break true;
@@ -798,8 +877,47 @@ pub mod win {
             }
         };
 
+        // Somebody else read the clipboard first. Once a promised format has been
+        // rendered for them, it is real data, and every later reader gets it
+        // without asking us again: the target's own read leaves no trace at all.
+        //
+        // Measured 10 September 2026: msrdc.exe, the Remote Desktop client,
+        // reads every clipboard change 1 to 3 ms later. With it running, this
+        // code can never learn whether the window took the words.
+        //
+        // So it stops guessing. The words stay on the clipboard, the user is
+        // told they are there, and nothing claims a failure that was never
+        // established. Announcing a failure that did not happen sent the user
+        // hunting through History for text that had already arrived.
+        let interference = {
+            let sh = st.shared.lock();
+            !consumed && !sh.other_readers.is_empty()
+        };
+        if interference {
+            let sh = st.shared.lock();
+            tracing::info!("paste unverified: {} read the clipboard before the target could, so nothing here can tell whether it landed; the words stay on the clipboard",
+                sh.other_readers.join(", "));
+            drop(sh);
+            unsafe {
+                drain_done();
+                let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
+            }
+            let _ = wait_done(Duration::from_secs(2));
+            return InsertReport {
+                outcome: InsertOutcome::PastedNoRestore,
+                method: "paste".into(),
+                message: Some("msg_also_on_clipboard".into()),
+                elapsed_ms: started.elapsed().as_millis() as u64,
+            };
+        }
+
         if !consumed {
-            tracing::warn!("paste not consumed: {}", focus_diagnostics());
+            {
+                let sh = st.shared.lock();
+                let others = if sh.other_readers.is_empty() { "nobody".to_string() } else { sh.other_readers.join(", ") };
+                tracing::warn!("paste not consumed: {} reads by the target, {} by others ({}), {}",
+                    sh.rendered_by_target, sh.rendered_after_keystroke.saturating_sub(sh.rendered_by_target), others, focus_diagnostics());
+            }
             crate::journal::warn(
                 "insert.not_consumed",
                 serde_json::json!({
@@ -814,11 +932,22 @@ pub mod win {
                 drain_done();
             let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
             }
-            let _ = wait_done(Duration::from_secs(2));
+            // Whether the words really got there decides what the user is told.
+            // Saying "they are on the clipboard" when the copy failed sends them
+            // to press Ctrl+V on nothing, and that is how a dictation is lost
+            // without anybody noticing.
+            let on_clipboard = wait_done(Duration::from_secs(2));
+            let message = match &on_clipboard {
+                Ok(()) => "msg_not_taken".to_string(),
+                Err(e) => {
+                    tracing::error!("the rescue copy failed too, the words are only in History: {e}");
+                    "msg_not_taken_no_clipboard".to_string()
+                }
+            };
             return InsertReport {
                 outcome: InsertOutcome::PasteNotConsumed,
                 method: "paste".into(),
-                message: Some("that app did not take the words; they are on the clipboard, press Ctrl+V".into()),
+                message: Some(message),
                 elapsed_ms: started.elapsed().as_millis() as u64,
             };
         }
@@ -828,7 +957,9 @@ pub mod win {
         {
             let sh = st.shared.lock();
             let last_ms = sh.last_render.zip(sh.keystroke_at).map(|(r, k)| r.saturating_duration_since(k).as_millis() as u64);
-            tracing::debug!("paste: {} clipboard read(s), last read {:?} ms after Ctrl+V, settle {} ms", sh.rendered_after_keystroke, last_ms, opts.settle_ms);
+            let others = if sh.other_readers.is_empty() { "none".to_string() } else { sh.other_readers.join(", ") };
+            tracing::debug!("paste: {} read(s) by the target, {} in total, last read {:?} ms after Ctrl+V, settle {} ms, other readers: {}",
+                sh.rendered_by_target, sh.rendered_after_keystroke, last_ms, opts.settle_ms, others);
         }
 
         if opts.restore_clipboard {

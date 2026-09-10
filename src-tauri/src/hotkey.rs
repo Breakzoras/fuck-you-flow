@@ -44,6 +44,10 @@ pub enum KeySpec {
 }
 
 // Virtual-key codes (subset). Names follow the Win32 constants.
+/// The two side buttons of a mouse. Windows reserves these numbers for them and
+/// no keyboard ever sends them, so a chord can hold one without any ambiguity.
+pub const VK_XBUTTON1: u16 = 0x05;
+pub const VK_XBUTTON2: u16 = 0x06;
 pub const VK_BACK: u16 = 0x08;
 pub const VK_TAB: u16 = 0x09;
 pub const VK_RETURN: u16 = 0x0D;
@@ -119,6 +123,8 @@ impl Chord {
                 "pageup" | "pgup" => KeySpec::Vk(VK_PRIOR),
                 "pagedown" | "pgdn" => KeySpec::Vk(VK_NEXT),
                 "menu" | "apps" | "contextmenu" => KeySpec::Vk(VK_APPS),
+                "mouse4" | "xbutton1" | "mouseback" => KeySpec::Vk(VK_XBUTTON1),
+                "mouse5" | "xbutton2" | "mouseforward" => KeySpec::Vk(VK_XBUTTON2),
                 "escape" | "esc" => return Err("Escape is reserved for cancel".into()),
                 other => {
                     if let Some(num) = other.strip_prefix('f') {
@@ -218,6 +224,8 @@ pub fn vk_name(vk: u16) -> String {
         VK_PRIOR => "PageUp".into(),
         VK_NEXT => "PageDown".into(),
         VK_APPS => "Menu".into(),
+        VK_XBUTTON1 => "Mouse4".into(),
+        VK_XBUTTON2 => "Mouse5".into(),
         v if (VK_F1..VK_F1 + 24).contains(&v) => format!("F{}", v - VK_F1 + 1),
         v if (0x30..=0x39).contains(&v) || (0x41..=0x5A).contains(&v) => (v as u8 as char).to_string(),
         v => format!("VK{v:02X}"),
@@ -365,7 +373,8 @@ mod win {
     };
     use windows::Win32::UI::WindowsAndMessaging::{
         CallNextHookEx, DispatchMessageW, GetMessageW, SetTimer, SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx,
-        KBDLLHOOKSTRUCT, LLKHF_INJECTED, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_TIMER,
+        KBDLLHOOKSTRUCT, LLKHF_INJECTED, LLMHF_INJECTED, MSLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_KEYUP,
+        WM_SYSKEYDOWN, WM_SYSKEYUP, WM_TIMER, WM_XBUTTONDOWN, WM_XBUTTONUP,
     };
 
     pub const SWALLOW: LRESULT = LRESULT(1);
@@ -382,6 +391,39 @@ mod win {
         let inputs = [mk(KEYBD_EVENT_FLAGS(0)), mk(KEYEVENTF_KEYUP)];
         unsafe {
             SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
+        }
+    }
+
+    /// The mouse side buttons, through the hook that carries them.
+    ///
+    /// This callback runs for every mouse movement on the machine, so the first
+    /// thing it does is decide it has nothing to do. Only the two side buttons
+    /// go any further, and they take the same road as a key press from there on.
+    unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        if code < 0 {
+            return CallNextHookEx(None, code, wparam, lparam);
+        }
+        let msg = wparam.0 as u32;
+        let is_down = msg == WM_XBUTTONDOWN;
+        let is_up = msg == WM_XBUTTONUP;
+        if !is_down && !is_up {
+            return CallNextHookEx(None, code, wparam, lparam);
+        }
+        let info = &*(lparam.0 as *const MSLLHOOKSTRUCT);
+        // Which of the two: the number lives in the high half of mouseData.
+        let vk = match (info.mouseData >> 16) as u16 {
+            1 => VK_XBUTTON1,
+            2 => VK_XBUTTON2,
+            _ => return CallNextHookEx(None, code, wparam, lparam),
+        };
+        if (info.flags & LLMHF_INJECTED) != 0 {
+            return CallNextHookEx(None, code, wparam, lparam);
+        }
+        note_seen_key(vk, is_down, false);
+        if dispatch_key(vk, is_down) {
+            SWALLOW
+        } else {
+            CallNextHookEx(None, code, wparam, lparam)
         }
     }
 
@@ -413,6 +455,23 @@ mod win {
             note_seen_key(vk, is_down, injected);
         }
 
+        if dispatch_key(vk, is_down) {
+            SWALLOW
+        } else {
+            CallNextHookEx(None, code, wparam, lparam)
+        }
+    }
+
+    /// The part both hooks share: remember what is held, decide which chords
+    /// just went down or up, and say whether this press belongs to one of them
+    /// and must not reach the rest of Windows.
+    ///
+    /// The keyboard and the mouse arrive through two different Windows hooks
+    /// that have nothing in common, so the mouse buttons used to be invisible
+    /// to the whole program. They now meet here, which is why a side button can
+    /// hold a shortcut exactly like a key.
+    fn dispatch_key(vk: u16, is_down: bool) -> bool {
+        let is_up = !is_down;
         // Shortcut recorder in settings: report raw keys, swallow nothing.
         if SUSPENDED.load(Ordering::Relaxed) {
             if let Ok(mut st) = STATE.try_lock() {
@@ -428,7 +487,11 @@ mod win {
                     }
                 }
             }
-            return CallNextHookEx(None, code, wparam, lparam);
+            // The settings screen is a web page and XBUTTON1 is the browser's
+            // back button, so letting it through while the user is recording a
+            // shortcut would navigate the page away under them. Keys are left
+            // alone: they carry no such meaning here.
+            return matches!(vk, VK_XBUTTON1 | VK_XBUTTON2);
         }
 
         if vk == VK_ESCAPE && is_down && CAPTURE_ESCAPE.load(Ordering::Relaxed) {
@@ -437,10 +500,10 @@ mod win {
                     let _ = tx.send(HotkeyEvent::Escape);
                 }
             }
-            return SWALLOW;
+            return true;
         }
         if vk == VK_ESCAPE && is_up && CAPTURE_ESCAPE.load(Ordering::Relaxed) {
-            return SWALLOW;
+            return true;
         }
 
         let mut swallow = false;
@@ -452,10 +515,10 @@ mod win {
             match STATE.try_lock() {
                 Ok(g) => break g,
                 Err(std::sync::TryLockError::WouldBlock) => {}
-                Err(_) => return CallNextHookEx(None, code, wparam, lparam),
+                Err(_) => return false,
             }
             if lock_wait.elapsed() > Duration::from_millis(3) {
-                return CallNextHookEx(None, code, wparam, lparam);
+                return false;
             }
             std::thread::yield_now();
         };
@@ -469,7 +532,7 @@ mod win {
                     st.last_down.insert(vk, std::time::Instant::now());
                     let repeat_main = st.bindings.iter().any(|b| b.active && b.chord.main_key() == Some(vk));
                     drop(st);
-                    return if repeat_main { SWALLOW } else { CallNextHookEx(None, code, wparam, lparam) };
+                    return repeat_main;
                 }
                 // A "repeat" after a long silence is a fresh press whose earlier
                 // release never reached us. Apply the missed release first.
@@ -533,11 +596,7 @@ mod win {
             }
         }
         drop(st);
-        if swallow {
-            SWALLOW
-        } else {
-            CallNextHookEx(None, code, wparam, lparam)
-        }
+        swallow
     }
 
     pub fn run_hook_thread() {
@@ -551,6 +610,19 @@ mod win {
                 }
             };
             tracing::info!("keyboard hook installed ({:?})", hook);
+            // The mouse needs its own hook. Without it the side buttons never
+            // reach this program at all, which is why they could not hold a
+            // shortcut before 10 September 2026.
+            let mut mouse = match SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), hmod, 0) {
+                Ok(h) => {
+                    tracing::info!("mouse hook installed ({:?})", h);
+                    Some(h)
+                }
+                Err(e) => {
+                    tracing::warn!("mouse hook failed, the side buttons will not work: {e}");
+                    None
+                }
+            };
             // Windows removes a low-level hook without telling anyone when one
             // callback overruns LowLevelHooksTimeout. Nothing reports it, and
             // there is no way to ask whether a hook is still installed, so the
@@ -581,6 +653,16 @@ mod win {
                             }
                         }
                         Err(e) => tracing::warn!("keyboard hook re-registration failed: {e}"),
+                    }
+                    // The mouse hook dies the same silent death as the keyboard
+                    // one, so it is replaced on the same beat.
+                    match SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), hmod, 0) {
+                        Ok(fresh) => {
+                            if let Some(old) = mouse.replace(fresh) {
+                                let _ = UnhookWindowsHookEx(old);
+                            }
+                        }
+                        Err(e) => tracing::warn!("mouse hook re-registration failed: {e}"),
                     }
                     continue;
                 }
@@ -653,6 +735,20 @@ mod tests {
     fn display_round_trip() {
         let c = Chord::parse("Ctrl+Shift+F9").unwrap();
         assert_eq!(c.display(), "Ctrl+Shift+F9");
+    }
+
+    /// The two side buttons of a mouse must survive the round trip through the
+    /// chord parser and the name table, because a shortcut is stored as text.
+    #[test]
+    fn a_mouse_side_button_can_hold_a_shortcut() {
+        for (text, vk) in [("Mouse4", VK_XBUTTON1), ("Mouse5", VK_XBUTTON2)] {
+            let chord = Chord::parse(text).expect("the parser must accept a side button");
+            assert_eq!(chord.main_key(), Some(vk), "{text} must be the main key");
+            assert_eq!(vk_name(vk), text, "the name must come back unchanged");
+        }
+        // And they combine with modifiers like any other key.
+        let chord = Chord::parse("Ctrl+Mouse5").expect("a modifier plus a side button");
+        assert_eq!(chord.main_key(), Some(VK_XBUTTON2));
     }
 
     #[test]

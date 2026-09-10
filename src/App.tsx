@@ -95,8 +95,18 @@ export default function App() {
     try {
       const saved = await api.saveSettings(s);
       setSettingsState(saved);
+      // The engine may correct what it was given, for example when the user
+      // picks the graphics card by hand. Returning the corrected object lets
+      // the page match it, which is what stops the Save button staying lit
+      // after a successful save.
+      return saved;
     } catch (e) {
-      toast(String(e), "err");
+      // A rejected shortcut is reported by the page that owns the field, in the
+      // user's language. Showing the raw line here as well would say the same
+      // thing twice, once unreadably.
+      if (!String(e).includes("bad_shortcut|")) {
+        toast(String(e), "err");
+      }
       throw e;
     }
   }, [toast]);

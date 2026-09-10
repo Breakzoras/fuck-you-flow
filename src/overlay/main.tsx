@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
+import { tk } from "../i18n";
 import ReactDOM from "react-dom/client";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./overlay.css";
 
 type OverlayState =
@@ -82,11 +84,11 @@ const STRESS_LINE: Record<string, string> = {
 // dashboard uses. The app may not be ready when the window first loads, so keep
 // asking for a few seconds, and ask again at the start of every dictation so a
 // change in Settings shows up without a restart.
-async function fetchPrefs(): Promise<{ lang: string; style: string } | null> {
+async function fetchPrefs(): Promise<{ lang: string; style: string; pos: string } | null> {
   for (let attempt = 0; attempt < 40; attempt++) {
     try {
-      const s = await invoke<{ general: { ui_language: string }; overlay: { style?: string } }>("get_settings");
-      return { lang: s.general.ui_language in LABELS ? s.general.ui_language : "en", style: s.overlay.style ?? "full" };
+      const s = await invoke<{ general: { ui_language: string }; overlay: { style?: string; position?: string } }>("get_settings");
+      return { lang: s.general.ui_language in LABELS ? s.general.ui_language : "en", style: s.overlay.style ?? "full", pos: s.overlay.position ?? "bottom_center" };
     } catch {
       await new Promise((r) => setTimeout(r, 250));
     }
@@ -118,7 +120,14 @@ function Overlay() {
   const [lang, setLang] = useState("en");
   const [style, setStyle] = useState("full");
   const [stressed, setStressed] = useState(false);
-  const applyPrefs = (pr: { lang: string; style: string } | null) => { if (pr) { setLang(pr.lang); setStyle(pr.style); } };
+  const applyPrefs = (pr: { lang: string; style: string; pos: string } | null) => {
+    if (pr) {
+      setLang(pr.lang);
+      setStyle(pr.style);
+      // The badge hugs whichever edge the window is anchored to.
+      document.body.setAttribute("data-pos", pr.pos);
+    }
+  };
 
   useEffect(() => {
     fetchPrefs().then(applyPrefs);
@@ -163,6 +172,14 @@ function Overlay() {
   const cls = ["pill", p.state, recording ? "rec" : "", busy ? "busy" : "", error ? "err" : "", warn ? "warn" : ""].join(" ");
   // The state guard covers the one render between leaving "processing" and the
   // effect above clearing the flag, so the line never flashes over "Done".
+  // The window is wider and taller than the badge now, so its empty area would
+  // sit on top of whatever the user is trying to click. Windows can be told to
+  // pass the pointer straight through, and that is switched off only while the
+  // retry button is on screen and waiting to be pressed.
+  useEffect(() => {
+    getCurrentWindow().setIgnoreCursorEvents(!p.can_retry).catch(() => {});
+  }, [p.can_retry]);
+
   const stress = stressed && p.state === "processing" ? STRESS_LINE[lang] : null;
 
   if (style === "minimal") {
@@ -195,7 +212,7 @@ function Overlay() {
       </div>
       {stress ? <div className="stress">{stress}</div> : null}
       {recording ? <Bars level={level} active /> : null}
-      {p.message && !recording && p.state !== "success" && <div className="sub">{p.message}</div>}
+      {p.message && !recording && <div className="sub">{tk(lang, p.message)}</div>}
     </div>
   );
 }

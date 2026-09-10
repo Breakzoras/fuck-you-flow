@@ -23,9 +23,21 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
   const patch = (p: (s: Settings) => Settings) => setDraft((d) => p(structuredClone(d)));
   const save = async () => {
     try {
-      await setSettings(draft);
+      const saved = await setSettings(draft);
+      // Adopt exactly what was stored. Without this the button stayed lit
+      // whenever the engine corrected a field, and pressing it again wrote the
+      // correction back the wrong way round.
+      setDraft(structuredClone(saved));
       toast(t("saved"));
-    } catch { /* toast shown by ctx */ }
+    } catch (e) {
+      // The engine names the offending shortcut in a form this side can read
+      // and translate, instead of an English line naming a field the user
+      // cannot see.
+      const m = String(e).match(/bad_shortcut\|([^|]+)\|(.*)$/);
+      if (m) {
+        toast(t("bad_shortcut", { name: t(m[1] as never) || m[1], err: m[2] }), "err");
+      }
+    }
   };
   const dirty = JSON.stringify(draft) !== JSON.stringify(settings);
 
@@ -343,7 +355,7 @@ function ShortcutsTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settin
       <Row k="hands_free" label={t("hf")} />
       <Row k="paste_last" label={t("pl")} />
       <Toggle label={t("tap_toggle")} checked={draft.hotkeys.tap_toggles_hands_free} onChange={(v) => patch((s) => { s.hotkeys.tap_toggles_hands_free = v; return s; })} />
-      <p className="hint">Ctrl, Shift, Alt, Win, RCtrl, RShift, RAlt, F1-F24, CapsLock, ScrollLock, Pause, A-Z, 0-9. Escape = {t("cancel")}.</p>
+      <p className="hint">Ctrl, Shift, Alt, Win, RCtrl, RShift, RAlt, F1-F24, CapsLock, ScrollLock, Pause, A-Z, 0-9, Mouse4, Mouse5. Escape = {t("cancel")}.</p>
     </Card>
   );
 }

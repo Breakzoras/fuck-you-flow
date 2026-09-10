@@ -20,7 +20,12 @@
   }
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; overflow: hidden; }
+html, body { margin: 0; overflow: hidden; height: 100%; }
+/* The window is larger than the badge so a whole sentence has room to wrap. The
+   badge is pinned to the edge the window is anchored to, so a bigger window
+   never moves the badge on screen. */
+body { display: flex; justify-content: center; align-items: flex-end; }
+body[data-pos="top_center"] { align-items: flex-start; }
 body { font-family: "Segoe UI", system-ui, sans-serif; user-select: none; }
 .pill {
   display: flex;
@@ -32,6 +37,7 @@ body { font-family: "Segoe UI", system-ui, sans-serif; user-select: none; }
   width: fit-content;
   min-width: 140px;
   margin: 6px auto;
+  max-width: 322px;
   padding: 7px 14px;
   border-radius: 18px;
   text-align: center;
@@ -64,9 +70,9 @@ body { font-family: "Segoe UI", system-ui, sans-serif; user-select: none; }
 .pill.err .dot { background: var(--err); }
 .pill.warn .dot { background: var(--warn); }
 @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.35); opacity: 0.6; } 100% { transform: scale(1); opacity: 1; } }
-.title { font-size: 14px; font-weight: 600; letter-spacing: 0.2px; white-space: nowrap; }
-.sub { font-size: 12px; color: var(--pill-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
-.stress { font-size: 12px; font-weight: 700; color: var(--stress); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
+.title { font-size: 16px; font-weight: 600; letter-spacing: 0.2px; white-space: nowrap; }
+.sub { font-size: 16px; line-height: 1.35; color: var(--pill-sub); max-width: 290px; overflow-wrap: anywhere; }
+.stress { font-size: 14px; font-weight: 700; color: var(--stress); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
 .bars { display: flex; align-items: center; justify-content: center; gap: 2px; height: 18px; }
 .bars span { display: block; width: 3px; height: 100%; border-radius: 2px; background: var(--accent); opacity: 0.9; transform-origin: 50% 50%; transition: transform 60ms linear; }
 .spinner {

@@ -381,7 +381,7 @@ impl Db {
         match search.map(|s| s.trim()).filter(|s| !s.is_empty()) {
             Some(q) => {
                 let like = format!("%{q}%");
-                let mut st = conn.prepare("SELECT * FROM history WHERE raw_text LIKE ?1 OR final_text LIKE ?1 OR app_name LIKE ?1 ORDER BY created_at DESC LIMIT ?2 OFFSET ?3")?;
+                let mut st = conn.prepare("SELECT * FROM history WHERE raw_text LIKE ?1 OR final_text LIKE ?1 OR edited_text LIKE ?1 OR app_name LIKE ?1 ORDER BY created_at DESC LIMIT ?2 OFFSET ?3")?;
                 let rows = st.query_map(params![like, limit, offset], Self::row_to_history)?;
                 for r in rows {
                     out.push(r?);
