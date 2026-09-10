@@ -928,7 +928,20 @@ pub mod win {
                     while rx.recv_timeout(Duration::from_millis(opts.settle_ms.max(60))).is_ok() {}
                     break true;
                 }
-                let left = deadline.saturating_duration_since(Instant::now());
+                // Somebody else has already rendered the format. From that moment
+                // the data is real and every later reader takes it in silence, so
+                // no amount of further waiting can ever produce an answer.
+                //
+                // Measured 10 September 2026: eleven dictations in a row each sat
+                // here for the full 700 ms with msrdc.exe as the only reader,
+                // 700 ms added to every single one for nothing. A short settle is
+                // still allowed, in case the target reads within it.
+                let others_read = !st.shared.lock().other_readers.is_empty();
+                let left = if others_read {
+                    Duration::from_millis(opts.settle_ms.max(60)).min(deadline.saturating_duration_since(Instant::now()))
+                } else {
+                    deadline.saturating_duration_since(Instant::now())
+                };
                 if left.is_zero() || rx.recv_timeout(left).is_err() {
                     break false;
                 }
