@@ -727,6 +727,34 @@ pub mod win {
         }
     }
 
+    /// Whether the clipboard's text right now is exactly `expected`. `None`
+    /// when it could not be opened or holds no text.
+    fn clipboard_holds(expected: &[u16]) -> Option<bool> {
+        unsafe {
+            if OpenClipboard(None).is_err() {
+                return None;
+            }
+            let out = (|| {
+                let h = GetClipboardData(CF_UNICODETEXT.0 as u32).ok()?;
+                let hg = HGLOBAL(h.0);
+                let p = GlobalLock(hg) as *const u16;
+                if p.is_null() {
+                    return None;
+                }
+                let mut n = 0usize;
+                while *p.add(n) != 0 {
+                    n += 1;
+                }
+                let got = std::slice::from_raw_parts(p, n).to_vec();
+                let _ = GlobalUnlock(hg);
+                let want: Vec<u16> = expected.iter().copied().take_while(|c| *c != 0).collect();
+                Some(got == want)
+            })();
+            let _ = CloseClipboard();
+            out
+        }
+    }
+
     /// Puts whatever was on the clipboard back, for the paths that give up
     /// after the app has already taken ownership. Does nothing when there is
     /// nothing saved, so it is safe to call twice.
@@ -845,6 +873,36 @@ pub mod win {
             sh.target_pid = fg_pid;
             sh.keystroke_at = Some(Instant::now());
         }
+        // Do not press the key while somebody else holds the clipboard open.
+        //
+        // Measured 10 September 2026: msrdc.exe, the Remote Desktop client,
+        // opens the clipboard 1 to 3 ms after every change and reads the
+        // formats it forwards. Ctrl+V used to go out within microseconds of
+        // publishing, so the target's own OpenClipboard landed inside that
+        // window, failed with "busy", and Chromium dropped the paste without a
+        // word. The text then sat on the clipboard while the user searched
+        // History for it. A quarter of a second is far more than a read takes;
+        // past it the key goes out anyway and the log says so.
+        let wait_started = Instant::now();
+        let free_by = wait_started + Duration::from_millis(250);
+        let mut held_by: Option<String> = None;
+        loop {
+            let holder = unsafe { GetOpenClipboardWindow().ok().filter(|h| !h.is_invalid()) };
+            let Some(h) = holder else { break };
+            if held_by.is_none() {
+                let mut pid = 0u32;
+                unsafe { GetWindowThreadProcessId(h, Some(&mut pid)); }
+                held_by = Some(process_name(pid));
+            }
+            if Instant::now() >= free_by {
+                tracing::warn!("clipboard still held by {} 250 ms after publishing; pressing Ctrl+V anyway", held_by.as_deref().unwrap_or("?"));
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        if let Some(who) = held_by {
+            tracing::info!("waited {} ms for {} to let go of the clipboard before Ctrl+V", wait_started.elapsed().as_millis(), who);
+        }
         send_paste_chord(opts.shift_paste);
 
         // Wait for the target to read the clipboard, then for traffic to go quiet.
@@ -893,6 +951,13 @@ pub mod win {
             let sh = st.shared.lock();
             !consumed && !sh.other_readers.is_empty()
         };
+        if interference {
+            match clipboard_holds(&to_wide(text)) {
+                Some(true) => tracing::info!("the clipboard still holds our text after the paste"),
+                Some(false) => tracing::warn!("the clipboard no longer holds our text: another program replaced it after we published"),
+                None => tracing::debug!("could not read the clipboard back to check it"),
+            }
+        }
         if interference {
             let sh = st.shared.lock();
             tracing::info!("paste unverified: {} read the clipboard before the target could, so nothing here can tell whether it landed; the words stay on the clipboard",

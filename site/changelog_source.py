@@ -71,13 +71,78 @@ RELEASES = [
              "Μια πολύ σύντομη λέξη ανάμεσα σε δύο μεγάλες παύσεις μπορούσε να εξαφανιστεί "
              "από το τελικό κείμενο."),
             ("fixed",
-             "A dictation could be reported as refused by the application when the "
-             "application had in fact taken it. Windows keeps a clipboard history that "
-             "reads every new entry at once, and the app was mistaking that read for the "
-             "answer it was waiting for. It now waits for the real one.",
-             "Μια υπαγόρευση μπορούσε να αναφερθεί ως απορριφθείσα από την εφαρμογή ενώ εκείνη την είχε πάρει κανονικά. "
-             "Τα Windows κρατούν ιστορικό προχείρου και διαβάζουν κάθε νέα καταχώρηση αμέσως και η εφαρμογή περνούσε αυτό το διάβασμα για την απάντηση που περίμενε. "
-             "Τώρα περιμένει την αληθινή."),
+             "With Microsoft Remote Desktop open in the background, a paste into Chrome and its "
+             "relatives could be dropped without a word, and the app then reported the words as "
+             "refused. Remote Desktop holds the clipboard for a moment after every change; the app "
+             "now waits for it to let go before pressing the key, and it no longer announces a "
+             "failure it cannot prove.",
+             "Με ανοιχτό στο παρασκήνιο το Απομακρυσμένο Γραφείο της Microsoft, μια επικόλληση στο Chrome "
+             "και στους συγγενείς του μπορούσε να χαθεί αθόρυβα και η εφαρμογή έλεγε μετά ότι το κείμενο "
+             "απορρίφθηκε. Το Απομακρυσμένο Γραφείο κρατάει το πρόχειρο για μια στιγμή μετά από κάθε αλλαγή. "
+             "Η εφαρμογή περιμένει πλέον να το αφήσει πριν πατήσει το πλήκτρο και δεν ανακοινώνει αποτυχία "
+             "που δεν μπορεί να αποδείξει."),
+            ("fixed",
+             "The small window's message was cut off at 12 pixels on one line, so the half that said "
+             "what to do was the half you could not see. It is now 16 pixels and wraps.",
+             "Το μήνυμα στο μικρό παράθυρο κοβόταν στα 12 πίξελ σε μία γραμμή, οπότε το μισό που έλεγε τι "
+             "να κάνετε ήταν το μισό που δεν βλέπατε. Τώρα είναι 16 πίξελ και αναδιπλώνεται."),
+            ("fixed",
+             "Every message in that window was in English. They now follow the language of the app.",
+             "Κάθε μήνυμα σε αυτό το παράθυρο ήταν στα αγγλικά. Τώρα ακολουθούν τη γλώσσα της εφαρμογής."),
+            ("added",
+             "The side buttons of a mouse can hold a shortcut. They are called Mouse4 and Mouse5 and "
+             "combine with Ctrl, Shift and Alt like any key.",
+             "Τα πλαϊνά κουμπιά του ποντικιού μπορούν να γίνουν συντόμευση. Λέγονται Mouse4 και Mouse5 "
+             "και συνδυάζονται με Ctrl, Shift και Alt όπως κάθε πλήκτρο."),
+            ("fixed",
+             "If the last piece of a long dictation failed to transcribe, the whole dictation was "
+             "thrown away. What was already transcribed while you spoke is now kept.",
+             "Αν το τελευταίο κομμάτι μιας μεγάλης υπαγόρευσης αποτύγχανε να μεταγραφεί, πετιόταν "
+             "ολόκληρη. Ό,τι είχε ήδη μεταγραφεί όσο μιλούσατε κρατιέται πλέον."),
+            ("fixed",
+             "Saving an empty correction in History made the entry look blank for good, and Copy "
+             "copied nothing. The original stays visible until a real correction replaces it.",
+             "Η αποθήκευση άδειας διόρθωσης στο Ιστορικό έκανε την εγγραφή να φαίνεται κενή για πάντα "
+             "και η Αντιγραφή δεν αντέγραφε τίποτα. Το αρχικό μένει ορατό μέχρι να το αντικαταστήσει "
+             "αληθινή διόρθωση."),
+            ("fixed",
+             "Paste last and the Paste button in History ignored your correction and used the "
+             "original words.",
+             "Η επικόλληση του τελευταίου και το κουμπί Επικόλληση στο Ιστορικό αγνοούσαν τη διόρθωσή "
+             "σας και έβαζαν τις αρχικές λέξεις."),
+            ("fixed",
+             "The Paste button in History pasted into the app's own window. It now puts the text on "
+             "the clipboard and asks you to click the window you want.",
+             "Το κουμπί Επικόλληση στο Ιστορικό επικολλούσε μέσα στο παράθυρο της ίδιας της εφαρμογής. "
+             "Τώρα βάζει το κείμενο στο πρόχειρο και σας ζητάει να πατήσετε στο παράθυρο που θέλετε."),
+            ("fixed",
+             "A retention of 0 days was accepted and would erase the whole history with its "
+             "recordings on the next start. The smallest value is one day.",
+             "Διατήρηση 0 ημερών γινόταν δεκτή και θα έσβηνε όλο το ιστορικό με τις ηχογραφήσεις του "
+             "στην επόμενη εκκίνηση. Η μικρότερη τιμή είναι μία μέρα."),
+            ("fixed",
+             "One invalid shortcut discarded every change on every settings tab. An empty shortcut "
+             "now means off, and a bad one is named.",
+             "Μία λανθασμένη συντόμευση πετούσε κάθε αλλαγή σε κάθε καρτέλα ρυθμίσεων. Άδεια συντόμευση "
+             "σημαίνει πλέον απενεργοποίηση και η λανθασμένη κατονομάζεται."),
+            ("fixed",
+             "The Start with Windows switch could stay on when nothing had been registered. It now "
+             "turns itself back off and says so.",
+             "Ο διακόπτης Εκκίνηση με τα Windows μπορούσε να μείνει αναμμένος χωρίς να έχει καταχωρηθεί "
+             "τίποτα. Τώρα σβήνει μόνος του και το λέει."),
+            ("fixed",
+             "The Save button in Settings could stay lit after a successful save.",
+             "Το κουμπί Αποθήκευση στις Ρυθμίσεις μπορούσε να μείνει αναμμένο μετά από επιτυχή αποθήκευση."),
+            ("fixed",
+             "The small window could stay on Failed, or keep spinning, after pasting with nothing to "
+             "paste or when the microphone would not open.",
+             "Το μικρό παράθυρο μπορούσε να μείνει στο Απέτυχε ή να γυρίζει ασταμάτητα, μετά από "
+             "επικόλληση χωρίς κείμενο ή όταν δεν άνοιγε το μικρόφωνο."),
+            ("fixed",
+             "When a paste was refused and the clipboard refused it too, the app still said the text "
+             "was on the clipboard. It now says to open History.",
+             "Όταν μια επικόλληση απορριπτόταν και το πρόχειρο την απέρριπτε επίσης, η εφαρμογή έλεγε "
+             "πάλι ότι το κείμενο είναι στο πρόχειρο. Τώρα λέει να ανοίξετε το Ιστορικό."),
             ("fixed",
              "A dictation that ended with the tray icon in front is now refused out loud, "
              "the way the desktop and the taskbar already were.",
