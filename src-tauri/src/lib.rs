@@ -26,7 +26,7 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     logging::init();
-    tracing::info!("Lalia {} starting", env!("CARGO_PKG_VERSION"));
+    tracing::info!("Fuck You Flow {} starting", env!("CARGO_PKG_VERSION"));
     std::panic::set_hook(Box::new(|info| {
         // Write it to disk here and now, with our own hands. The normal log goes
         // through a buffered writer on another thread (tracing_appender's
@@ -151,7 +151,7 @@ pub fn run() {
                 // day's log means the process was killed rather than closed,
                 // which is the only way to tell a crash from a quit here:
                 // panics write panic.log, and Windows Error Reporting is off.
-                tracing::info!("Lalia exiting cleanly");
+                tracing::info!("Fuck You Flow exiting cleanly");
             }
         });
 }

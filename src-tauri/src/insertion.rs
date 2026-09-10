@@ -552,13 +552,13 @@ pub mod win {
     fn thread_main() {
         unsafe {
             let hinst = GetModuleHandleW(None).unwrap_or_default();
-            let class_name = w!("LaliaClipboardOwner");
+            let class_name = w!("FuckYouFlowClipboardOwner");
             let wc = WNDCLASSW { lpfnWndProc: Some(wndproc), hInstance: hinst.into(), lpszClassName: class_name, ..Default::default() };
             RegisterClassW(&wc);
             let hwnd = CreateWindowExW(
                 WINDOW_EX_STYLE(0),
                 class_name,
-                w!("Lalia clipboard"),
+                w!("Fuck You Flow clipboard"),
                 WINDOW_STYLE(0),
                 0,
                 0,

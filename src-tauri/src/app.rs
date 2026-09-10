@@ -85,9 +85,9 @@ mod startup_tests {
 
     #[test]
     fn only_a_folder_with_the_uninstaller_counts_as_installed() {
-        let dir = std::env::temp_dir().join(format!("lalia-marker-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("fuckyouflow-marker-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let exe = dir.join("lalia.exe");
+        let exe = dir.join("fuckyouflow.exe");
         assert!(!installed_marker(&exe), "a bare folder is a developer run");
         std::fs::write(dir.join("uninstall.exe"), b"").unwrap();
         assert!(installed_marker(&exe), "the uninstaller next to it marks the installed copy");
@@ -320,7 +320,7 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
 static TRAY: Mutex<Option<tauri::tray::TrayIcon>> = Mutex::new(None);
 
 /// Takes the icon out of the notification area. Called on every exit path, so a
-/// closing Lalia never leaves an icon painted on the taskbar.
+/// closing the app never leaves an icon painted on the taskbar.
 pub fn drop_tray(app: &tauri::AppHandle) {
     let _ = app.remove_tray_by_id("main");
     let icon = TRAY.lock().take();
@@ -329,7 +329,7 @@ pub fn drop_tray(app: &tauri::AppHandle) {
 
 /// The single tray icon. It is built here and nowhere else: declaring
 /// `app.trayIcon` in tauri.conf.json as well makes Tauri create a second,
-/// menu-less icon, and the user sees two Lalia icons in the notification area.
+/// menu-less icon, and the user sees two of our icons in the notification area.
 fn build_tray(app: &tauri::App) -> anyhow::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open Fuck You Flow", true, None::<&str>)?;
     let toggle = MenuItem::with_id(app, "toggle", "Start / stop dictation", true, None::<&str>)?;

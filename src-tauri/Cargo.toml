@@ -1,13 +1,13 @@
 [package]
-name = "lalia"
+name = "fuckyouflow"
 version = "0.9.5"
-description = "Lalia: local-first voice keyboard for Windows (Greek + English)"
+description = "Fuck You Flow: local-first voice keyboard for Windows (Greek + English)"
 authors = ["Luram AI Agency"]
 edition = "2021"
 license = "MIT"
 
 [lib]
-name = "lalia_lib"
+name = "fuckyouflow_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

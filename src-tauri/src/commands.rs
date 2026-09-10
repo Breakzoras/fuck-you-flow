@@ -622,7 +622,7 @@ pub fn diagnostics(state: State<'_, Arc<AppState>>) -> serde_json::Value {
 pub fn recent_problems() -> Vec<String> {
     // Only the dated log files. The folder also holds the event journal and,
     // once the app has crashed even once, `panic.log`, whose name sorts after
-    // every `lalia.log.<date>`. Taking the last name in the folder therefore
+    // every `fuckyouflow.log.<date>`. Taking the last name in the folder therefore
     // meant that from the first crash onwards this list showed old crash lines
     // and hid every warning and error of the running app.
     let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(crate::paths::logs_dir())
@@ -631,7 +631,7 @@ pub fn recent_problems() -> Vec<String> {
                 .map(|e| e.path())
                 .filter(|p| {
                     p.is_file()
-                        && p.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with("lalia.log.")).unwrap_or(false)
+                        && p.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with("fuckyouflow.log.") || n.starts_with("lalia.log.")).unwrap_or(false)
                 })
                 .collect()
         })

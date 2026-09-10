@@ -1390,6 +1390,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuckyouflow"
+version = "0.9.5"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "cpal",
+ "crossbeam-channel",
+ "dirs 6.0.0",
+ "fancy-regex",
+ "futures-util",
+ "hex",
+ "hound",
+ "keyring",
+ "once_cell",
+ "parking_lot",
+ "regex",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "symphonia",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2412,46 +2452,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb1e621458ca9c51aa110bd0339d4751a056b9576bf1253aee1aa560dda0fc9d"
 dependencies = [
  "log",
-]
-
-[[package]]
-name = "lalia"
-version = "0.9.5"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "cpal",
- "crossbeam-channel",
- "dirs 6.0.0",
- "fancy-regex",
- "futures-util",
- "hex",
- "hound",
- "keyring",
- "once_cell",
- "parking_lot",
- "regex",
- "reqwest 0.12.28",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "symphonia",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "thiserror 2.0.20",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uuid",
- "windows 0.62.2",
 ]
 
 [[package]]

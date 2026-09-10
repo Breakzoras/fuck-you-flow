@@ -362,7 +362,7 @@ pub async fn download_verified(app: &tauri::AppHandle, id: &str, url: &str, dest
         std::fs::create_dir_all(parent)?;
     }
     let part = dest.with_extension("part");
-    let client = reqwest::Client::builder().user_agent("Lalia/0.1").build()?;
+    let client = reqwest::Client::builder().user_agent("FuckYouFlow/1.0").build()?;
     let resp = client.get(url).send().await?.error_for_status()?;
     let total = resp.content_length().unwrap_or(total_hint);
     let mut stream = resp.bytes_stream();

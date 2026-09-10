@@ -240,7 +240,7 @@ pub struct StatsSummary {
     pub daily: Vec<DailyStat>,
 }
 
-/// Copies `lalia.db` to `backup/lalia-YYYY-MM-DD.db` once per day and prunes
+/// Copies `fuckyouflow.db` to `backup/fuckyouflow-YYYY-MM-DD.db` once per day and prunes
 /// copies older than 14 days. Only the main file is copied; with a rollback
 /// journal that file is complete whenever no transaction is open, which is the
 /// case before the connection is created.
@@ -248,7 +248,7 @@ fn daily_backup(path: &Path) -> anyhow::Result<()> {
     let dir = path.parent().map(|p| p.join("backup")).unwrap_or_else(|| PathBuf::from("backup"));
     std::fs::create_dir_all(&dir)?;
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let target = dir.join(format!("lalia-{today}.db"));
+    let target = dir.join(format!("fuckyouflow-{today}.db"));
     if !target.exists() {
         std::fs::copy(path, &target)?;
         tracing::info!("database backup written: {}", target.display());
@@ -256,7 +256,7 @@ fn daily_backup(path: &Path) -> anyhow::Result<()> {
     let cutoff = chrono::Local::now() - chrono::Duration::days(14);
     for entry in std::fs::read_dir(&dir)?.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
-        if let Some(date) = name.strip_prefix("lalia-").and_then(|n| n.strip_suffix(".db")) {
+        if let Some(date) = name.strip_prefix("fuckyouflow-").or_else(|| name.strip_prefix("lalia-")).and_then(|n| n.strip_suffix(".db")) {
             if let Ok(d) = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
                 if d < cutoff.date_naive() {
                     let _ = std::fs::remove_file(entry.path());

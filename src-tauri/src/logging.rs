@@ -1,7 +1,7 @@
 //! Structured local logs. Transcript text and audio are never logged unless the
 //! user disables redaction in Privacy settings (and even then only text, never audio).
 //!
-//! `%LOCALAPPDATA%\Lalia\logs\lalia.log.YYYY-MM-DD`, seven days kept. Both the
+//! `%LOCALAPPDATA%\FuckYouFlow\logs\fuckyouflow.log.YYYY-MM-DD`, seven days kept. Both the
 //! file name and the stamps inside follow the user's own clock, so a line here
 //! and a line in `journal.rs` describing the same moment carry the same time.
 
@@ -17,7 +17,11 @@ static REDACT: AtomicBool = AtomicBool::new(true);
 static GUARD: once_cell::sync::OnceCell<tracing_appender::non_blocking::WorkerGuard> =
     once_cell::sync::OnceCell::new();
 
-const PREFIX: &str = "lalia.log.";
+const PREFIX: &str = "fuckyouflow.log.";
+/// What the files were called until 10 September 2026. Kept only so the old
+/// ones still get swept up by the weekly prune instead of sitting on the
+/// disk forever after the rename.
+const OLD_PREFIX: &str = "lalia.log.";
 /// Daily files to keep, matching the event journal's week.
 const KEEP_DAYS: usize = 7;
 
@@ -88,7 +92,7 @@ fn prune(dir: &Path) {
     let mut files: Vec<PathBuf> = rd
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with(PREFIX)))
+        .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with(PREFIX) || n.starts_with(OLD_PREFIX)))
         .collect();
     if files.len() <= KEEP_DAYS {
         return;
@@ -107,7 +111,7 @@ pub fn init() {
     let _ = GUARD.set(guard);
 
     // Our own modules at debug (state transitions, timings), everything else at info.
-    let filter = EnvFilter::try_from_env("LALIA_LOG").unwrap_or_else(|_| EnvFilter::new("info,lalia_lib=debug"));
+    let filter = EnvFilter::try_from_env("FUCKYOUFLOW_LOG").unwrap_or_else(|_| EnvFilter::new("info,fuckyouflow_lib=debug"));
 
     let file_layer = fmt::layer().with_ansi(false).with_target(true).with_timer(LocalTime).with_writer(non_blocking);
     let stderr_layer =
@@ -173,7 +177,7 @@ mod tests {
             .collect();
         left.sort();
         assert_eq!(left.len(), KEEP_DAYS, "keeps a week");
-        assert_eq!(left.first().map(String::as_str), Some("lalia.log.2026-09-04"));
+        assert_eq!(left.first().map(String::as_str), Some("fuckyouflow.log.2026-09-04"));
         assert!(dir.join("events-2026-09-01.jsonl").exists(), "leaves the journal alone");
 
         let _ = std::fs::remove_dir_all(&dir);
