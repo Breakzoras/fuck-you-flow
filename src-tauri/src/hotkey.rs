@@ -253,6 +253,68 @@ pub static SUSPENDED: AtomicBool = AtomicBool::new(false);
 /// Raw key reporting for the "press a shortcut" recorder in settings.
 static RECORD_SENDER: Lazy<Mutex<Option<tokio::sync::mpsc::UnboundedSender<Vec<u16>>>>> = Lazy::new(|| Mutex::new(None));
 
+/// One modifier key event as the hook saw it, for the key check in
+/// Diagnostics. `at_ms` is Unix time in milliseconds.
+#[derive(Clone, Debug, Serialize)]
+pub struct SeenKey {
+    pub at_ms: u64,
+    pub key: String,
+    pub down: bool,
+    pub injected: bool,
+}
+
+const SEEN_KEYS_KEPT: usize = 40;
+
+/// The last modifier key events, so a user can see what Windows delivered on
+/// a day when "the hotkey does nothing". Modifier keys only, the same set the
+/// trace logs: nothing typed is ever kept. On 10 September 2026 the right Alt
+/// stopped arriving at Windows altogether while the left one kept coming, and
+/// telling the two apart took forty minutes of log reading; this table shows
+/// it in one glance.
+static SEEN_KEYS: Lazy<Mutex<std::collections::VecDeque<SeenKey>>> =
+    Lazy::new(|| Mutex::new(std::collections::VecDeque::with_capacity(SEEN_KEYS_KEPT)));
+
+/// Called from inside the hook, so it never waits for the lock: a contended
+/// write is dropped rather than stall a key press.
+fn note_seen_key(vk: u16, down: bool, injected: bool) {
+    let at_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    if let Ok(mut q) = SEEN_KEYS.try_lock() {
+        if q.len() >= SEEN_KEYS_KEPT {
+            q.pop_front();
+        }
+        q.push_back(SeenKey { at_ms, key: vk_name(vk), down, injected });
+    }
+}
+
+/// Newest first.
+pub fn recent_keys() -> Vec<SeenKey> {
+    SEEN_KEYS.lock().map(|q| q.iter().rev().cloned().collect()).unwrap_or_default()
+}
+
+/// One press of the right Alt on a layout that has AltGr, which includes the
+/// Greek one, reaches Windows as two keys: a left Ctrl and the right Alt. The
+/// shortcut recorder in Settings saw both and offered "Ctrl+RAlt" for a key the
+/// user pressed alone, so the shortcut never matched afterwards and the key
+/// looked dead. Windows always pairs them, so a genuine Ctrl plus right Alt
+/// cannot be told apart and is given up on purpose.
+pub fn drop_altgr_companion(mut keys: Vec<u16>) -> Vec<u16> {
+    if keys.contains(&VK_RMENU) && keys.contains(&VK_LCONTROL) {
+        keys.retain(|k| *k != VK_LCONTROL);
+    }
+    keys
+}
+
+/// How many times the hook has been put back in place. Shown in Diagnostics
+/// next to how long the app has been running, so a rate can be read off it.
+pub static HOOK_REHOOKS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+pub fn hook_rehooks() -> u32 {
+    HOOK_REHOOKS.load(Ordering::Relaxed)
+}
+
 pub fn set_bindings(list: Vec<(ChordId, Chord)>) {
     let mut st = STATE.lock().unwrap();
     st.bindings = list.into_iter().map(|(id, chord)| Binding { id, chord, active: false }).collect();
@@ -340,13 +402,15 @@ mod win {
         // every chord is built from, so this is enough to reconstruct a chord
         // sequence from the log without ever recording what the user types.
         if matches!(vk, VK_LMENU | VK_RMENU | VK_LCONTROL | VK_RCONTROL | VK_LWIN | VK_RWIN) {
+            let injected = (info.flags.0 & LLKHF_INJECTED.0) != 0;
             tracing::debug!(
                 "key {} {} flags={:#x} injected={}",
                 vk_name(vk),
                 if is_down { "down" } else { "up" },
                 info.flags.0,
-                (info.flags.0 & LLKHF_INJECTED.0) != 0
+                injected
             );
+            note_seen_key(vk, is_down, injected);
         }
 
         // Shortcut recorder in settings: report raw keys, swallow nothing.
@@ -487,14 +551,21 @@ mod win {
                 }
             };
             tracing::info!("keyboard hook installed ({:?})", hook);
-            // Windows removes a low-level hook without telling anyone when its
-            // callback once takes longer than LowLevelHooksTimeout (300 ms), which
-            // happens right after a reboot while the binary's pages are still on
-            // disk. Re-register the hook every 30 s: install the new one first, then
-            // drop the old, so no key press falls in between.
+            // Windows removes a low-level hook without telling anyone when one
+            // callback overruns LowLevelHooksTimeout. Nothing reports it, and
+            // there is no way to ask whether a hook is still installed, so the
+            // only cure is to keep putting a fresh one in place: install the new
+            // one first, then drop the old, so no key press falls in between.
+            //
+            // This used to run every 30 s, which meant that after a death the
+            // user pressed a dead key for up to half a minute. Measured on
+            // 10 September 2026 on this machine at 100% CPU with 732 processes:
+            // between 10:20:35 and 10:22:12 the keyboard sent eleven key events
+            // (confirmed by a raw-input listener that names the device) and the
+            // hook saw none of them. One second costs two cheap kernel calls and
+            // makes the worst case unnoticeable.
             let mut hook = hook;
-            let mut rehooks: u32 = 0;
-            let _ = SetTimer(None, 1, 30_000, None);
+            let _ = SetTimer(None, 1, 1_000, None);
             let mut msg = MSG::default();
             while GetMessageW(&mut msg, None, 0, 0).as_bool() {
                 if msg.message == WM_TIMER {
@@ -502,9 +573,11 @@ mod win {
                         Ok(fresh) => {
                             let _ = UnhookWindowsHookEx(hook);
                             hook = fresh;
-                            rehooks += 1;
-                            if rehooks % 20 == 1 {
-                                tracing::debug!("keyboard hook re-registered ({rehooks} times so far)");
+                            let n = HOOK_REHOOKS.fetch_add(1, Ordering::Relaxed) + 1;
+                            // Once a minute at this cadence, enough to show the
+                            // loop is alive without filling the log.
+                            if n % 60 == 1 {
+                                tracing::debug!("keyboard hook re-registered ({n} times so far)");
                             }
                         }
                         Err(e) => tracing::warn!("keyboard hook re-registration failed: {e}"),
@@ -580,5 +653,29 @@ mod tests {
     fn display_round_trip() {
         let c = Chord::parse("Ctrl+Shift+F9").unwrap();
         assert_eq!(c.display(), "Ctrl+Shift+F9");
+    }
+
+    #[test]
+    fn recording_the_right_alt_alone_does_not_become_ctrl_plus_right_alt() {
+        // What Windows delivers for one press of the right Alt on a Greek layout.
+        assert_eq!(drop_altgr_companion(vec![VK_LCONTROL, VK_RMENU]), vec![VK_RMENU]);
+        // A real Ctrl chord with any other key is left alone.
+        assert_eq!(drop_altgr_companion(vec![VK_LCONTROL, VK_LMENU]), vec![VK_LCONTROL, VK_LMENU]);
+        assert_eq!(drop_altgr_companion(vec![VK_LCONTROL, VK_LWIN]), vec![VK_LCONTROL, VK_LWIN]);
+        // Right Ctrl is a key the user really pressed, so it stays.
+        assert_eq!(drop_altgr_companion(vec![VK_RCONTROL, VK_RMENU]), vec![VK_RCONTROL, VK_RMENU]);
+    }
+
+    /// The key check keeps the newest events first and never grows past its cap.
+    #[test]
+    fn seen_keys_are_newest_first_and_capped() {
+        for i in 0..(SEEN_KEYS_KEPT as u16 + 10) {
+            note_seen_key(if i % 2 == 0 { VK_LMENU } else { VK_RMENU }, true, false);
+        }
+        let seen = recent_keys();
+        assert_eq!(seen.len(), SEEN_KEYS_KEPT);
+        assert_eq!(seen[0].key, "RAlt", "the last press written (an odd index) comes first");
+        assert_eq!(seen[1].key, "LAlt");
+        assert!(seen[0].at_ms >= seen[seen.len() - 1].at_ms);
     }
 }

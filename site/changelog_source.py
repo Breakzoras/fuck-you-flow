@@ -18,6 +18,35 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.4",
+        "date": "2026-09-10",
+        "summary": (
+            "A key check for the days the hotkey seems dead, and the startup entry stays "
+            "with the installed copy.",
+            "Ένας έλεγχος πλήκτρου για τις μέρες που το πλήκτρο μοιάζει νεκρό και η αυτόματη "
+            "εκκίνηση που μένει στο εγκατεστημένο αντίγραφο.",
+        ),
+        "lines": [
+            ("added",
+             "Diagnostics, Key check: press your hotkey and see live what Windows delivered. "
+             "When the left Alt arrives while hands-free sits on the right one, it says so.",
+             "Διαγνωστικά, Έλεγχος πλήκτρου: πατάτε το πλήκτρο σας και βλέπετε ζωντανά τι "
+             "παρέδωσαν τα Windows. Όταν φτάνει το αριστερό Alt ενώ τα ελεύθερα χέρια είναι "
+             "στο δεξί, το λέει."),
+            ("fixed",
+             "A copy run from the build folder no longer takes over the Windows startup entry. "
+             "Only the installed copy does.",
+             "Ένα αντίγραφο που τρέχει από τον φάκελο χτισίματος δεν παίρνει πια την αυτόματη "
+             "εκκίνηση των Windows. Μόνο το εγκατεστημένο αντίγραφο την παίρνει."),
+            ("fixed",
+             "A dictation that ended with the tray icon in front is now refused out loud, the "
+             "way the desktop and the taskbar are, with a message that names the tray icon.",
+             "Μια υπαγόρευση που τελείωσε με το εικονίδιο της γραμμής εργασιών μπροστά "
+             "απορρίπτεται πλέον φωναχτά, όπως η επιφάνεια εργασίας και η γραμμή εργασιών, "
+             "με μήνυμα που κατονομάζει το εικονίδιο."),
+        ],
+    },
+    {
         "version": "0.9.3",
         "date": "2026-09-08",
         "summary": (

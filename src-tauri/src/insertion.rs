@@ -34,6 +34,10 @@ pub fn unusable_class(class: &str) -> Option<&'static str> {
     match class {
         "Progman" | "WorkerW" => Some("the desktop"),
         "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" => Some("the taskbar"),
+        // The hidden window behind our own tray icon. It holds the focus after
+        // a click on the icon; measured 9 September 2026, a 52-word dictation
+        // was pasted into it and reported as "the app did not accept it".
+        "tray_icon_app" => Some("the tray icon"),
         "" => Some("no window"),
         _ => None,
     }
@@ -49,6 +53,7 @@ mod target_tests {
         assert_eq!(unusable_class("WorkerW"), Some("the desktop"));
         assert_eq!(unusable_class("Shell_TrayWnd"), Some("the taskbar"));
         assert_eq!(unusable_class("Shell_SecondaryTrayWnd"), Some("the taskbar"));
+        assert_eq!(unusable_class("tray_icon_app"), Some("the tray icon"));
         assert_eq!(unusable_class(""), Some("no window"));
     }
 

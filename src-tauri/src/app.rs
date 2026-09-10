@@ -43,11 +43,50 @@ pub fn reload_engines(state: &AppState) {
     *state.shared.snippets.write() = SnippetEngine::new(snippets);
 }
 
+/// Windows starts whatever path the entry names, so only the installed copy may
+/// ever write it. A run from the build folder used to claim the entry, and then
+/// every boot started that build while the installed copy sat unused and could
+/// never update itself (measured 10 September 2026). Switching autostart off is
+/// always allowed, from any copy.
 pub fn set_autostart(app: &tauri::AppHandle, enabled: bool) {
+    if enabled && !is_installed_copy() {
+        tracing::info!(
+            "startup entry left alone: this copy is not the installed one ({})",
+            std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default()
+        );
+        return;
+    }
     let manager = app.autolaunch();
     let r = if enabled { manager.enable() } else { manager.disable() };
     if let Err(e) = r {
         tracing::warn!("autostart change failed: {e}");
+    }
+}
+
+/// Whether `exe` is the copy the installer put down. The installer leaves its
+/// uninstaller next to the program and nothing else does, so that file is the
+/// marker. A run from the build folder or a loose copy has no such neighbour.
+pub fn installed_marker(exe: &std::path::Path) -> bool {
+    exe.parent().map(|dir| dir.join("uninstall.exe").is_file()).unwrap_or(false)
+}
+
+fn is_installed_copy() -> bool {
+    std::env::current_exe().map(|p| installed_marker(&p)).unwrap_or(false)
+}
+
+#[cfg(test)]
+mod startup_tests {
+    use super::installed_marker;
+
+    #[test]
+    fn only_a_folder_with_the_uninstaller_counts_as_installed() {
+        let dir = std::env::temp_dir().join(format!("lalia-marker-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("lalia.exe");
+        assert!(!installed_marker(&exe), "a bare folder is a developer run");
+        std::fs::write(dir.join("uninstall.exe"), b"").unwrap();
+        assert!(installed_marker(&exe), "the uninstaller next to it marks the installed copy");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 
@@ -83,11 +122,11 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     let fresh_install = !crate::paths::settings_file().exists();
     let mut settings = Settings::load(&crate::paths::settings_file());
     crate::journal::set_verbose(settings.general.debug_mode);
-    // Point the Windows startup entry at the copy that is actually running.
-    // It used to be written only when the user saved the settings, so after an
-    // install it still named the old path, and Windows started a program that
-    // was no longer there. Measured on 8 September 2026: the entry pointed at
-    // the build folder while the installed copy was the one in use.
+    // Point the Windows startup entry at this copy. It used to be written only
+    // when the user saved the settings, so after an install it still named the
+    // old path and Windows started a program that was no longer there
+    // (8 September 2026). `set_autostart` decides whether this copy is allowed
+    // to claim the entry.
     if settings.general.autostart {
         set_autostart(&app.handle().clone(), true);
     }

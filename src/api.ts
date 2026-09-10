@@ -104,6 +104,9 @@ export interface UpdateInfo {
   notes: string | null; date: string | null; small_download: boolean;
 }
 
+/// One modifier key event as the keyboard hook saw it (src-tauri/src/hotkey.rs).
+export interface SeenKey { at_ms: number; key: string; down: boolean; injected: boolean }
+
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
@@ -162,6 +165,7 @@ export const api = {
   debugModeSet: (on: boolean) => invoke<void>("debug_mode_set", { on }),
   debugEvents: (limit?: number) => invoke<string[]>("debug_events", { limit }),
   debugBundle: () => invoke<string>("debug_bundle"),
+  recentKeys: () => invoke<SeenKey[]>("recent_keys"),
   foregroundApp: () => invoke<Record<string, unknown>>("current_foreground_app"),
   recordShortcut: () => invoke<string>("record_shortcut"),
   // Updates: the check only asks, the install is a separate yes.

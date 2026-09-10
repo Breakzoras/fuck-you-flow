@@ -565,6 +565,9 @@ pub fn diagnostics(state: State<'_, Arc<AppState>>) -> serde_json::Value {
         "hotkeys": s.hotkeys,
         "provider": s.asr.provider,
         "model": s.asr.model_id,
+        // The hook is put back once a second because Windows removes it
+        // silently; this counter shows the loop is alive.
+        "hook_rehooks": crate::hotkey::hook_rehooks(),
     })
 }
 
@@ -630,6 +633,7 @@ pub async fn record_shortcut(app: tauri::AppHandle) -> R<String> {
     if best.is_empty() {
         return Err("no key pressed".into());
     }
+    let best = crate::hotkey::drop_altgr_companion(best);
     let mut order: Vec<u16> = best.clone();
     order.sort_by_key(|k| match *k {
         0x11 | 0xA2 | 0xA3 => 0,
@@ -714,6 +718,13 @@ pub fn debug_events(limit: Option<usize>) -> Vec<String> {
         .into_iter()
         .filter(|l| !l.contains("\"kind\":\"test."))
         .collect()
+}
+
+/// The last modifier keys Windows delivered to the hook, newest first, for
+/// the key check in Diagnostics.
+#[tauri::command]
+pub fn recent_keys() -> Vec<crate::hotkey::SeenKey> {
+    crate::hotkey::recent_keys()
 }
 
 /// Everything needed to understand a problem, in one block of text: the
