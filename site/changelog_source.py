@@ -21,10 +21,12 @@ RELEASES = [
         "version": "0.9.5",
         "date": "2026-09-10",
         "summary": (
-            "The day the right Alt key stopped working, and the eight other faults found "
-            "while proving it was never the key.",
-            "Η μέρα που το δεξί Alt σταμάτησε να δουλεύει και τα άλλα οκτώ λάθη που "
-            "βρέθηκαν όσο αποδεικνυόταν ότι δεν έφταιγε ποτέ το πλήκτρο.",
+            "The day the right Alt key stopped working. Proving it was never the key led to "
+            "twenty-three more faults, a paste that Remote Desktop was quietly swallowing, and "
+            "shortcuts on the mouse.",
+            "Η μέρα που το δεξί Alt σταμάτησε να δουλεύει. Η απόδειξη ότι δεν έφταιγε ποτέ το "
+            "πλήκτρο οδήγησε σε άλλα είκοσι τρία λάθη, σε μια επικόλληση που το Απομακρυσμένο "
+            "Γραφείο κατάπινε αθόρυβα και σε συντομεύσεις στο ποντίκι.",
         ),
         "lines": [
             ("fixed",
