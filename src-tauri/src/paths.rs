@@ -31,29 +31,96 @@ fn is_installation(dir: &std::path::Path) -> bool {
     dir.join("uninstall.exe").exists() || dir.join("fuckyouflow.exe").exists() || dir.join("lalia.exe").exists()
 }
 
-/// The new path, unless an older one is still there and cannot be moved.
+/// True when this folder is somebody's own work rather than an empty shell left
+/// behind by a half finished update.
+fn holds_user_files(dir: &std::path::Path) -> bool {
+    let named = ["settings.json", "fuckyouflow.db", "lalia.db", "models", "runtime"];
+    named.iter().any(|n| dir.join(n).exists())
+}
+
+/// The folder to use, moving an older one into place when there is one.
+///
+/// Every old name is looked at, and the one that actually holds files wins.
+/// Picking the first name that merely exists was not enough: an interrupted
+/// update can leave an empty folder under a newer name, and adopting that one
+/// would open the app with an empty history while the real one sat untouched
+/// beside it.
 fn adopt(base: PathBuf) -> PathBuf {
     let now = base.join(APP_DIR_NAME);
-    if now.exists() {
+    if now.exists() && holds_user_files(&now) {
         return now;
     }
-    for old in OLD_APP_DIR_NAMES {
-        let before = base.join(old);
-        if !before.exists() || is_installation(&before) {
-            continue;
+    let candidates: Vec<PathBuf> = OLD_APP_DIR_NAMES
+        .iter()
+        .map(|n| base.join(n))
+        .filter(|p| p.exists() && !is_installation(p))
+        .collect();
+    let Some(before) = candidates.iter().find(|p| holds_user_files(p)).or_else(|| candidates.first()) else {
+        return now;
+    };
+    if now.exists() {
+        // An empty folder under the new name is in the way of the real one.
+        let _ = std::fs::remove_dir_all(&now);
+    }
+    match std::fs::rename(before, &now) {
+        Ok(()) => {
+            tracing::info!("moved {} to {}", before.display(), now.display());
+            now
         }
-        match std::fs::rename(&before, &now) {
-            Ok(()) => {
-                tracing::info!("moved {} to {}", before.display(), now.display());
-                return now;
-            }
-            Err(e) => {
-                tracing::warn!("could not rename {} to {}: {e}", before.display(), now.display());
-                return before;
-            }
+        Err(e) => {
+            tracing::warn!("could not rename {} to {}: {e}", before.display(), now.display());
+            before.clone()
         }
     }
-    now
+}
+
+#[cfg(test)]
+mod adopt_tests {
+    use super::*;
+
+    fn seed(base: &std::path::Path, name: &str, file: Option<&str>) {
+        let d = base.join(name);
+        std::fs::create_dir_all(&d).unwrap();
+        if let Some(f) = file {
+            std::fs::write(d.join(f), b"x").unwrap();
+        }
+    }
+
+    /// The folder holding the user's own files wins, whatever it is called and
+    /// whatever empty folders sit beside it.
+    #[test]
+    fn the_folder_with_the_files_in_it_is_the_one_that_moves() {
+        let base = std::env::temp_dir().join(format!("fyf-adopt-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+
+        // An empty folder under the new name, and the real history under the
+        // oldest name. This is exactly what an interrupted update leaves.
+        seed(&base, APP_DIR_NAME, None);
+        seed(&base, "Lalia", Some("lalia.db"));
+        let got = adopt(base.clone());
+        assert_eq!(got, base.join(APP_DIR_NAME));
+        assert!(got.join("lalia.db").exists(), "the history must travel with the folder");
+        assert!(!base.join("Lalia").exists(), "the old folder is gone once it has moved");
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// The installed program is never mistaken for a data folder, which is what
+    /// would happen on Windows where the program lives one name away.
+    #[test]
+    fn the_installation_folder_is_never_adopted() {
+        let base = std::env::temp_dir().join(format!("fyf-adopt-install-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+
+        seed(&base, "Fuck You Flow", Some("uninstall.exe"));
+        let got = adopt(base.clone());
+        assert_eq!(got, base.join(APP_DIR_NAME));
+        assert!(base.join("Fuck You Flow").join("uninstall.exe").exists(), "the installation is left alone");
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }
 
 pub fn config_dir() -> PathBuf {
