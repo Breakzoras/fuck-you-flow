@@ -346,16 +346,57 @@ impl Settings {
         match std::fs::read_to_string(path) {
             // Notepad and PowerShell write UTF-8 with a byte-order mark, which
             // serde_json rejects as "expected value at line 1 column 1".
-            Ok(text) => match serde_json::from_str::<Settings>(text.trim_start_matches('\u{feff}')) {
-                Ok(s) => s,
-                Err(e) => {
-                    tracing::warn!("settings.json unreadable ({e}); using defaults and keeping a backup");
-                    let _ = std::fs::copy(path, path.with_extension("json.bak"));
-                    Settings::default()
+            Ok(text) => {
+                let text = text.trim_start_matches('\u{feff}');
+                match serde_json::from_str::<Settings>(text) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        tracing::warn!("settings.json has something the app cannot read ({e}); keeping every part that still makes sense");
+                        let _ = std::fs::copy(path, path.with_extension("json.bak"));
+                        Settings::salvage(text)
+                    }
                 }
-            },
+            }
             Err(_) => Settings::default(),
         }
+    }
+
+    /// Read the file one section at a time, keeping everything that still works.
+    ///
+    /// A single word the app does not recognise, a hand edit gone wrong or a
+    /// setting removed by a later version used to fail the whole file, and the
+    /// user came back to a program that had forgotten their shortcut, their
+    /// language, their microphone and everything else they had ever chosen.
+    /// Now only the part that is actually broken goes back to its default.
+    fn salvage(text: &str) -> Self {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else {
+            tracing::warn!("settings.json is not readable as a file at all; starting from the defaults");
+            return Settings::default();
+        };
+        let Some(obj) = value.as_object() else {
+            return Settings::default();
+        };
+        let mut out = Settings::default();
+        macro_rules! part {
+            ($name:literal, $field:ident) => {
+                if let Some(v) = obj.get($name) {
+                    match serde_json::from_value(v.clone()) {
+                        Ok(parsed) => out.$field = parsed,
+                        Err(e) => tracing::warn!("the {} settings could not be read ({e}); that part went back to its defaults", $name),
+                    }
+                }
+            };
+        }
+        part!("general", general);
+        part!("hotkeys", hotkeys);
+        part!("audio", audio);
+        part!("language", language);
+        part!("asr", asr);
+        part!("cleanup", cleanup);
+        part!("insertion", insertion);
+        part!("overlay", overlay);
+        part!("privacy", privacy);
+        out
     }
 
     pub fn save(&self, path: &Path) -> anyhow::Result<()> {
@@ -372,6 +413,31 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// One word the app does not know must not cost the user everything else
+    /// they ever set. Before this, a single bad value reset the shortcut, the
+    /// language, the microphone and every other choice at once.
+    #[test]
+    fn a_broken_section_does_not_take_the_others_with_it() {
+        let text = r#"{
+            "general": { "ui_language": "en" },
+            "hotkeys": { "push_to_talk": "Mouse4" },
+            "audio": { "preroll_ms": "not a number" },
+            "insertion": { "paste_settle_ms": 120 }
+        }"#;
+        // The whole file cannot be read, which is the case that used to wipe everything.
+        assert!(serde_json::from_str::<Settings>(text).is_err(), "this file must be the broken kind");
+
+        let s = Settings::salvage(text);
+        assert_eq!(s.general.ui_language, "en", "the language survives");
+        assert_eq!(s.hotkeys.push_to_talk, "Mouse4", "the shortcut survives");
+        assert_eq!(s.insertion.paste_settle_ms, 120, "the paste setting survives");
+        assert_eq!(
+            s.audio.preroll_ms,
+            Settings::default().audio.preroll_ms,
+            "only the broken part goes back to its default"
+        );
+    }
 
     #[test]
     fn defaults_round_trip() {

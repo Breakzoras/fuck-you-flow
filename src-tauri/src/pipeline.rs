@@ -617,7 +617,27 @@ async fn process(
     overlay::emit_state(app, OverlayPayload { state: OverlayState::Processing, message: None, preview: None, can_retry: false, seconds: samples.len() as f32 / 16000.0 });
 
     // 1. Empty / accidental press?
+    //
+    // A microphone that goes away mid sentence produces exactly the same thing
+    // as a key pressed by accident: silence. A wireless headset that runs out
+    // of battery, a plug pulled, a device grabbed by another program. Telling
+    // somebody who has just spoken for a minute that they said nothing is the
+    // wrong answer, so the state of the microphone is asked first.
     let analysis = crate::audio::analyze_speech(&samples, settings.audio.min_speech_ms);
+    let quiet = !matches!(analysis.as_ref(), Some(a) if !a.trimmed.is_empty());
+    if quiet && shared.audio.status() == crate::audio::StreamStatus::Error {
+        tracing::warn!("the microphone stopped working during the recording, so there is no sound to read");
+        crate::journal::record("warn", "record.mic_lost", serde_json::json!({ "samples": samples.len() }));
+        overlay::emit_state(app, OverlayPayload {
+            state: OverlayState::Failed,
+            message: Some("msg_mic_lost".to_string()),
+            preview: None,
+            can_retry: false,
+            seconds: 0.0,
+        });
+        finish_idle(shared, app, idle_timer, 2600);
+        return;
+    }
     let (audio_ms, speech) = match analysis {
         Some(a) if !a.trimmed.is_empty() => (a.total_ms, a.trimmed),
         Some(a) => {

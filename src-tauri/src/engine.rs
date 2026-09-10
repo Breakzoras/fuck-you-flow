@@ -274,12 +274,22 @@ impl EngineManager {
             return;
         }
         let local = self.local.read().clone();
+        // Ready and Starting both mean a process should be running right now.
+        //
+        // Only Ready was checked before, so an engine whose process died while
+        // it was still loading the model stayed "starting" for the rest of the
+        // session and nothing ever brought it back. Loading takes up to two
+        // minutes on a cold machine, which is a wide window to crash in.
+        //
+        // Nothing is started here when there is no engine at all. That case is
+        // deliberate: a missing model file used to make this fire every five
+        // seconds for as long as the app stayed open.
         let dead = match local {
-            Some(s) => s.info().status == EngineStatus::Ready && !s.is_alive(),
+            Some(s) => matches!(s.info().status, EngineStatus::Ready | EngineStatus::Starting) && !s.is_alive(),
             None => false,
         };
         if dead {
-            tracing::warn!("whisper-server died, restarting");
+            tracing::warn!("the speech engine stopped on its own, starting it again");
             self.apply(app, settings).await;
         }
     }
