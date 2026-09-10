@@ -22,11 +22,12 @@ RELEASES = [
         "date": "2026-09-10",
         "summary": (
             "The day the right Alt key stopped working. Proving it was never the key led to "
-            "twenty-three more faults, a paste that Remote Desktop was quietly swallowing, and "
-            "shortcuts on the mouse.",
+            "twenty-three more faults, a rebuilt paste that lands on the first try, shortcuts "
+            "on the mouse, and the program finally carrying its own name.",
             "Η μέρα που το δεξί Alt σταμάτησε να δουλεύει. Η απόδειξη ότι δεν έφταιγε ποτέ το "
-            "πλήκτρο οδήγησε σε άλλα είκοσι τρία λάθη, σε μια επικόλληση που το Απομακρυσμένο "
-            "Γραφείο κατάπινε αθόρυβα και σε συντομεύσεις στο ποντίκι.",
+            "πλήκτρο οδήγησε σε άλλα είκοσι τρία λάθη, σε μια επικόλληση χτισμένη από την αρχή "
+            "που πετυχαίνει με την πρώτη, σε συντομεύσεις στο ποντίκι και στο να αποκτήσει "
+            "επιτέλους το πρόγραμμα το δικό του όνομα.",
         ),
         "lines": [
             ("fixed",
@@ -73,16 +74,49 @@ RELEASES = [
              "Μια πολύ σύντομη λέξη ανάμεσα σε δύο μεγάλες παύσεις μπορούσε να εξαφανιστεί "
              "από το τελικό κείμενο."),
             ("fixed",
-             "With Microsoft Remote Desktop open in the background, a paste into Chrome and its "
-             "relatives could be dropped without a word, and the app then reported the words as "
-             "refused. Remote Desktop holds the clipboard for a moment after every change; the app "
-             "now waits for it to let go before pressing the key, and it no longer announces a "
-             "failure it cannot prove.",
-             "Με ανοιχτό στο παρασκήνιο το Απομακρυσμένο Γραφείο της Microsoft, μια επικόλληση στο Chrome "
-             "και στους συγγενείς του μπορούσε να χαθεί αθόρυβα και η εφαρμογή έλεγε μετά ότι το κείμενο "
-             "απορρίφθηκε. Το Απομακρυσμένο Γραφείο κρατάει το πρόχειρο για μια στιγμή μετά από κάθε αλλαγή. "
-             "Η εφαρμογή περιμένει πλέον να το αφήσει πριν πατήσει το πλήκτρο και δεν ανακοινώνει αποτυχία "
-             "που δεν μπορεί να αποδείξει."),
+             "The paste was built the wrong way round. The app used to put a note on the clipboard "
+             "saying the words could be had on request, then wait to be asked. Anything else on the "
+             "machine that watches the clipboard, a remote desktop session for one, could ask first "
+             "and take the answer, leaving the window that mattered with nothing and the app with a "
+             "question it could no longer answer. The words now go on the clipboard as they are, "
+             "before the key is pressed, so there is nothing left to ask for and nothing to go wrong "
+             "in between. The wait that used to cost most of a second is gone with it.",
+             "Η επικόλληση ήταν χτισμένη ανάποδα. Η εφαρμογή άφηνε στο πρόχειρο ένα σημείωμα ότι το "
+             "κείμενο δίνεται όποτε ζητηθεί και μετά περίμενε να της το ζητήσουν. Οτιδήποτε άλλο στο "
+             "μηχάνημα παρακολουθεί το πρόχειρο, όπως μια σύνδεση απομακρυσμένου γραφείου, προλάβαινε "
+             "να ρωτήσει πρώτο και έπαιρνε την απάντηση, αφήνοντας το παράθυρο που μας ενδιέφερε με "
+             "τίποτα. Πλέον το κείμενο μπαίνει στο πρόχειρο όπως είναι, πριν πατηθεί το πλήκτρο, οπότε "
+             "δεν μένει τίποτα να ζητηθεί και τίποτα να στραβώσει ενδιάμεσα. Μαζί του έφυγε και η "
+             "αναμονή που έτρωγε σχεδόν ένα δευτερόλεπτο.",
+             ),
+            ("changed",
+             "The dictated words stay in the Windows clipboard history on purpose, so Win+V brings "
+             "them back if a window ever swallows a paste. They are still refused to the cloud "
+             "clipboard, so nothing leaves the machine.",
+             "Τα λόγια που υπαγορεύετε μένουν επίτηδες στο ιστορικό προχείρου των Windows, ώστε το "
+             "Win+V να τα φέρνει πίσω αν κάποιο παράθυρο καταπιεί την επικόλληση. Εξακολουθούν να "
+             "μην ανεβαίνουν στο πρόχειρο του σύννεφου, οπότε τίποτα δεν φεύγει από το μηχάνημα.",
+             ),
+            ("fixed",
+             "On a German, French or Polish keyboard the right Alt is also the key that types the "
+             "at sign, the euro sign and every accented letter, so every one of those started a "
+             "dictation. A letter typed within the first moments of holding the key now means "
+             "writing, and the recording is dropped without a word.",
+             "Σε γερμανικό, γαλλικό ή πολωνικό πληκτρολόγιο το δεξί Alt είναι και το πλήκτρο που "
+             "γράφει το παπάκι, το ευρώ και κάθε τονισμένο γράμμα, οπότε καθένα από αυτά ξεκινούσε "
+             "υπαγόρευση. Ένα γράμμα που πατιέται μέσα στις πρώτες στιγμές του κρατήματος σημαίνει "
+             "πλέον γράψιμο και η ηχογράφηση πετιέται χωρίς κουβέντα.",
+             ),
+            ("changed",
+             "The program, its folders and its files carry the product name now. The old name "
+             "showed up in Windows dialogs and on disk, where it had no business being. Your "
+             "settings, your history and your models move themselves the first time the new "
+             "version starts.",
+             "Το πρόγραμμα, οι φάκελοί του και τα αρχεία του έχουν πλέον το όνομα του προϊόντος. Το "
+             "παλιό όνομα εμφανιζόταν σε παράθυρα των Windows και στον δίσκο, εκεί που δεν είχε "
+             "καμία δουλειά. Οι ρυθμίσεις σας, το ιστορικό σας και τα μοντέλα σας μετακομίζουν μόνα "
+             "τους την πρώτη φορά που ξεκινάει η νέα έκδοση.",
+             ),
             ("fixed",
              "The small window's message was cut off at 12 pixels on one line, so the half that said "
              "what to do was the half you could not see. It is now 16 pixels and wraps.",
