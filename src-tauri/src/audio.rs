@@ -7,6 +7,7 @@
 //! pre-roll ring buffer is copied first so the first syllable survives.
 
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -320,9 +321,30 @@ fn build_stream(
     let channels = config.channels as usize;
     tracing::info!("opening microphone '{resolved}' at {in_rate} Hz, {channels} ch, {sample_format:?}");
 
+    static XRUNS: AtomicU32 = AtomicU32::new(0);
+    static XRUN_REPORTED: once_cell::sync::Lazy<Mutex<Instant>> =
+        once_cell::sync::Lazy::new(|| Mutex::new(Instant::now() - Duration::from_secs(3600)));
+
     let err_status = status.clone();
     let err_cb = move |e: cpal::Error| {
-        if matches!(e.kind(), cpal::ErrorKind::Xrun | cpal::ErrorKind::DeviceChanged | cpal::ErrorKind::RealtimeDenied) {
+        if matches!(e.kind(), cpal::ErrorKind::Xrun) {
+            // A buffer over- or underrun while the microphone sits warm and
+            // idle. Measured over two days: 2176 of these on 6 September and
+            // 686 on 7 September, and not one of them fell inside any of the
+            // 109 recordings that could be paired with an end event. They are
+            // harmless, and at 40 percent of the file they were burying the
+            // lines that matter. Counted here, reported once a minute.
+            let n = XRUNS.fetch_add(1, Ordering::Relaxed) + 1;
+            let now = std::time::Instant::now();
+            let mut last = XRUN_REPORTED.lock();
+            if now.duration_since(*last) >= Duration::from_secs(60) {
+                *last = now;
+                let total = XRUNS.swap(0, Ordering::Relaxed);
+                tracing::warn!("audio stream notification: {total} buffer over- or underruns in the last minute ({e})");
+            } else {
+                let _ = n;
+            }
+        } else if matches!(e.kind(), cpal::ErrorKind::DeviceChanged | cpal::ErrorKind::RealtimeDenied) {
             // CPAL reports these while the stream remains active. The callback
             // watchdog will reopen it if samples actually stop arriving.
             tracing::warn!("audio stream notification: {e}");

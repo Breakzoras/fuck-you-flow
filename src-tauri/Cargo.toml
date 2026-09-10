@@ -1,6 +1,6 @@
 [package]
 name = "lalia"
-version = "0.9.4"
+version = "0.9.5"
 description = "Lalia: local-first voice keyboard for Windows (Greek + English)"
 authors = ["Luram AI Agency"]
 edition = "2021"

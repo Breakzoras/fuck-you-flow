@@ -142,6 +142,11 @@ fn apply_intonation(text: &str, pitch: Option<(f32, f32)>, enabled: bool) -> Str
 struct Segmenter {
     /// Sample index where the next segment starts.
     cut: usize,
+    /// Where the last refused attempt ended. Refusing keeps the cut where it
+    /// is, on purpose, so no audio is lost. Without this marker the same
+    /// stretch would be copied and analysed again every quarter second, over
+    /// and over, growing longer each time through a long silence.
+    last_try: usize,
     jobs: Vec<SegmentJob>,
     /// Text of the last finished segment, given to the next request as context.
     last_text: String,
@@ -161,10 +166,17 @@ fn join_prompt(hints: Option<String>, previous: &str) -> Option<String> {
 
 /// Sends one finished segment to the engine in the background. Silence-only
 /// segments are dropped without a request.
-fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: Vec<f32>, lang: &str, hints: Option<String>, beam: u32, vad: bool, min_speech_ms: u64) {
-    let Some(a) = crate::audio::analyze_speech(&samples, min_speech_ms) else { return };
+///
+/// Returns whether the audio was queued. The caller must only move the cut
+/// forward when it was: audio that is dropped here is transcribed by nobody,
+/// because the final pass only sends what lies after the cut. A near-silent
+/// segment holding one short word ("yes", "ok") would disappear from the
+/// finished text without a trace.
+#[must_use]
+fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: Vec<f32>, lang: &str, hints: Option<String>, beam: u32, vad: bool, min_speech_ms: u64) -> bool {
+    let Some(a) = crate::audio::analyze_speech(&samples, min_speech_ms) else { return false };
     if a.trimmed.is_empty() {
-        return;
+        return false;
     }
     let wav = crate::audio::encode_wav(&a.trimmed);
     let pitch = crate::audio::tail_pitch_features(&a.trimmed);
@@ -191,6 +203,7 @@ fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: 
         (r, pitch)
     });
     seg.lock().jobs.push(handle);
+    true
 }
 
 /// Whisper hallucinations on silence, seen in the wild. If the whole transcript
@@ -423,17 +436,24 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
             // Every ~250 ms: has the user paused after saying enough for a segment?
             if segment_enabled && n % 8 == 0 {
                 let len = shared2.audio.recorded_len();
-                let cut = seg.lock().cut;
+                let (cut, last_try) = { let g = seg.lock(); (g.cut, g.last_try) };
                 let pause = SEGMENT_PAUSE_MS * 16;
-                if len >= cut + SEGMENT_MIN_MS * 16 + pause {
+                // A refused stretch is worth another look only once it has
+                // grown by a whole segment's worth of new audio.
+                let retry_ready = len >= last_try + SEGMENT_MIN_MS * 16;
+                if retry_ready && len >= cut + SEGMENT_MIN_MS * 16 + pause {
                     let tail = shared2.audio.recorded_range(len - pause, len);
                     if crate::audio::is_silent(&tail) {
                         // cut in the middle of the pause: the segment keeps some
                         // trailing silence, the next one some leading silence
                         let end = len - pause / 2;
                         let samples = shared2.audio.recorded_range(cut, end);
-                        seg.lock().cut = end;
-                        dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let queued = dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let mut g = seg.lock();
+                        if queued {
+                            g.cut = end;
+                        }
+                        g.last_try = len;
                     } else if len >= cut + SEGMENT_MAX_MS * 16 {
                         // no pause for a long time: cut at the quietest 200 ms of
                         // the last three seconds, which lands between words
@@ -441,8 +461,12 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                         let at = crate::audio::quietest_point(&window, 16 * 200);
                         let end = len - 16 * 3000 + at;
                         let samples = shared2.audio.recorded_range(cut, end);
-                        seg.lock().cut = end;
-                        dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let queued = dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let mut g = seg.lock();
+                        if queued {
+                            g.cut = end;
+                        }
+                        g.last_try = len;
                     }
                 }
             }
@@ -569,10 +593,24 @@ async fn process(
     };
 
     // 2. Keep a recovery copy until the text is safely inserted.
+    //
+    // The copy that matters is the one in memory on the line above, and it is
+    // there before anything can fail. Encoding and writing the file are done off
+    // this task: at the ten minute recording cap the file is about 19 MB, and
+    // that write used to sit on the path between releasing the key and seeing
+    // the text.
     *last_recovery.lock() = Some((speech.clone(), ctx.clone()));
     let recovery_file = crate::paths::recovery_dir().join("last.wav");
     let wav = crate::audio::encode_wav(&speech);
-    let _ = std::fs::write(&recovery_file, &wav);
+    {
+        let path = recovery_file.clone();
+        let bytes = wav.clone();
+        tokio::task::spawn_blocking(move || {
+            if let Err(e) = std::fs::write(&path, &bytes) {
+                tracing::warn!("recovery audio not written: {e}");
+            }
+        });
+    }
 
     // 3. Engine ready?
     if !shared.engine.is_ready() {
@@ -882,18 +920,39 @@ async fn process(
             undone: false,
             edited_text: None,
         };
-        if let Err(e) = shared.db.insert_history(&entry) {
-            tracing::error!("history insert failed: {e}");
-        }
-        let _ = app.emit_to("main", "lalia://history-changed", ());
-    }
-    if status == "success" || status == "copied" {
-        let _ = shared.db.bump_daily(word_count, audio_ms, outcome.rule_ids.len() as u64);
-        let _ = shared.db.bump_rule_usage(&outcome.rule_ids);
-        let _ = shared.db.bump_snippet_usage(&outcome.snippet_ids);
-    }
-    if is_retry {
-        let _ = shared.db.bump_daily_counter("retries");
+        // Off the pipeline task. The database is opened with journal_mode=DELETE
+        // and synchronous=FULL, which is the slowest safe setting and was chosen
+        // deliberately after a write-ahead log swallowed a day of history on
+        // 6 September 2026, so it stays. What changes is where the waiting
+        // happens: these writes each create a journal file, fsync and delete it,
+        // and they used to run inline on the task that also reads the hotkey
+        // channel, so the app ignored the next key press until the disk was
+        // finished.
+        let db = shared.db.clone();
+        let counted = status == "success" || status == "copied";
+        let rule_ids = outcome.rule_ids.clone();
+        let snippet_ids = outcome.snippet_ids.clone();
+        let rules_used = outcome.rule_ids.len() as u64;
+        let retry = is_retry;
+        // No wait here on purpose. Waiting for the thread would park this task,
+        // and this task is the one that reads the hotkey channel, so the next
+        // key press would still queue behind the disk. The window is told to
+        // refresh from inside the thread, after the rows are actually written.
+        let app_for_db = app.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            if let Err(e) = db.insert_history(&entry) {
+                tracing::error!("history insert failed: {e}");
+            }
+            if counted {
+                let _ = db.bump_daily(word_count, audio_ms, rules_used);
+                let _ = db.bump_rule_usage(&rule_ids);
+                let _ = db.bump_snippet_usage(&snippet_ids);
+            }
+            if retry {
+                let _ = db.bump_daily_counter("retries");
+            }
+            let _ = app_for_db.emit_to("main", "lalia://history-changed", ());
+        });
     }
     tracing::info!("dictation {status}: {word_count} words, {audio_ms} ms audio, {latency_ms} ms release-to-insert ({} ms inference)", result.inference_ms);
     finish_idle(shared, app, idle_timer, if state == OverlayState::Success { 1400 } else { 4000 });

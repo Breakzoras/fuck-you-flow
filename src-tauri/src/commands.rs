@@ -175,7 +175,10 @@ pub struct GpuGauge {
 /// Every number here is measured at the moment of the call: a card that had
 /// room this morning can be full by the afternoon without anything in this app
 /// changing, which is exactly the failure this gauge exists to show.
-#[tauri::command]
+// Runs off the window thread. A Tauri command declared without `async`
+// is executed on the thread that pumps the window, so while this one
+// worked the whole dashboard stopped repainting.
+#[tauri::command(async)]
 pub fn gpu_gauge(state: State<'_, Arc<AppState>>) -> GpuGauge {
     let settings = state.shared.settings.read().clone();
     let id = settings.asr.model_id.clone();
@@ -286,7 +289,10 @@ pub fn has_cloud_api_key() -> bool {
 
 // ----- history -----
 
-#[tauri::command]
+// Runs off the window thread. A Tauri command declared without `async`
+// is executed on the thread that pumps the window, so while this one
+// worked the whole dashboard stopped repainting.
+#[tauri::command(async)]
 pub fn list_history(state: State<'_, Arc<AppState>>, search: Option<String>, limit: Option<u32>, offset: Option<u32>) -> R<Vec<HistoryEntry>> {
     state.shared.db.list_history(search.as_deref(), limit.unwrap_or(200), offset.unwrap_or(0)).map_err(|err| {
         tracing::error!("list_history failed: {err}");
@@ -313,7 +319,10 @@ pub fn delete_all_history(state: State<'_, Arc<AppState>>) -> R<()> {
     Ok(())
 }
 
-#[tauri::command]
+// Runs off the window thread. A Tauri command declared without `async`
+// is executed on the thread that pumps the window, so while this one
+// worked the whole dashboard stopped repainting.
+#[tauri::command(async)]
 pub fn reclean_history(state: State<'_, Arc<AppState>>, id: String) -> R<HistoryEntry> {
     let h = state.shared.db.get_history(&id).map_err(e)?.ok_or("not found")?;
     let settings = state.shared.settings.read().clone();
@@ -396,7 +405,10 @@ pub fn test_rules(state: State<'_, Arc<AppState>>, text: String) -> crate::clean
     state.shared.dict.read().apply(&text, "auto")
 }
 
-#[tauri::command]
+// Runs off the window thread. A Tauri command declared without `async`
+// is executed on the thread that pumps the window, so while this one
+// worked the whole dashboard stopped repainting.
+#[tauri::command(async)]
 pub fn import_rules(state: State<'_, Arc<AppState>>, rules: Vec<DictionaryRule>) -> R<u32> {
     let mut n = 0;
     for mut r in rules {
@@ -521,14 +533,20 @@ pub fn get_stats(state: State<'_, Arc<AppState>>) -> R<StatsSummary> {
     state.shared.db.stats_summary(40.0).map_err(e)
 }
 
-#[tauri::command]
+// Runs off the window thread. A Tauri command declared without `async`
+// is executed on the thread that pumps the window, so while this one
+// worked the whole dashboard stopped repainting.
+#[tauri::command(async)]
 pub fn export_all_data(state: State<'_, Arc<AppState>>) -> R<String> {
     let mut v = state.shared.db.export_all().map_err(e)?;
     v["settings"] = serde_json::to_value(state.shared.settings.read().clone()).map_err(e)?;
     serde_json::to_string_pretty(&v).map_err(e)
 }
 
-#[tauri::command]
+// Runs off the window thread. A Tauri command declared without `async`
+// is executed on the thread that pumps the window, so while this one
+// worked the whole dashboard stopped repainting.
+#[tauri::command(async)]
 pub fn delete_all_data(state: State<'_, Arc<AppState>>) -> R<()> {
     state.shared.db.wipe_everything().map_err(e)?;
     let _ = std::fs::remove_dir_all(crate::paths::local_dir().join("audio"));
@@ -573,10 +591,26 @@ pub fn diagnostics(state: State<'_, Arc<AppState>>) -> serde_json::Value {
 
 /// Problem lines from the newest log file, newest first, so the Diagnostics
 /// page shows what went wrong without opening the log folder.
-#[tauri::command]
+// Runs off the window thread. A Tauri command declared without `async`
+// is executed on the thread that pumps the window, so while this one
+// worked the whole dashboard stopped repainting.
+#[tauri::command(async)]
 pub fn recent_problems() -> Vec<String> {
+    // Only the dated log files. The folder also holds the event journal and,
+    // once the app has crashed even once, `panic.log`, whose name sorts after
+    // every `lalia.log.<date>`. Taking the last name in the folder therefore
+    // meant that from the first crash onwards this list showed old crash lines
+    // and hid every warning and error of the running app.
     let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(crate::paths::logs_dir())
-        .map(|rd| rd.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.is_file()).collect())
+        .map(|rd| {
+            rd.filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.is_file()
+                        && p.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with("lalia.log.")).unwrap_or(false)
+                })
+                .collect()
+        })
         .unwrap_or_default();
     files.sort();
     let Some(path) = files.pop() else { return Vec::new() };
@@ -730,7 +764,10 @@ pub fn recent_keys() -> Vec<crate::hotkey::SeenKey> {
 /// Everything needed to understand a problem, in one block of text: the
 /// machine, the engine, the settings that matter and the recent events. Also
 /// written to `logs\debug-bundle.txt` so it can be read without the app.
-#[tauri::command]
+// Runs off the window thread. A Tauri command declared without `async`
+// is executed on the thread that pumps the window, so while this one
+// worked the whole dashboard stopped repainting.
+#[tauri::command(async)]
 pub fn debug_bundle(state: State<'_, Arc<AppState>>) -> R<String> {
     use std::fmt::Write as _;
     let mut out = String::new();

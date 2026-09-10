@@ -107,6 +107,13 @@ impl EngineManager {
         };
         if !model_path.exists() {
             tracing::warn!("engine not started: model file missing at {}", model_path.display());
+            // Forget the dead server before giving up. Without this the watchdog
+            // still sees a handle whose status is Ready and whose process is
+            // gone, calls apply, lands here again and repeats every five
+            // seconds for as long as the app runs. Measured on 6 September
+            // 2026: sixteen rounds in seventy seconds, ended only by restarting
+            // the app, with the tray icon present and every dictation failing.
+            *self.local.write() = None;
             self.starting.store(false, std::sync::atomic::Ordering::SeqCst);
             let _ = app.emit(
                 "lalia://engine",

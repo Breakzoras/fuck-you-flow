@@ -283,7 +283,12 @@ impl Db {
         // One file, no write-ahead log. On 2026-09-06 the app came up after a
         // reboot seeing an empty database while every row was still on disk in
         // the WAL; a rollback journal keeps the main file the only source of truth.
-        conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;")?;
+        // journal_mode=DELETE and synchronous=FULL are deliberate and stay:
+        // a write-ahead log held a whole day of history and lost it on
+        // 6 September 2026. busy_timeout is the missing piece; without it a
+        // second connection meeting a locked file fails at once instead of
+        // waiting the moment out.
+        conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;")?;
         let db = Db { conn: Mutex::new(conn) };
         db.migrate(path)?;
         {

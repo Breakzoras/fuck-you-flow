@@ -18,32 +18,87 @@ KINDS = {
 
 RELEASES = [
     {
-        "version": "0.9.4",
+        "version": "0.9.5",
         "date": "2026-09-10",
         "summary": (
-            "A key check for the days the hotkey seems dead, and the startup entry stays "
-            "with the installed copy.",
-            "Ένας έλεγχος πλήκτρου για τις μέρες που το πλήκτρο μοιάζει νεκρό και η αυτόματη "
-            "εκκίνηση που μένει στο εγκατεστημένο αντίγραφο.",
+            "The day the right Alt key stopped working, and the eight other faults found "
+            "while proving it was never the key.",
+            "Η μέρα που το δεξί Alt σταμάτησε να δουλεύει και τα άλλα οκτώ λάθη που "
+            "βρέθηκαν όσο αποδεικνυόταν ότι δεν έφταιγε ποτέ το πλήκτρο.",
         ),
         "lines": [
-            ("added",
-             "Diagnostics, Key check: press your hotkey and see live what Windows delivered. "
-             "When the left Alt arrives while hands-free sits on the right one, it says so.",
-             "Διαγνωστικά, Έλεγχος πλήκτρου: πατάτε το πλήκτρο σας και βλέπετε ζωντανά τι "
-             "παρέδωσαν τα Windows. Όταν φτάνει το αριστερό Alt ενώ τα ελεύθερα χέρια είναι "
-             "στο δεξί, το λέει."),
             ("fixed",
-             "A copy run from the build folder no longer takes over the Windows startup entry. "
-             "Only the installed copy does.",
+             "The hotkey went dead for up to half a minute at a time. Windows removes the "
+             "part of the app that listens for keys when one busy moment takes too long, "
+             "and tells nobody. The app now puts it back every second, where it used to be every "
+             "thirty. On a machine at full load, eleven key presses in a row reached "
+             "Windows and none of them reached the app.",
+             "Το πλήκτρο νέκρωνε ως και μισό λεπτό κάθε φορά. Τα Windows αφαιρούν το "
+             "κομμάτι της εφαρμογής που ακούει τα πλήκτρα όταν μια στιγμή φόρτου κρατήσει "
+             "πολύ, χωρίς να το πουν πουθενά. Τώρα ξαναμπαίνει κάθε δευτερόλεπτο αντί για "
+             "κάθε τριάντα. Σε μηχάνημα στο φόρτο, έντεκα συνεχόμενα πατήματα έφτασαν στα "
+             "Windows και κανένα στην εφαρμογή."),
+            ("fixed",
+             "Everything on the clipboard that was not plain text was destroyed by every "
+             "dictation. A copied picture, a copied file or copied formatted text is now "
+             "put back exactly as it was.",
+             "Ό,τι βρισκόταν στο πρόχειρο και δεν ήταν σκέτο κείμενο καταστρεφόταν σε κάθε "
+             "υπαγόρευση. Μια εικόνα, ένα αρχείο ή κείμενο με μορφοποίηση επιστρέφουν πλέον "
+             "ακριβώς όπως ήταν."),
+            ("fixed",
+             "Recording a new shortcut read one press of the right Alt as two keys, because "
+             "that is how Windows delivers it on a Greek keyboard, and the shortcut it saved "
+             "never matched afterwards.",
+             "Η καταγραφή νέας συντόμευσης διάβαζε ένα πάτημα του δεξιού Alt ως δύο πλήκτρα, "
+             "επειδή έτσι το παραδίδουν τα Windows σε ελληνικό πληκτρολόγιο και η συντόμευση "
+             "που αποθηκευόταν δεν ταίριαζε ποτέ μετά."),
+            ("fixed",
+             "If the speech model file disappeared while the app was running, the app tried "
+             "to restart it every five seconds for as long as it stayed open. It now stops "
+             "and says what is missing.",
+             "Αν χανόταν το αρχείο του μοντέλου φωνής ενώ έτρεχε η εφαρμογή, εκείνη "
+             "προσπαθούσε να το ξεκινήσει κάθε πέντε δευτερόλεπτα για όσο έμενε ανοιχτή. "
+             "Τώρα σταματάει και λέει τι λείπει."),
+            ("fixed",
+             "After the app had crashed once, the Recent problems list showed only old crash "
+             "lines and hid every warning of the current run.",
+             "Αφού η εφαρμογή είχε καταρρεύσει μία φορά, η λίστα Πρόσφατα προβλήματα έδειχνε "
+             "μόνο παλιές γραμμές κατάρρευσης και έκρυβε κάθε προειδοποίηση της τρέχουσας "
+             "εκτέλεσης."),
+            ("fixed",
+             "A very short word said between two long pauses could disappear from the "
+             "finished text.",
+             "Μια πολύ σύντομη λέξη ανάμεσα σε δύο μεγάλες παύσεις μπορούσε να εξαφανιστεί "
+             "από το τελικό κείμενο."),
+            ("fixed",
+             "A dictation that ended with the tray icon in front is now refused out loud, "
+             "the way the desktop and the taskbar already were.",
+             "Μια υπαγόρευση που τελείωσε με το εικονίδιο της γραμμής εργασιών μπροστά "
+             "απορρίπτεται πλέον φωναχτά, όπως η επιφάνεια εργασίας και η γραμμή εργασιών."),
+            ("fixed",
+             "A copy run from the build folder no longer takes over the Windows startup "
+             "entry. Only the installed copy does.",
              "Ένα αντίγραφο που τρέχει από τον φάκελο χτισίματος δεν παίρνει πια την αυτόματη "
              "εκκίνηση των Windows. Μόνο το εγκατεστημένο αντίγραφο την παίρνει."),
-            ("fixed",
-             "A dictation that ended with the tray icon in front is now refused out loud, the "
-             "way the desktop and the taskbar are, with a message that names the tray icon.",
-             "Μια υπαγόρευση που τελείωσε με το εικονίδιο της γραμμής εργασιών μπροστά "
-             "απορρίπτεται πλέον φωναχτά, όπως η επιφάνεια εργασίας και η γραμμή εργασιών, "
-             "με μήνυμα που κατονομάζει το εικονίδιο."),
+            ("added",
+             "Diagnostics has a Key check: press your hotkey and see live what Windows "
+             "delivered. When the left Alt arrives while hands-free sits on the right one, "
+             "it says so.",
+             "Τα Διαγνωστικά έχουν Έλεγχο πλήκτρου: πατάτε το πλήκτρο σας και βλέπετε ζωντανά "
+             "τι παρέδωσαν τα Windows. Όταν φτάνει το αριστερό Alt ενώ τα ελεύθερα χέρια "
+             "είναι στο δεξί, το λέει."),
+            ("changed",
+             "The dashboard no longer stutters while it is open, and the wait after the stop "
+             "key no longer includes writing to disk. Saving the history and the recovery "
+             "recording happen out of the way.",
+             "Το ταμπλό δεν κολλάει πια όσο είναι ανοιχτό και η αναμονή μετά το πλήκτρο "
+             "δεν περιλαμβάνει πια γράψιμο στον δίσκο. Η αποθήκευση του ιστορικού και της "
+             "ηχογράφησης ασφαλείας γίνονται στην άκρη."),
+            ("changed",
+             "One repeated harmless warning made up two fifths of the diagnostic log. It is "
+             "now counted and reported once a minute.",
+             "Μία επαναλαμβανόμενη αβλαβής προειδοποίηση αποτελούσε τα δύο πέμπτα του αρχείου "
+             "καταγραφής. Τώρα μετριέται και αναφέρεται μία φορά το λεπτό."),
         ],
     },
     {

@@ -128,8 +128,8 @@ pub mod win {
     use windows::Win32::Foundation::{CloseHandle, GetLastError, SetLastError, HANDLE, HGLOBAL, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM};
     use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
     use windows::Win32::System::DataExchange::{
-        CloseClipboard, EmptyClipboard, GetClipboardData, IsClipboardFormatAvailable, OpenClipboard,
-        RegisterClipboardFormatW, SetClipboardData,
+        CloseClipboard, EmptyClipboard, EnumClipboardFormats, GetClipboardData, IsClipboardFormatAvailable,
+        OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
     };
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE};
@@ -157,8 +157,8 @@ pub mod win {
     struct Shared {
         /// Text promised to the clipboard (rendered on demand).
         pending_text: Option<Vec<u16>>,
-        /// Text to restore afterwards.
-        saved_text: Option<Vec<u16>>,
+        /// Everything that was on the clipboard, to put back afterwards.
+        saved_formats: Vec<(u32, Vec<u8>)>,
         /// When we pressed Ctrl+V. Renders before that are clipboard managers, not the target.
         keystroke_at: Option<Instant>,
         rendered_after_keystroke: u32,
@@ -261,6 +261,96 @@ pub mod win {
         Some(v)
     }
 
+    /// Clipboard formats whose handle is not a memory block. Copying one the
+    /// way a memory block is copied reads a bitmap or a palette handle as if it
+    /// were a pointer, so they are left out of the snapshot and are the only
+    /// things a dictation can still cost the user.
+    fn is_handle_format(fmt: u32) -> bool {
+        matches!(fmt, 2 | 3 | 9 | 14 | 0x80 | 0x82 | 0x83 | 0x8E)
+    }
+
+    /// Everything on the clipboard right now, format by format, as raw bytes.
+    ///
+    /// Why this exists: the app has to own the clipboard to publish its promise,
+    /// and owning it means calling `EmptyClipboard`, which destroys every format
+    /// on it. Until 10 September 2026 only the plain text was saved and put
+    /// back, so a copied picture, a copied file or copied formatted text was
+    /// destroyed by every single dictation, with nothing said and no way back.
+    ///
+    /// The clipboard must already be open. Asking for a format whose owner
+    /// promised it makes that owner render it now, which is exactly what a
+    /// clipboard manager does and the only way to hold a real copy.
+    unsafe fn snapshot_clipboard() -> Vec<(u32, Vec<u8>)> {
+        // A guard against a huge picture: 32 MB is far more than any text or
+        // file list and still small enough to hold twice for a moment.
+        //
+        // Time matters more than size here. Asking for a format its owner only
+        // promised makes that owner render it now, and a spreadsheet or a
+        // remote desktop can take seconds over it. The caller's wait allows for
+        // that, and the duration is logged so a slow one can be seen.
+        const BUDGET: usize = 32 * 1024 * 1024;
+        let started = Instant::now();
+        let mut out: Vec<(u32, Vec<u8>)> = Vec::new();
+        let mut used = 0usize;
+        let mut fmt = EnumClipboardFormats(0);
+        let mut skipped = 0u32;
+        while fmt != 0 {
+            if !is_handle_format(fmt) {
+                if let Ok(h) = GetClipboardData(fmt) {
+                    let hg = HGLOBAL(h.0);
+                    if !hg.0.is_null() {
+                        let size = GlobalSize(hg);
+                        if size > 0 && size <= BUDGET && used + size <= BUDGET {
+                            let p = GlobalLock(hg) as *const u8;
+                            if !p.is_null() {
+                                out.push((fmt, std::slice::from_raw_parts(p, size).to_vec()));
+                                used += size;
+                                let _ = GlobalUnlock(hg);
+                            }
+                        } else if size > 0 {
+                            skipped += 1;
+                        }
+                    }
+                }
+            } else {
+                skipped += 1;
+            }
+            fmt = EnumClipboardFormats(fmt);
+        }
+        let ms = started.elapsed().as_millis();
+        if skipped > 0 || ms > 200 {
+            tracing::debug!("clipboard snapshot: {} formats kept, {skipped} skipped, {ms} ms", out.len(), );
+        }
+        out
+    }
+
+    /// Puts a snapshot back. The clipboard must be open and already emptied.
+    unsafe fn restore_snapshot(saved: &[(u32, Vec<u8>)]) {
+        for (fmt, bytes) in saved {
+            if let Some(hg) = hglobal_from_bytes(bytes) {
+                if SetClipboardData(*fmt, Some(HANDLE(hg.0))).is_err() {
+                    // Ownership did not transfer, so this block stays allocated.
+                    // It is one failed format on one dictation, and freeing it
+                    // needs a Win32 function this build does not expose; a leak
+                    // here is cheaper than a double free on a handle Windows may
+                    // in fact have taken.
+                    tracing::debug!("clipboard restore: format {fmt} refused");
+                }
+            }
+        }
+    }
+
+    unsafe fn hglobal_from_bytes(bytes: &[u8]) -> Option<HGLOBAL> {
+        let hg = GlobalAlloc(GMEM_MOVEABLE, bytes.len()).ok()?;
+        let p = GlobalLock(hg) as *mut u8;
+        if p.is_null() {
+            return None;
+        }
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), p, bytes.len());
+        let _ = GlobalUnlock(hg);
+        Some(hg)
+    }
+
     unsafe fn set_optout_formats() {
         for name in [w!("ExcludeClipboardContentFromMonitorProcessing"), w!("CanIncludeInClipboardHistory"), w!("CanUploadToCloudClipboard")] {
             let fmt = RegisterClipboardFormatW(name);
@@ -314,7 +404,7 @@ pub mod win {
                     if !open_clipboard_retry(h) {
                         return Err("clipboard is locked by another application".into());
                     }
-                    let saved = read_clipboard_text();
+                    let saved = snapshot_clipboard();
                     let ok = EmptyClipboard().is_ok();
                     if !ok {
                         let _ = CloseClipboard();
@@ -334,7 +424,7 @@ pub mod win {
                         return Err(format!("SetClipboardData promise failed (error {})", GetLastError().0));
                     }
                     let mut sh = st.shared.lock();
-                    sh.saved_text = saved;
+                    sh.saved_formats = saved;
                     sh.rendered_after_keystroke = 0;
                     sh.last_render = None;
                     Ok(())
@@ -364,16 +454,12 @@ pub mod win {
             }
             WM_LALIA_RESTORE => {
                 let result: Result<(), String> = (|| {
-                    let saved = st.shared.lock().saved_text.take();
+                    let saved = std::mem::take(&mut st.shared.lock().saved_formats);
                     if !open_clipboard_retry(h) {
                         return Err("clipboard is locked by another application".into());
                     }
                     let _ = EmptyClipboard();
-                    if let Some(t) = saved {
-                        if let Some(hg) = hglobal_from_wide(&t) {
-                            let _ = SetClipboardData(CF_UNICODETEXT.0 as u32, Some(HANDLE(hg.0)));
-                        }
-                    }
+                    restore_snapshot(&saved);
                     let _ = CloseClipboard();
                     st.shared.lock().pending_text = None;
                     Ok(())
@@ -429,7 +515,7 @@ pub mod win {
         let (render_tx, render_rx) = crossbeam_channel::bounded::<()>(64);
         let (done_tx, done_rx) = crossbeam_channel::bounded::<Result<(), String>>(8);
         let st = Arc::new(State {
-            shared: Mutex::new(Shared { pending_text: None, saved_text: None, keystroke_at: None, rendered_after_keystroke: 0, last_render: None, publish_result: None }),
+            shared: Mutex::new(Shared { pending_text: None, saved_formats: Vec::new(), keystroke_at: None, rendered_after_keystroke: 0, last_render: None, publish_result: None }),
             render_tx,
             done_tx,
             hwnd: AtomicU32::new(0),
@@ -443,6 +529,17 @@ pub mod win {
         let start = Instant::now();
         while !STATE.get().unwrap().ready.load(Ordering::SeqCst) && start.elapsed() < Duration::from_secs(3) {
             std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    /// Throws away an answer left behind by a call that gave up waiting. The
+    /// channel holds eight, so without this the reply to a timed-out request
+    /// would be handed to the next request as if it were its own, and a
+    /// clipboard step that failed would be reported as done.
+    fn drain_done() {
+        if let Some(rx) = DONE_RX.get() {
+            let rx = rx.lock();
+            while rx.try_recv().is_ok() {}
         }
     }
 
@@ -572,6 +669,21 @@ pub mod win {
         }
     }
 
+    /// Puts whatever was on the clipboard back, for the paths that give up
+    /// after the app has already taken ownership. Does nothing when there is
+    /// nothing saved, so it is safe to call twice.
+    fn restore_clipboard_now() {
+        let has = STATE.get().map(|st| !st.shared.lock().saved_formats.is_empty()).unwrap_or(false);
+        if !has {
+            return;
+        }
+        unsafe {
+            drain_done();
+            let _ = PostMessageW(Some(hwnd()), WM_LALIA_RESTORE, WPARAM(0), LPARAM(0));
+        }
+        let _ = wait_done(Duration::from_secs(5));
+    }
+
     /// Layer 1: clipboard paste with delayed render and restore.
     pub fn paste(text: &str, opts: &InsertOptions) -> InsertReport {
         ensure_started();
@@ -589,9 +701,16 @@ pub mod win {
             while rx.try_recv().is_ok() {}
         }
         unsafe {
+            drain_done();
             let _ = PostMessageW(Some(hwnd()), WM_LALIA_PUBLISH, WPARAM(0), LPARAM(0));
         }
-        if let Err(e) = wait_done(Duration::from_secs(2)) {
+        // Ten seconds, not two. Taking a copy of the clipboard can make another
+        // application render a format it had only promised, and a spreadsheet
+        // with a large selection takes its time. Giving up early here used to
+        // leave the clipboard emptied with nothing put back, which destroys
+        // exactly the data this snapshot exists to protect.
+        if let Err(e) = wait_done(Duration::from_secs(10)) {
+            restore_clipboard_now();
             return InsertReport { outcome: InsertOutcome::Failed, method: "paste".into(), message: Some(e), elapsed_ms: started.elapsed().as_millis() as u64 };
         }
         // The stop key is often still physically held here: a toggle press lasts
@@ -621,7 +740,8 @@ pub mod win {
                 }),
             );
             unsafe {
-                let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
+                drain_done();
+            let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
             }
             let _ = wait_done(Duration::from_secs(2));
             return InsertReport {
@@ -636,19 +756,18 @@ pub mod win {
         send_paste_chord(opts.shift_paste);
 
         // Wait for the target to read the clipboard, then for traffic to go quiet.
-        // Chat apps disable their text box for a moment after a message is sent;
-        // a paste that lands in that moment is dropped. Retry for a few seconds,
-        // but only while the same window is in front and the user has touched
-        // nothing since our keystroke, so the text cannot land somewhere else.
-        let target_hwnd = unsafe { GetForegroundWindow() };
-        let mut consumed;
-        let mut attempts = 0u32;
-        let mut sent_at = last_input_tick();
-        loop {
-            attempts += 1;
+        //
+        // One attempt, deliberately. A retry loop lived here and was dead code:
+        // its condition broke out on the first pass, so it never ran. It stays
+        // gone rather than being repaired, because on 5 September 2026 a paste
+        // that Chromium did accept produced no render request at all, and six
+        // retries pasted the same text six times. Until "did the target take
+        // it" can be answered reliably, a second attempt risks doubling the
+        // user's words, which is worse than asking them to press Ctrl+V.
+        let attempts = 1u32;
+        let consumed = {
             let rx = RENDER_RX.get().unwrap().lock();
-            let first = rx.recv_timeout(Duration::from_millis(if attempts == 1 { 700 } else { 500 }));
-            consumed = match first {
+            match rx.recv_timeout(Duration::from_millis(700)) {
                 Ok(()) => {
                     // Chromium reads twice; wait until no new render for settle_ms.
                     loop {
@@ -660,27 +779,8 @@ pub mod win {
                     st.shared.lock().rendered_after_keystroke > 0
                 }
                 Err(_) => false,
-            };
-            drop(rx);
-            // Retries are OFF: on 2026-09-05 a paste that Chromium did accept never
-            // produced a render request, and six retries pasted the text six times.
-            // Until consumption can be detected reliably, one attempt only.
-            if consumed || attempts >= 1 {
-                break;
             }
-            let same_window = unsafe { GetForegroundWindow() } == target_hwnd;
-            let user_quiet = last_input_tick().wrapping_sub(sent_at) < 40;
-            if !same_window || !user_quiet {
-                tracing::debug!("paste: no retry (same window {same_window}, user quiet {user_quiet})");
-                break;
-            }
-            tracing::debug!("paste: not consumed yet, retry {attempts}");
-            send_paste_chord(opts.shift_paste);
-            sent_at = last_input_tick();
-        }
-        if consumed && attempts > 1 {
-            tracing::info!("paste: accepted on retry {attempts}");
-        }
+        };
 
         if !consumed {
             tracing::warn!("paste not consumed: {}", focus_diagnostics());
@@ -695,13 +795,14 @@ pub mod win {
             // The app never asked for the data. Leave real text on the clipboard so the
             // user can paste by hand, and do not restore.
             unsafe {
-                let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
+                drain_done();
+            let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
             }
             let _ = wait_done(Duration::from_secs(2));
             return InsertReport {
                 outcome: InsertOutcome::PasteNotConsumed,
                 method: "paste".into(),
-                message: Some("the application did not accept the paste; the text is on the clipboard".into()),
+                message: Some("that app did not take the words; they are on the clipboard, press Ctrl+V".into()),
                 elapsed_ms: started.elapsed().as_millis() as u64,
             };
         }
@@ -716,7 +817,8 @@ pub mod win {
 
         if opts.restore_clipboard {
             unsafe {
-                let _ = PostMessageW(Some(hwnd()), WM_LALIA_RESTORE, WPARAM(0), LPARAM(0));
+                drain_done();
+            let _ = PostMessageW(Some(hwnd()), WM_LALIA_RESTORE, WPARAM(0), LPARAM(0));
             }
             match wait_done(Duration::from_secs(2)) {
                 Ok(()) => InsertReport { outcome: InsertOutcome::Pasted, method: "paste".into(), message: None, elapsed_ms: started.elapsed().as_millis() as u64 },
@@ -734,6 +836,7 @@ pub mod win {
         let st = STATE.get().unwrap();
         st.shared.lock().pending_text = Some(to_wide(text));
         unsafe {
+            drain_done();
             let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
         }
         match wait_done(Duration::from_secs(2)) {
