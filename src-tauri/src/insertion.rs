@@ -468,18 +468,38 @@ pub mod win {
                         let _ = CloseClipboard();
                         return Err("EmptyClipboard failed".into());
                     }
-                    // Delayed rendering: SetClipboardData(format, NULL) returns NULL on
-                    // success as well, so the crate's Result is meaningless here. Trust
-                    // the thread error code instead.
+                    // Real data, not a promise.
+                    //
+                    // This used to publish an empty promise and hand the text
+                    // over only when somebody asked for it. That made the paste
+                    // depend on this program answering a window message inside a
+                    // few milliseconds, and on nobody else asking first. Both
+                    // failed in practice: msrdc.exe, the Remote Desktop client,
+                    // asks 1 to 3 ms after every clipboard change, and once it
+                    // has been answered the data is real anyway and every later
+                    // reader takes it in silence.
+                    //
+                    // So the data goes on the clipboard at once. The words are
+                    // there before the key is pressed, for anyone who looks,
+                    // with nothing left to go wrong in between.
+                    let text = st.shared.lock().pending_text.clone().unwrap_or_default();
                     SetLastError(WIN32_ERROR(0));
-                    let promised = match SetClipboardData(CF_UNICODETEXT.0 as u32, None) {
-                        Ok(_) => true,
-                        Err(_) => GetLastError() == WIN32_ERROR(0),
-                    };
-                    set_optout_formats();
+                    let published = hglobal_from_wide(&text)
+                        .map(|hg| SetClipboardData(CF_UNICODETEXT.0 as u32, Some(HANDLE(hg.0))).is_ok())
+                        .unwrap_or(false);
+                    // The words stay in the Windows clipboard history on purpose.
+                    //
+                    // Publishing real data made the paste reliable and took away
+                    // the only proof that the target read it, so a paste that
+                    // fails in silence now looks like one that worked. Windows
+                    // keeps its own list of everything copied, and Win+V puts the
+                    // transcript back one keystroke away no matter what happened
+                    // to the window or to the clipboard afterwards. The cloud is
+                    // still refused, so nothing leaves the machine.
+                    set_optout_formats_ex(true);
                     let _ = CloseClipboard();
-                    if !promised {
-                        return Err(format!("SetClipboardData promise failed (error {})", GetLastError().0));
+                    if !published {
+                        return Err(format!("SetClipboardData failed (error {})", GetLastError().0));
                     }
                     let mut sh = st.shared.lock();
                     sh.saved_formats = saved;
@@ -903,6 +923,32 @@ pub mod win {
         if let Some(who) = held_by {
             tracing::info!("waited {} ms for {} to let go of the clipboard before Ctrl+V", wait_started.elapsed().as_millis(), who);
         }
+        // Look before pressing. Now that the clipboard carries the real words,
+        // a Ctrl+V against a clipboard somebody else has replaced would paste
+        // their content into the user's document, which is worse than pasting
+        // nothing. This costs about a millisecond.
+        match clipboard_holds(&to_wide(text)) {
+            Some(false) => {
+                tracing::warn!("the clipboard was replaced between publishing and the key press; not pressing Ctrl+V");
+                let message = match wait_done(Duration::from_secs(2)) {
+                    Ok(()) => "msg_not_taken".to_string(),
+                    Err(_) => "msg_not_taken_no_clipboard".to_string(),
+                };
+                unsafe {
+                    drain_done();
+                    let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
+                }
+                return InsertReport {
+                    outcome: InsertOutcome::PasteNotConsumed,
+                    method: "paste".into(),
+                    message: Some(message),
+                    elapsed_ms: started.elapsed().as_millis() as u64,
+                };
+            }
+            Some(true) => {}
+            None => tracing::debug!("could not read the clipboard back before the key press"),
+        }
+
         send_paste_chord(opts.shift_paste);
 
         // Wait for the target to read the clipboard, then for traffic to go quiet.
@@ -919,116 +965,25 @@ pub mod win {
         // it" can be answered reliably, a second attempt risks doubling the
         // user's words, which is worse than asking them to press Ctrl+V.
         let attempts = 1u32;
-        let deadline = Instant::now() + Duration::from_millis(700);
-        let consumed = {
-            let rx = RENDER_RX.get().unwrap().lock();
-            loop {
-                if st.shared.lock().rendered_by_target > 0 {
-                    // Chromium reads twice; wait until no new read for settle_ms.
-                    while rx.recv_timeout(Duration::from_millis(opts.settle_ms.max(60))).is_ok() {}
-                    break true;
-                }
-                // Somebody else has already rendered the format. From that moment
-                // the data is real and every later reader takes it in silence, so
-                // no amount of further waiting can ever produce an answer.
-                //
-                // Measured 10 September 2026: eleven dictations in a row each sat
-                // here for the full 700 ms with msrdc.exe as the only reader,
-                // 700 ms added to every single one for nothing. A short settle is
-                // still allowed, in case the target reads within it.
-                let others_read = !st.shared.lock().other_readers.is_empty();
-                let left = if others_read {
-                    Duration::from_millis(opts.settle_ms.max(60)).min(deadline.saturating_duration_since(Instant::now()))
-                } else {
-                    deadline.saturating_duration_since(Instant::now())
-                };
-                if left.is_zero() || rx.recv_timeout(left).is_err() {
-                    break false;
-                }
-            }
-        };
 
-        // Somebody else read the clipboard first. Once a promised format has been
-        // rendered for them, it is real data, and every later reader gets it
-        // without asking us again: the target's own read leaves no trace at all.
+        // The words are already on the clipboard, so there is nothing to wait
+        // for and nothing that can fail after this point. A short settle lets
+        // the target read before the previous clipboard goes back.
         //
-        // Measured 10 September 2026: msrdc.exe, the Remote Desktop client,
-        // reads every clipboard change 1 to 3 ms later. With it running, this
-        // code can never learn whether the window took the words.
-        //
-        // So it stops guessing. The words stay on the clipboard, the user is
-        // told they are there, and nothing claims a failure that was never
-        // established. Announcing a failure that did not happen sent the user
-        // hunting through History for text that had already arrived.
-        let interference = {
+        // Measured 5 September 2026: Electron and Chromium read 2 to 3 ms after
+        // Ctrl+V. A quarter of a second is eighty times that, and it happens
+        // after the text is already visible, so the user never waits for it.
+        std::thread::sleep(Duration::from_millis(opts.settle_ms.max(60).min(400) + 180));
+
+        {
             let sh = st.shared.lock();
-            !consumed && !sh.other_readers.is_empty()
-        };
-        if interference {
-            match clipboard_holds(&to_wide(text)) {
-                Some(true) => tracing::info!("the clipboard still holds our text after the paste"),
-                Some(false) => tracing::warn!("the clipboard no longer holds our text: another program replaced it after we published"),
-                None => tracing::debug!("could not read the clipboard back to check it"),
-            }
-        }
-        if interference {
-            let sh = st.shared.lock();
-            tracing::info!("paste unverified: {} read the clipboard before the target could, so nothing here can tell whether it landed; the words stay on the clipboard",
-                sh.other_readers.join(", "));
-            drop(sh);
-            unsafe {
-                drain_done();
-                let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
-            }
-            let _ = wait_done(Duration::from_secs(2));
-            return InsertReport {
-                outcome: InsertOutcome::PastedNoRestore,
-                method: "paste".into(),
-                message: Some("msg_also_on_clipboard".into()),
-                elapsed_ms: started.elapsed().as_millis() as u64,
-            };
+            let others = if sh.other_readers.is_empty() { "none".to_string() } else { sh.other_readers.join(", ") };
+            tracing::debug!("paste: settle {} ms, other readers of the clipboard: {}", opts.settle_ms, others);
         }
 
-        if !consumed {
-            {
-                let sh = st.shared.lock();
-                let others = if sh.other_readers.is_empty() { "nobody".to_string() } else { sh.other_readers.join(", ") };
-                tracing::warn!("paste not consumed: {} reads by the target, {} by others ({}), {}",
-                    sh.rendered_by_target, sh.rendered_after_keystroke.saturating_sub(sh.rendered_by_target), others, focus_diagnostics());
-            }
-            crate::journal::warn(
-                "insert.not_consumed",
-                serde_json::json!({
-                    "class": window_class(unsafe { GetForegroundWindow() }),
-                    "chars": text.chars().count(),
-                    "attempts": attempts,
-                }),
-            );
-            // The app never asked for the data. Leave real text on the clipboard so the
-            // user can paste by hand, and do not restore.
-            unsafe {
-                drain_done();
-            let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
-            }
-            // Whether the words really got there decides what the user is told.
-            // Saying "they are on the clipboard" when the copy failed sends them
-            // to press Ctrl+V on nothing, and that is how a dictation is lost
-            // without anybody noticing.
-            let on_clipboard = wait_done(Duration::from_secs(2));
-            let message = match &on_clipboard {
-                Ok(()) => "msg_not_taken".to_string(),
-                Err(e) => {
-                    tracing::error!("the rescue copy failed too, the words are only in History: {e}");
-                    "msg_not_taken_no_clipboard".to_string()
-                }
-            };
-            return InsertReport {
-                outcome: InsertOutcome::PasteNotConsumed,
-                method: "paste".into(),
-                message: Some(message),
-                elapsed_ms: started.elapsed().as_millis() as u64,
-            };
-        }
+        // A window that cannot hold text was refused earlier; everything that
+        // reaches here received the keystroke with real data waiting for it.
+        let _ = attempts;
 
         // How the target consumed the paste. This decides how short settle_ms can
         // safely be: the clipboard must not be restored before the last read.

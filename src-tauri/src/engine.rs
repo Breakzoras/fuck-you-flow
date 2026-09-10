@@ -16,6 +16,9 @@ pub struct EngineManager {
     cloud: RwLock<Option<Arc<OpenAiCompat>>>,
     provider_name: RwLock<String>,
     starting: std::sync::atomic::AtomicBool,
+    /// The settings a caller wanted while a start was already in flight. The
+    /// runner picks them up and goes round again rather than dropping them.
+    queued: RwLock<Option<Settings>>,
     port: std::sync::atomic::AtomicU16,
 }
 
@@ -55,6 +58,7 @@ impl EngineManager {
             cloud: RwLock::new(None),
             provider_name: RwLock::new("whisper_local".into()),
             starting: std::sync::atomic::AtomicBool::new(false),
+            queued: RwLock::new(None),
             port: std::sync::atomic::AtomicU16::new(0),
         }
     }
@@ -72,6 +76,20 @@ impl EngineManager {
 
     /// (Re)start according to settings. Emits "lalia://engine" with EngineInfo.
     pub async fn apply(self: &Arc<Self>, app: &tauri::AppHandle, settings: &Settings) {
+        let mut settings = settings.clone();
+        loop {
+            self.apply_once(app, &settings).await;
+            match self.queued.write().take() {
+                Some(next) => {
+                    tracing::info!("engine settings changed while starting; going round again");
+                    settings = next;
+                }
+                None => break,
+            }
+        }
+    }
+
+    async fn apply_once(self: &Arc<Self>, app: &tauri::AppHandle, settings: &Settings) {
         *self.provider_name.write() = settings.asr.provider.clone();
         if settings.asr.provider == "openai_compatible" {
             *self.cloud.write() = Some(Arc::new(OpenAiCompat::new(settings.asr.openai_base_url.clone(), settings.asr.openai_model.clone())));
@@ -83,6 +101,13 @@ impl EngineManager {
             return;
         }
         if self.starting.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            // Somebody is already starting one. Remember that the settings moved
+            // on, so the runner can go round again with the new ones instead of
+            // dropping this on the floor. Changing model or backend during a
+            // start, or pressing Restart engine, used to do nothing at all for
+            // up to two minutes and looked like the setting was ignored.
+            *self.queued.write() = Some(settings.clone());
+            tracing::info!("engine change queued: one is already starting");
             return;
         }
         let (backend, exe) = choose_backend(&settings.asr.backend, settings.asr.use_gpu);
@@ -98,6 +123,11 @@ impl EngineManager {
             } else {
                 "the speech engine files are missing from this installation; reinstall the app to restore them".to_string()
             };
+            // Forget the old one as well. Leaving it in place made info() and
+            // transcribe() keep using a server the app had just announced as
+            // missing, so an update that removed the install folder mid-session
+            // said "engine missing" while dictation carried on regardless.
+            *self.local.write() = None;
             self.starting.store(false, std::sync::atomic::Ordering::SeqCst);
             let _ = app.emit(
                 "lalia://engine",
@@ -105,7 +135,20 @@ impl EngineManager {
             );
             return;
         };
-        if !model_path.exists() {
+        // Not just "is it there": a half-downloaded file is there and passes,
+        // and whisper-server then exits with a bare code that names nothing.
+        let size_ok = std::fs::metadata(&model_path).map(|m| m.len() == spec.size_bytes).unwrap_or(false);
+        if !model_path.exists() || !size_ok {
+            if model_path.exists() && !size_ok {
+                tracing::warn!("engine not started: {} is the wrong size, the download did not finish", model_path.display());
+                *self.local.write() = None;
+                self.starting.store(false, std::sync::atomic::Ordering::SeqCst);
+                let _ = app.emit(
+                    "lalia://engine",
+                    EngineInfo { status: EngineStatus::Missing, provider: "whisper_local".into(), model_id: spec.id.clone(), gpu: false, message: Some(format!("the file for {} is incomplete; download it again under Speech models", spec.display_name)), warm_ms: None, backend: String::new() },
+                );
+                return;
+            }
             tracing::warn!("engine not started: model file missing at {}", model_path.display());
             // Forget the dead server before giving up. Without this the watchdog
             // still sees a handle whose status is Ready and whose process is
@@ -138,12 +181,28 @@ impl EngineManager {
         if let Some(old) = old {
             old.stop().await;
         }
-        let _ = app.emit("lalia://engine", server.info());
+        // A freshly built server still says Missing, and nothing else is sent
+        // until start() returns, which can take two minutes. The dashboard read
+        // "engine missing" with a Download button for that whole time, and that
+        // is what sent the first AMD tester hunting through Settings on
+        // 7 September 2026. Say what is actually happening.
+        let mut starting_info = server.info();
+        starting_info.status = EngineStatus::Starting;
+        starting_info.message = Some("the speech model is loading".into());
+        let _ = app.emit("lalia://engine", starting_info);
         let mut result = server.start().await;
         if result.is_err() && use_gpu {
             tracing::warn!("GPU start failed, retrying on CPU");
+            // Stop the one that failed first. A warm-up failure leaves its child
+            // alive, and the fallback used to reuse the same port, so its own
+            // port probe answered against the corpse of the first attempt and
+            // reported success. The user was told it had moved to the CPU while
+            // nothing had changed at all.
+            server.stop().await;
             let mut cfg = server.config().clone();
             cfg.use_gpu = false;
+            cfg.backend = "cpu".to_string();
+            cfg.port = self.pick_port();
             let cpu = Arc::new(WhisperServer::new(cfg));
             *self.local.write() = Some(cpu.clone());
             result = cpu.start().await;

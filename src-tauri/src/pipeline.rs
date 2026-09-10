@@ -288,6 +288,20 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                         paste_last(&app, &shared, &mut idle_timer, None).await;
                     }
                     HotkeyEvent::Released(ChordId::PasteLast) => {}
+                    HotkeyEvent::Cancelled(_) => {
+                        // The person is typing with the modifier held, so this
+                        // was never a dictation. Drop it without a word: an
+                        // announcement here would flash on the screen for every
+                        // accented letter somebody writes.
+                        if let Some(s) = session.take() {
+                            if s.mode == Mode::Ptt {
+                                tracing::debug!("a key was typed while the shortcut was held; the recording is dropped");
+                                cancel_quietly(&app, &shared, s, &mut level_task, &mut idle_timer).await;
+                            } else {
+                                session = Some(s);
+                            }
+                        }
+                    }
                     HotkeyEvent::Escape => {
                         if let Some(s) = session.take() {
                             cancel(&app, &shared, s, &mut level_task, &mut idle_timer).await;
@@ -485,6 +499,25 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
 }
 
 async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
+    drop_recording(shared, s, level_task);
+    crate::hotkey::reset_pressed_state();
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: false, seconds: 0.0 });
+    finish_cancel(app, shared, idle_timer);
+}
+
+/// Cancel without saying so, for a recording that was never meant to start.
+///
+/// The held keys are deliberately left alone. Somebody typing AltGr and a
+/// letter still has the modifier down, and forgetting that would let the very
+/// next repeat of the same held key look like a fresh press and start another
+/// recording, once per letter.
+async fn cancel_quietly(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
+    drop_recording(shared, s, level_task);
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0 });
+    finish_cancel(app, shared, idle_timer);
+}
+
+fn drop_recording(shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>) {
     if let Some(t) = level_task.take() {
         t.abort();
     }
@@ -493,8 +526,9 @@ async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_
     }
     shared.audio.discard();
     CAPTURE_ESCAPE.store(false, std::sync::atomic::Ordering::Relaxed);
-    crate::hotkey::reset_pressed_state();
-    overlay::emit_state(app, OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: false, seconds: 0.0 });
+}
+
+fn finish_cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
     set_phase(shared, Phase::Idle, false);
     if !shared.settings.read().audio.keep_stream_warm {
         shared.audio.close();
@@ -707,9 +741,15 @@ async fn process(
     } else {
         Some(TranscriptionRequest { wav, language: lang_code.clone(), prompt, beam_size: settings.asr.beam_size, vad: settings.asr.vad })
     };
-    // Same rule as the engine client: long recordings need proportionally more
-    // time (about 0.09 s per second of audio on the RTX 3070, allow 0.5 s).
-    let transcribe_limit = Duration::from_secs((20 + audio_ms / 2000).max(60));
+    // Slightly wider than the engine client's own limit, so the client's error
+    // arrives first and names what happened. When this one won the race instead,
+    // a healthy engine was killed and restarted on every long dictation, the
+    // words were lost, and every retry did the same thing again.
+    //
+    // The budget is four seconds per second of audio: enough for a machine with
+    // no usable graphics card, where the same model runs thirty times slower
+    // than on the card this was first measured against.
+    let transcribe_limit = Duration::from_secs((40 + (audio_ms / 1000) * 4).max(150));
     let result = match req {
         Some(req) => tokio::time::timeout(transcribe_limit, shared.engine.transcribe(req)).await,
         // everything was transcribed while speaking; nothing left after the last pause
@@ -906,12 +946,19 @@ async fn process(
     let preview: String = final_text.trim().chars().take(60).collect();
     overlay::emit_state(app, OverlayPayload { state: state.clone(), message, preview: Some(preview), can_retry: state == OverlayState::Failed, seconds: 0.0 });
     shared.snapshot.lock().last_transcript = Some(final_text.trim().to_string());
-    if status == "success" || status == "copied" {
-        *last_recovery.lock() = None;
-        let _ = std::fs::remove_file(&recovery_file);
-    } else {
-        tracing::info!("the recording is kept: the words did not reach the window or the clipboard");
-    }
+    // The recording is one file that the next dictation overwrites, so keeping
+    // it costs nothing and is the last copy of what was actually said.
+    //
+    // It used to be deleted the moment a paste was called a success. Since
+    // 10 September 2026 the words go onto the clipboard as real data rather
+    // than a promise, which is what made the paste reliable, and the price is
+    // that nothing can prove the target read them any more. A paste that fails
+    // in silence, with the cursor outside a text box, now looks exactly like
+    // one that worked. So the recording stays until the next dictation
+    // replaces it.
+    let _ = &status;
+    let _ = &last_recovery;
+    let _ = &recovery_file;
 
     // 7. History and stats.
     let word_count = crate::cleanup::deterministic::word_count(&final_text);

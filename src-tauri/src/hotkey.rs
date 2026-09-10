@@ -29,6 +29,16 @@ pub enum ChordId {
 pub enum HotkeyEvent {
     Pressed(ChordId),
     Released(ChordId),
+    /// The chord was held, but the user was typing rather than dictating.
+    ///
+    /// A shortcut made only of modifiers cannot tell "hold the right Alt to
+    /// speak" apart from AltGr, which is the same physical key and is how a
+    /// German keyboard types @, a French one types the euro sign and a Polish
+    /// one types every accented letter. Both start with the same key going
+    /// down. What separates them is what happens next: a character key while
+    /// the modifier is held means the person is writing, so the recording is
+    /// thrown away before anything is transcribed.
+    Cancelled(ChordId),
     /// Escape pressed while the pipeline asked to capture it.
     Escape,
 }
@@ -166,6 +176,16 @@ impl Chord {
         })
     }
 
+    /// True when the chord is nothing but modifier keys, such as a bare right
+    /// Alt. Only these can be confused with typing, because every other chord
+    /// needs a character key of its own to fire.
+    fn is_all_modifiers(&self) -> bool {
+        self.keys.iter().all(|k| match k {
+            KeySpec::Vk(vk) => is_modifier_vk(*vk),
+            _ => true,
+        })
+    }
+
     fn contains_win(&self) -> bool {
         self.keys.iter().any(|k| matches!(k, KeySpec::Win | KeySpec::Vk(VK_LWIN) | KeySpec::Vk(VK_RWIN)))
     }
@@ -236,7 +256,21 @@ struct Binding {
     id: ChordId,
     chord: Chord,
     active: bool,
+    /// Set once a character key arrived while this all-modifier chord was held,
+    /// so the cancel is announced once instead of once per letter typed.
+    cancelled: bool,
+    /// When the chord went down. Only a key typed in the first moments counts
+    /// as typing; see the window below.
+    since: Option<std::time::Instant>,
 }
+
+/// How soon after the modifier goes down a character key still means "this
+/// person is writing, not speaking".
+///
+/// AltGr and its letter arrive together, as fast as two fingers can move.
+/// Somebody who has been holding the key and talking for a second is
+/// dictating, and a stray keypress then must never throw their words away.
+const TYPING_WINDOW: Duration = Duration::from_millis(800);
 
 struct HookState {
     bindings: Vec<Binding>,
@@ -325,7 +359,7 @@ pub fn hook_rehooks() -> u32 {
 
 pub fn set_bindings(list: Vec<(ChordId, Chord)>) {
     let mut st = STATE.lock().unwrap();
-    st.bindings = list.into_iter().map(|(id, chord)| Binding { id, chord, active: false }).collect();
+    st.bindings = list.into_iter().map(|(id, chord)| Binding { id, chord, active: false, cancelled: false, since: None }).collect();
     st.down.clear();
     st.win_mask_pending = false;
 }
@@ -359,7 +393,15 @@ pub fn reset_pressed_state() {
 /// A chord is active exactly while every key in it is held.
 fn refresh_active(bindings: &mut [Binding], down: &HashSet<u16>) {
     for b in bindings.iter_mut() {
+        let was = b.active;
         b.active = b.chord.is_down(down);
+        if b.active && !was {
+            b.since = Some(std::time::Instant::now());
+        }
+        if !b.active {
+            b.since = None;
+            b.cancelled = false;
+        }
     }
 }
 
@@ -561,13 +603,21 @@ mod win {
         let _ = was_down;
 
         let is_win = vk == VK_LWIN || vk == VK_RWIN;
+        // A character key going down. Mouse side buttons count as characters
+        // here: clicking one while the dictation modifier is held is not
+        // speech either.
+        let typed = is_down && !is_modifier_vk(vk) && vk != VK_ESCAPE;
         let mut fired: Vec<HotkeyEvent> = Vec::new();
+        let mut any_pressed = false;
         let mut mask_pending = false;
         let down_snapshot = st.down.clone();
         for b in st.bindings.iter_mut() {
             let now = b.chord.is_down(&down_snapshot);
             if now && !b.active {
                 b.active = true;
+                b.cancelled = false;
+                b.since = Some(std::time::Instant::now());
+                any_pressed = true;
                 fired.push(HotkeyEvent::Pressed(b.id));
                 if b.chord.main_key() == Some(vk) {
                     swallow = true;
@@ -577,9 +627,25 @@ mod win {
                 }
             } else if !now && b.active {
                 b.active = false;
+                b.cancelled = false;
+                b.since = None;
                 fired.push(HotkeyEvent::Released(b.id));
                 if b.chord.main_key() == Some(vk) {
                     swallow = true;
+                }
+            }
+        }
+        // Typing, decided only after every shortcut has had its say. A key that
+        // completes another shortcut is not typing: holding the right Alt and
+        // adding Space is how hands free mode starts, and treating that Space
+        // as a letter would throw the recording away at the very moment the
+        // user asked for more of it.
+        if typed && !any_pressed {
+            for b in st.bindings.iter_mut() {
+                let fresh = b.since.map(|t| t.elapsed() < TYPING_WINDOW).unwrap_or(false);
+                if b.active && fresh && !b.cancelled && b.chord.is_all_modifiers() {
+                    b.cancelled = true;
+                    fired.push(HotkeyEvent::Cancelled(b.id));
                 }
             }
         }
@@ -718,8 +784,8 @@ mod tests {
         // the key. A held chord must stay active, otherwise the next key-up is
         // reported as a fresh press.
         let mut bindings = vec![
-            Binding { id: ChordId::PushToTalk, chord: Chord::parse("RAlt").unwrap(), active: false },
-            Binding { id: ChordId::HandsFree, chord: Chord::parse("RAlt+Space").unwrap(), active: true },
+            Binding { id: ChordId::PushToTalk, chord: Chord::parse("RAlt").unwrap(), active: false, cancelled: false, since: None },
+            Binding { id: ChordId::HandsFree, chord: Chord::parse("RAlt+Space").unwrap(), active: true, cancelled: false, since: None },
         ];
         let mut down = HashSet::new();
         down.insert(VK_RMENU);
@@ -729,6 +795,24 @@ mod tests {
         down.clear();
         refresh_active(&mut bindings, &down);
         assert!(!bindings[0].active);
+    }
+
+    /// AltGr and "hold the right Alt to speak" are the same physical key.
+    /// A German keyboard needs it for @, a French one for the euro sign, a
+    /// Polish one for every accented letter. Only a bare modifier chord can be
+    /// confused this way, so only a bare modifier chord may be cancelled.
+    #[test]
+    fn typing_while_a_bare_modifier_is_held_is_not_dictation() {
+        assert!(Chord::parse("RAlt").unwrap().is_all_modifiers());
+        assert!(Chord::parse("Ctrl+Alt").unwrap().is_all_modifiers());
+        assert!(Chord::parse("RAlt").unwrap().main_key().is_none());
+
+        // Anything with a character key of its own is safe: nobody types a
+        // letter by holding this combination, so it is never cancelled.
+        assert!(!Chord::parse("RAlt+Space").unwrap().is_all_modifiers());
+        assert!(!Chord::parse("Ctrl+Shift+D").unwrap().is_all_modifiers());
+        assert!(!Chord::parse("Mouse4").unwrap().is_all_modifiers());
+        assert!(Chord::parse("RAlt+Space").unwrap().main_key().is_some());
     }
 
     #[test]
