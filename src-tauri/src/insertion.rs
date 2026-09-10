@@ -695,11 +695,6 @@ pub mod win {
             sh.keystroke_at = None;
             sh.rendered_after_keystroke = 0;
         }
-        // drain stale render signals
-        {
-            let rx = RENDER_RX.get().unwrap().lock();
-            while rx.try_recv().is_ok() {}
-        }
         unsafe {
             drain_done();
             let _ = PostMessageW(Some(hwnd()), WM_LALIA_PUBLISH, WPARAM(0), LPARAM(0));
@@ -752,10 +747,32 @@ pub mod win {
             };
         }
 
-        st.shared.lock().keystroke_at = Some(Instant::now());
+        // Empty the notice channel before pressing anything. Windows keeps a
+        // clipboard history and reads every new entry the instant it appears,
+        // and that read leaves a notice here. Left in place it answers the
+        // question below immediately and wrongly, while the target's own read
+        // arrives after the app has already given up.
+        //
+        // Measured on 10 September 2026: two dictations into the same window
+        // were reported as "the application did not accept the paste" 126 ms
+        // and 180 ms after the key, far sooner than the 700 ms this code
+        // believes it waits, because a stale notice was answering for them.
+        {
+            let rx = RENDER_RX.get().unwrap().lock();
+            while rx.try_recv().is_ok() {}
+        }
+        {
+            let mut sh = st.shared.lock();
+            sh.rendered_after_keystroke = 0;
+            sh.keystroke_at = Some(Instant::now());
+        }
         send_paste_chord(opts.shift_paste);
 
         // Wait for the target to read the clipboard, then for traffic to go quiet.
+        //
+        // The counter, never the channel, decides. A notice means somebody read
+        // the clipboard; only the counter says whether that somebody read it
+        // after the key was pressed.
         //
         // One attempt, deliberately. A retry loop lived here and was dead code:
         // its condition broke out on the first pass, so it never ran. It stays
@@ -765,20 +782,19 @@ pub mod win {
         // it" can be answered reliably, a second attempt risks doubling the
         // user's words, which is worse than asking them to press Ctrl+V.
         let attempts = 1u32;
+        let deadline = Instant::now() + Duration::from_millis(700);
         let consumed = {
             let rx = RENDER_RX.get().unwrap().lock();
-            match rx.recv_timeout(Duration::from_millis(700)) {
-                Ok(()) => {
-                    // Chromium reads twice; wait until no new render for settle_ms.
-                    loop {
-                        match rx.recv_timeout(Duration::from_millis(opts.settle_ms.max(60))) {
-                            Ok(()) => continue,
-                            Err(_) => break,
-                        }
-                    }
-                    st.shared.lock().rendered_after_keystroke > 0
+            loop {
+                if st.shared.lock().rendered_after_keystroke > 0 {
+                    // Chromium reads twice; wait until no new read for settle_ms.
+                    while rx.recv_timeout(Duration::from_millis(opts.settle_ms.max(60))).is_ok() {}
+                    break true;
                 }
-                Err(_) => false,
+                let left = deadline.saturating_duration_since(Instant::now());
+                if left.is_zero() || rx.recv_timeout(left).is_err() {
+                    break false;
+                }
             }
         };
 

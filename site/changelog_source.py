@@ -71,6 +71,14 @@ RELEASES = [
              "Μια πολύ σύντομη λέξη ανάμεσα σε δύο μεγάλες παύσεις μπορούσε να εξαφανιστεί "
              "από το τελικό κείμενο."),
             ("fixed",
+             "A dictation could be reported as refused by the application when the "
+             "application had in fact taken it. Windows keeps a clipboard history that "
+             "reads every new entry at once, and the app was mistaking that read for the "
+             "answer it was waiting for. It now waits for the real one.",
+             "Μια υπαγόρευση μπορούσε να αναφερθεί ως απορριφθείσα από την εφαρμογή ενώ εκείνη την είχε πάρει κανονικά. "
+             "Τα Windows κρατούν ιστορικό προχείρου και διαβάζουν κάθε νέα καταχώρηση αμέσως και η εφαρμογή περνούσε αυτό το διάβασμα για την απάντηση που περίμενε. "
+             "Τώρα περιμένει την αληθινή."),
+            ("fixed",
              "A dictation that ended with the tray icon in front is now refused out loud, "
              "the way the desktop and the taskbar already were.",
              "Μια υπαγόρευση που τελείωσε με το εικονίδιο της γραμμής εργασιών μπροστά "
