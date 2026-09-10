@@ -23,6 +23,52 @@ pub mod settings;
 
 use tauri::Manager;
 
+/// The last thing the app does when it cannot start.
+///
+/// A program that fails before its window exists says nothing at all: the
+/// error goes to a console that a windowed program does not have, and the icon
+/// in the taskbar simply never appears. Somebody double clicks and nothing
+/// happens, twice, and then they give up. This puts the reason on the screen
+/// and writes it next to the crash log so it can be read again later.
+#[cfg(windows)]
+fn say_it_cannot_start(reason: &str) {
+    use std::io::Write;
+    let path = paths::logs_dir().join("panic.log");
+    let line = format!(
+        "{} CANNOT START: {reason}\n",
+        chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z")
+    );
+    let _ = std::fs::create_dir_all(paths::logs_dir());
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = f.write_all(line.as_bytes());
+        let _ = f.flush();
+    }
+    tracing::error!("cannot start: {reason}");
+
+    let text = format!(
+        "Fuck You Flow could not start.\n\n{reason}\n\nThe details are in:\n{}",
+        path.display()
+    );
+    let wide: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
+    let title: Vec<u16> = "Fuck You Flow".encode_utf16().chain(std::iter::once(0)).collect();
+    unsafe {
+        use windows::core::PCWSTR;
+        use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK, MB_SETFOREGROUND};
+        MessageBoxW(
+            None,
+            PCWSTR(wide.as_ptr()),
+            PCWSTR(title.as_ptr()),
+            MB_OK | MB_ICONERROR | MB_SETFOREGROUND,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+fn say_it_cannot_start(reason: &str) {
+    tracing::error!("cannot start: {reason}");
+    eprintln!("Fuck You Flow could not start: {reason}");
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     logging::init();
@@ -46,7 +92,7 @@ pub fn run() {
         tracing::error!("PANIC: {info}");
     }));
 
-    tauri::Builder::default()
+    let built = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.show();
@@ -59,7 +105,10 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--autostart"])))
         .setup(|app| {
-            app::build(app)?;
+            if let Err(e) = app::build(app) {
+                say_it_cannot_start(&format!("{e:#}"));
+                return Err(e.into());
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -139,8 +188,15 @@ pub fn run() {
             commands::check_for_update,
             commands::install_update,
         ])
-        .build(tauri::generate_context!())
-        .expect("error while building tauri application")
+        .build(tauri::generate_context!());
+    let app = match built {
+        Ok(a) => a,
+        Err(e) => {
+            say_it_cannot_start(&format!("{e}"));
+            std::process::exit(1);
+        }
+    };
+    app
         .run(|app, event| {
             // Always take the tray icon down on the way out. A tray icon whose
             // owner disappears without removing it stays painted on the taskbar

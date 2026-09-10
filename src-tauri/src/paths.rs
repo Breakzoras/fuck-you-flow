@@ -33,9 +33,20 @@ fn is_installation(dir: &std::path::Path) -> bool {
 
 /// True when this folder is somebody's own work rather than an empty shell left
 /// behind by a half finished update.
+///
+/// Folders are looked inside rather than merely counted. A run that was cut
+/// short leaves a tree of empty folders under the new name, and taking that as
+/// data left 1.6 GB of models sitting under the old name while the app
+/// reported the engine missing. Measured 10 September 2026.
 fn holds_user_files(dir: &std::path::Path) -> bool {
-    let named = ["settings.json", "fuckyouflow.db", "lalia.db", "models", "runtime"];
-    named.iter().any(|n| dir.join(n).exists())
+    for f in ["settings.json", "fuckyouflow.db", "lalia.db"] {
+        if dir.join(f).is_file() {
+            return true;
+        }
+    }
+    ["models", "runtime"]
+        .iter()
+        .any(|n| std::fs::read_dir(dir.join(n)).map(|mut d| d.next().is_some()).unwrap_or(false))
 }
 
 /// The folder to use, moving an older one into place when there is one.
@@ -94,9 +105,11 @@ mod adopt_tests {
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&base).unwrap();
 
-        // An empty folder under the new name, and the real history under the
+        // An empty tree under the new name, and the real history under the
         // oldest name. This is exactly what an interrupted update leaves.
         seed(&base, APP_DIR_NAME, None);
+        std::fs::create_dir_all(base.join(APP_DIR_NAME).join("models")).unwrap();
+        std::fs::create_dir_all(base.join(APP_DIR_NAME).join("runtime")).unwrap();
         seed(&base, "Lalia", Some("lalia.db"));
         let got = adopt(base.clone());
         assert_eq!(got, base.join(APP_DIR_NAME));
