@@ -190,6 +190,18 @@ impl Chord {
         self.keys.iter().any(|k| matches!(k, KeySpec::Win | KeySpec::Vk(VK_LWIN) | KeySpec::Vk(VK_RWIN)))
     }
 
+    /// True when the chord holds an Alt key. An Alt pressed and released with
+    /// nothing in between is the Windows "go to the menu" key: Chrome moves the
+    /// focus from the page to its menu button and classic programs open their
+    /// menu bar, so the paste that follows lands on the menu and the text never
+    /// reaches the box the user was typing in (Suno Studio in Chrome,
+    /// 11 September 2026).
+    fn contains_alt(&self) -> bool {
+        self.keys
+            .iter()
+            .any(|k| matches!(k, KeySpec::Alt | KeySpec::Vk(VK_LMENU) | KeySpec::Vk(VK_RMENU) | KeySpec::Vk(VK_MENU)))
+    }
+
     /// The non-modifier key of the chord, if any (the one we swallow so the
     /// focused app does not also receive it).
     fn main_key(&self) -> Option<u16> {
@@ -281,11 +293,21 @@ struct HookState {
     /// The chord that most recently used the Win key and is active; we must
     /// mask the Win release so Start does not open.
     win_mask_pending: bool,
+    /// A chord with an Alt key fired and its Alt is still held; the Alt
+    /// release gets a mask key too, so no window takes it as the menu key.
+    alt_mask_pending: bool,
     sender: Option<tokio::sync::mpsc::UnboundedSender<HotkeyEvent>>,
 }
 
 static STATE: Lazy<Mutex<HookState>> = Lazy::new(|| {
-    Mutex::new(HookState { bindings: Vec::new(), down: HashSet::new(), last_down: std::collections::HashMap::new(), win_mask_pending: false, sender: None })
+    Mutex::new(HookState {
+        bindings: Vec::new(),
+        down: HashSet::new(),
+        last_down: std::collections::HashMap::new(),
+        win_mask_pending: false,
+        alt_mask_pending: false,
+        sender: None,
+    })
 });
 
 /// When true, the hook swallows Escape and reports it (pipeline is recording).
@@ -362,6 +384,7 @@ pub fn set_bindings(list: Vec<(ChordId, Chord)>) {
     st.bindings = list.into_iter().map(|(id, chord)| Binding { id, chord, active: false, cancelled: false, since: None }).collect();
     st.down.clear();
     st.win_mask_pending = false;
+    st.alt_mask_pending = false;
 }
 
 pub fn start_recording_keys(tx: tokio::sync::mpsc::UnboundedSender<Vec<u16>>) {
@@ -610,6 +633,7 @@ mod win {
         let mut fired: Vec<HotkeyEvent> = Vec::new();
         let mut any_pressed = false;
         let mut mask_pending = false;
+        let mut alt_fired = false;
         let down_snapshot = st.down.clone();
         for b in st.bindings.iter_mut() {
             let now = b.chord.is_down(&down_snapshot);
@@ -624,6 +648,9 @@ mod win {
                 }
                 if b.chord.contains_win() {
                     mask_pending = true;
+                }
+                if b.chord.contains_alt() {
+                    alt_fired = true;
                 }
             } else if !now && b.active {
                 b.active = false;
@@ -654,6 +681,19 @@ mod win {
         }
         if is_win && is_up && st.win_mask_pending {
             st.win_mask_pending = false;
+            send_mask_key();
+        }
+        // An Alt shortcut gets the mask key twice: once while the Alt is held
+        // and once when it comes up. A key injected from inside this callback
+        // can reach the window either side of the key being handled, and one
+        // of the two always lands between the Alt going down and coming up, so
+        // no window sees an Alt pressed on its own.
+        let is_alt = matches!(vk, VK_LMENU | VK_RMENU | VK_MENU);
+        if alt_fired {
+            st.alt_mask_pending = true;
+            send_mask_key();
+        } else if is_alt && is_up && st.alt_mask_pending {
+            st.alt_mask_pending = false;
             send_mask_key();
         }
         if let Some(tx) = &st.sender {
@@ -774,6 +814,16 @@ mod tests {
         assert_eq!(Chord::parse("F13").unwrap().keys, vec![KeySpec::Vk(VK_F1 + 12)]);
         assert!(Chord::parse("Esc").is_err());
         assert!(Chord::parse("").is_err());
+    }
+
+    #[test]
+    fn only_shortcuts_with_an_alt_get_the_alt_mask() {
+        for s in ["RAlt", "LAlt", "Alt+Space", "Shift+LAlt+Z", "Ctrl+Alt+D"] {
+            assert!(Chord::parse(s).unwrap().contains_alt(), "{s} holds an Alt");
+        }
+        for s in ["Ctrl+Win", "RCtrl", "F13", "Shift+Z"] {
+            assert!(!Chord::parse(s).unwrap().contains_alt(), "{s} holds no Alt");
+        }
     }
 
     #[test]
