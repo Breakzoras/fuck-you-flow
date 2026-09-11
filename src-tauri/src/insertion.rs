@@ -761,8 +761,12 @@ pub mod win {
                 if p.is_null() {
                     return None;
                 }
+                // Bounded by the block, for the same reason as in
+                // `read_clipboard_text`: text without a closing zero would walk
+                // this loop off the end of the memory and kill the app.
+                let chars = GlobalSize(hg) / 2;
                 let mut n = 0usize;
-                while *p.add(n) != 0 {
+                while n < chars && *p.add(n) != 0 {
                     n += 1;
                 }
                 let got = std::slice::from_raw_parts(p, n).to_vec();

@@ -327,7 +327,7 @@ pub fn list_history(state: State<'_, Arc<AppState>>, search: Option<String>, lim
 #[tauri::command]
 pub fn delete_history(state: State<'_, Arc<AppState>>, id: String) -> R<()> {
     if let Some(p) = state.shared.db.delete_history(&id).map_err(e)? {
-        let _ = std::fs::remove_file(p);
+        crate::paths::remove_kept_audio(&p);
     }
     Ok(())
 }
@@ -335,9 +335,9 @@ pub fn delete_history(state: State<'_, Arc<AppState>>, id: String) -> R<()> {
 #[tauri::command]
 pub fn delete_all_history(state: State<'_, Arc<AppState>>) -> R<()> {
     for p in state.shared.db.delete_all_history().map_err(e)? {
-        let _ = std::fs::remove_file(p);
+        crate::paths::remove_kept_audio(&p);
     }
-    let _ = std::fs::remove_dir_all(crate::paths::local_dir().join("audio"));
+    let _ = std::fs::remove_dir_all(crate::paths::audio_dir());
     let _ = std::fs::remove_dir_all(crate::paths::recovery_dir());
     let _ = std::fs::create_dir_all(crate::paths::recovery_dir());
     Ok(())
@@ -1110,9 +1110,20 @@ pub async fn install_update(app: tauri::AppHandle) -> R<()> {
         tracing::warn!("update refused: the models are still inside the install folder");
         return Err("this copy has to be updated from the site: fuckyouflow.app".into());
     }
+    // One install at a time. The bar on top and the button in Settings can both
+    // ask; a plain store let the second request clear the first one's flag
+    // while it was still downloading (Greptile, 11 September 2026).
+    if INSTALLING.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return Err("an update is already downloading".into());
+    }
     // Whatever the last check found, and nothing else.
-    INSTALLING.store(true, std::sync::atomic::Ordering::Relaxed);
-    let update = FOUND_UPDATE.lock().map_err(|_| "update lock")?.take();
+    let update = match FOUND_UPDATE.lock() {
+        Ok(mut slot) => slot.take(),
+        Err(_) => {
+            INSTALLING.store(false, std::sync::atomic::Ordering::SeqCst);
+            return Err("update lock".into());
+        }
+    };
     let Some(update) = update else {
         INSTALLING.store(false, std::sync::atomic::Ordering::Relaxed);
         return Err("ask the server first".into());

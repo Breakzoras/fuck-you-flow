@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, EngineInfo, PipelineSnapshot, Settings, UpdateInfo } from "./api";
 import { AppCtx, makeT, makeTk } from "./hooks";
@@ -23,6 +24,8 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState<{ msg: string; kind: "ok" | "err" } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  // The big card in the middle. "Not now" closes it and leaves the bar on top.
+  const [prompt, setPrompt] = useState(false);
   const [updating, setUpdating] = useState<{ received: number; total: number; installing?: boolean } | null>(null);
 
   useEffect(() => {
@@ -59,17 +62,6 @@ export default function App() {
       un3.then((f) => f());
       clearInterval(iv);
     };
-  }, []);
-
-  // Ask the update server once, fifteen seconds in. Nothing is downloaded
-  // here: the answer only decides whether the bar at the top appears, and the
-  // download waits for the user to press the button on it.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      api.checkForUpdate().then((u) => { if (u.available) setUpdate(u); }).catch(() => {});
-    }, 15000);
-    const un = listen<{ received: number; total: number; installing?: boolean }>("lalia://update-progress", (e) => setUpdating(e.payload));
-    return () => { clearTimeout(timer); un.then((f) => f()); };
   }, []);
 
   useEffect(() => {
@@ -114,6 +106,54 @@ export default function App() {
   const lang = settings?.general.ui_language ?? "en";
   const t = useMemo(() => makeT(lang), [lang]);
   const tk = useMemo(() => makeTk(lang), [lang]);
+
+  // Ask the update server once, a few seconds after the app opens. Nothing is
+  // downloaded here. Nothing newer: not a word. Something newer: the dashboard
+  // comes to the front with the update in the middle of it (Lu, 11 September
+  // 2026). The app usually starts hidden in the tray, so the bar alone sat in
+  // a window nobody opened and installed copies stayed old for days.
+  const lookForUpdate = useCallback(async (manual: boolean) => {
+    try {
+      const u = await api.checkForUpdate();
+      if (!u.available) {
+        if (manual) toast(t("update_none"));
+        return;
+      }
+      setUpdate(u);
+      setPrompt(true);
+      const w = getCurrentWindow();
+      await w.unminimize().catch(() => {});
+      await w.show().catch(() => {});
+      await w.setFocus().catch(() => {});
+    } catch (err) {
+      if (manual) toast(`${t("update_failed")}: ${err}`, "err");
+    }
+  }, [t, toast]);
+  // The listeners below live for the whole session; the ref hands them the
+  // latest function, so the tray answer comes in the language chosen since.
+  const lookRef = useRef(lookForUpdate);
+  lookRef.current = lookForUpdate;
+
+  useEffect(() => {
+    const timer = setTimeout(() => { void lookRef.current(false); }, 8000);
+    const un = listen<{ received: number; total: number; installing?: boolean }>("lalia://update-progress", (e) => setUpdating(e.payload));
+    // "Check for updates" in the tray menu.
+    const unCheck = listen("lalia://check-update", () => { void lookRef.current(true); });
+    return () => { clearTimeout(timer); un.then((f) => f()); unCheck.then((f) => f()); };
+  }, []);
+
+  const startInstall = () => {
+    setUpdating({ received: 0, total: 0 });
+    api
+      .installUpdate()
+      // The installer normally ends this process, so the line below runs only
+      // when it did not. Give the buttons back rather than leave it stuck.
+      .then(() => setUpdating(null))
+      .catch((err) => {
+        toast(String(err), "err");
+        setUpdating(null);
+      });
+  };
 
   if (!settings) {
     return (
@@ -190,27 +230,46 @@ export default function App() {
               ) : (
                 <>
                   <span className="grow" />
-                  <button
-                    className="primary"
-                    onClick={() => {
-                      setUpdating({ received: 0, total: 0 });
-                      api
-                        .installUpdate()
-                        // The installer normally ends this process, so the line
-                        // below runs only when it did not. Give the buttons
-                        // back rather than leave the bar stuck at Installing.
-                        .then(() => setUpdating(null))
-                        .catch((err) => {
-                          toast(String(err), "err");
-                          setUpdating(null);
-                        });
-                    }}
-                  >
+                  <button className="primary" onClick={startInstall}>
                     {t("update_now")}
                   </button>
                   <button onClick={() => setUpdate(null)}>{t("update_later")}</button>
                 </>
               )}
+            </div>
+          )}
+          {update && prompt && (
+            <div
+              className="update-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="update-modal-title"
+              onKeyDown={(e) => { if (e.key === "Escape" && !updating) setPrompt(false); }}
+            >
+              <div className="update-card">
+                <h2 id="update-modal-title">{t("update_title")}</h2>
+                <p className="update-lead">{t("update_ready").replace("{v}", update.version).replace("{c}", update.current)}</p>
+                {update.notes && <p className="update-notes">{update.notes}</p>}
+                {!update.small_download && <p className="muted">{t("update_big")}</p>}
+                <div className="update-actions">
+                  {updating ? (
+                    <span className="update-progress">
+                      {updating.installing
+                        ? t("update_installing")
+                        : `${t("update_downloading")} ${updating.total > 0 ? Math.round((updating.received / updating.total) * 100) + "%" : ""}`}
+                    </span>
+                  ) : (
+                    <>
+                      {update.small_download ? (
+                        <button className="primary" autoFocus onClick={startInstall}>{t("update_now")}</button>
+                      ) : (
+                        <button className="primary" autoFocus onClick={() => { openUrl("https://fuckyouflow.app"); }}>{t("update_site")}</button>
+                      )}
+                      <button onClick={() => setPrompt(false)}>{t("update_later")}</button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           <div className="page">

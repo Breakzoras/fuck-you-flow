@@ -78,7 +78,14 @@ impl EngineManager {
     pub async fn apply(self: &Arc<Self>, app: &tauri::AppHandle, settings: &Settings) {
         let mut settings = settings.clone();
         loop {
-            self.apply_once(app, &settings).await;
+            if !self.apply_once(app, &settings).await {
+                // Another call is starting the engine and will pick the queued
+                // settings up when it finishes. Taking them back here made this
+                // call spin round its own queue entry for the whole start, up to
+                // two minutes of a busy thread and a flooded log (Greptile,
+                // 11 September 2026).
+                break;
+            }
             match self.queued.write().take() {
                 Some(next) => {
                     tracing::info!("engine settings changed while starting; going round again");
@@ -89,7 +96,7 @@ impl EngineManager {
         }
     }
 
-    async fn apply_once(self: &Arc<Self>, app: &tauri::AppHandle, settings: &Settings) {
+    async fn apply_once(self: &Arc<Self>, app: &tauri::AppHandle, settings: &Settings) -> bool {
         *self.provider_name.write() = settings.asr.provider.clone();
         if settings.asr.provider == "openai_compatible" {
             *self.cloud.write() = Some(Arc::new(OpenAiCompat::new(settings.asr.openai_base_url.clone(), settings.asr.openai_model.clone())));
@@ -98,7 +105,7 @@ impl EngineManager {
                 local.stop().await;
             }
             self.emit(app);
-            return;
+            return true;
         }
         if self.starting.swap(true, std::sync::atomic::Ordering::SeqCst) {
             // Somebody is already starting one. Remember that the settings moved
@@ -108,7 +115,7 @@ impl EngineManager {
             // up to two minutes and looked like the setting was ignored.
             *self.queued.write() = Some(settings.clone());
             tracing::info!("engine change queued: one is already starting");
-            return;
+            return false;
         }
         let (backend, exe) = choose_backend(&settings.asr.backend, settings.asr.use_gpu);
         let model = crate::models::find_model(&settings.asr.model_id);
@@ -133,7 +140,7 @@ impl EngineManager {
                 "lalia://engine",
                 EngineInfo { status: EngineStatus::Missing, provider: "whisper_local".into(), model_id: settings.asr.model_id.clone(), gpu: false, message: Some(message), warm_ms: None, backend: String::new() },
             );
-            return;
+            return true;
         };
         // Not just "is it there": a half-downloaded file is there and passes,
         // and whisper-server then exits with a bare code that names nothing.
@@ -147,7 +154,7 @@ impl EngineManager {
                     "lalia://engine",
                     EngineInfo { status: EngineStatus::Missing, provider: "whisper_local".into(), model_id: spec.id.clone(), gpu: false, message: Some(format!("the file for {} is incomplete; download it again under Speech models", spec.display_name)), warm_ms: None, backend: String::new() },
                 );
-                return;
+                return true;
             }
             tracing::warn!("engine not started: model file missing at {}", model_path.display());
             // Forget the dead server before giving up. Without this the watchdog
@@ -162,7 +169,7 @@ impl EngineManager {
                 "lalia://engine",
                 EngineInfo { status: EngineStatus::Missing, provider: "whisper_local".into(), model_id: spec.id.clone(), gpu: false, message: Some(format!("model {} not downloaded", spec.display_name)), warm_ms: None, backend: String::new() },
             );
-            return;
+            return true;
         }
         let use_gpu = backend != "cpu";
         tracing::info!("speech engine: backend {backend}, {}", exe.display());
@@ -218,6 +225,7 @@ impl EngineManager {
             tracing::error!("engine start failed: {e}");
         }
         self.starting.store(false, std::sync::atomic::Ordering::SeqCst);
+        true
     }
 
     pub fn emit(&self, app: &tauri::AppHandle) {

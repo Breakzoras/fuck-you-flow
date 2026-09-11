@@ -235,12 +235,25 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     let settings = settings;
     crate::logging::set_redaction(settings.privacy.redact_logs);
     let db = Arc::new(Db::open(&crate::paths::db_file())?);
+    // A history an older build wrote under the old folder name, after the move.
+    for orphan in crate::paths::take_orphan_histories() {
+        match db.merge_from(&orphan) {
+            Ok(n) => {
+                tracing::info!("merged {n} dictations from a second history at {}", orphan.display());
+                crate::journal::info("profile.merged", serde_json::json!({ "rows": n }));
+            }
+            Err(err) => {
+                tracing::warn!("could not merge the history at {}: {err}", orphan.display());
+                crate::journal::warn("profile.merge_failed", serde_json::json!({ "error": err.to_string() }));
+            }
+        }
+    }
 
     // retention
     if let Some(days) = settings.privacy.retention_days {
         if let Ok(paths) = db.delete_history_older_than(days) {
             for p in paths {
-                let _ = std::fs::remove_file(p);
+                crate::paths::remove_kept_audio(&p);
             }
         }
     }
@@ -334,9 +347,10 @@ fn build_tray(app: &tauri::App) -> anyhow::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open Fuck You Flow", true, None::<&str>)?;
     let toggle = MenuItem::with_id(app, "toggle", "Start / stop dictation", true, None::<&str>)?;
     let paste = MenuItem::with_id(app, "paste_last", "Paste last transcript", true, None::<&str>)?;
+    let check = MenuItem::with_id(app, "check_update", "Check for updates", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &toggle, &paste, &sep, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &toggle, &paste, &check, &sep, &quit])?;
     let icon = match app.default_window_icon().cloned() {
         Some(i) => i,
         None => {
@@ -357,6 +371,16 @@ fn build_tray(app: &tauri::App) -> anyhow::Result<()> {
                         let _ = w.show();
                         let _ = w.unminimize();
                         let _ = w.set_focus();
+                    }
+                }
+                "check_update" => {
+                    // The dashboard asks the server and says what it found; it
+                    // comes forward on its own when there is a new version.
+                    if let Some(w) = app.get_webview_window("main") {
+                        let _ = w.show();
+                        let _ = w.unminimize();
+                        let _ = w.set_focus();
+                        let _ = w.emit("lalia://check-update", ());
                     }
                 }
                 "toggle" => {

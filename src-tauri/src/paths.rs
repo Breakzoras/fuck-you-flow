@@ -49,6 +49,50 @@ fn holds_user_files(dir: &std::path::Path) -> bool {
         .any(|n| std::fs::read_dir(dir.join(n)).map(|mut d| d.next().is_some()).unwrap_or(false))
 }
 
+/// True when any file sits anywhere under this folder.
+fn tree_has_files(dir: &std::path::Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else { return false };
+    entries.flatten().any(|e| match e.file_type() {
+        Ok(t) if t.is_dir() => tree_has_files(&e.path()),
+        Ok(_) => true,
+        Err(_) => true,
+    })
+}
+
+fn unix_secs() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+/// Old settings folders that still hold a history of their own after the move.
+///
+/// An older build that runs after the update cannot see the new folder, so it
+/// starts an empty one under its old name and writes there. That happened on
+/// 10 September 2026 when a taskbar pin still pointed at an old build: 24
+/// dictations went into a history nobody could see. Each folder found is
+/// renamed aside first (which fails while that old build still has it open,
+/// and then it is left for the next start) and its history file is returned
+/// for merging.
+pub fn take_orphan_histories() -> Vec<PathBuf> {
+    let Some(base) = dirs::config_dir() else { return vec![] };
+    let current = config_dir();
+    let mut found = vec![];
+    for name in OLD_APP_DIR_NAMES {
+        let old = base.join(name);
+        if old == current || !old.is_dir() || is_installation(&old) {
+            continue;
+        }
+        let Some(file) = ["fuckyouflow.db", "lalia.db"].into_iter().find(|f| old.join(f).is_file()) else {
+            continue;
+        };
+        let aside = base.join(format!("{}-merged-{}", name.replace(' ', ""), unix_secs()));
+        match std::fs::rename(&old, &aside) {
+            Ok(()) => found.push(aside.join(file)),
+            Err(e) => tracing::warn!("a second history sits in {} and cannot be moved yet: {e}", old.display()),
+        }
+    }
+    found
+}
+
 /// The folder to use, moving an older one into place when there is one.
 ///
 /// Every old name is looked at, and the one that actually holds files wins.
@@ -70,8 +114,21 @@ fn adopt(base: PathBuf) -> PathBuf {
         return now;
     };
     if now.exists() {
-        // An empty folder under the new name is in the way of the real one.
-        let _ = std::fs::remove_dir_all(&now);
+        // Something under the new name is in the way of the real folder. It
+        // holds no settings, history or models, but it can hold logs, a
+        // recovery recording or kept audio. A tree of empty folders goes; any
+        // file at all means the folder is moved aside, never deleted (audit and
+        // Greptile, 11 September 2026).
+        if !tree_has_files(&now) {
+            let _ = std::fs::remove_dir_all(&now);
+        } else {
+            let aside = base.join(format!("{APP_DIR_NAME}-aside-{}", unix_secs()));
+            if let Err(e) = std::fs::rename(&now, &aside) {
+                tracing::warn!("could not move {} aside: {e}; staying with {}", now.display(), before.display());
+                return before.clone();
+            }
+            tracing::info!("moved {} aside to {}", now.display(), aside.display());
+        }
     }
     match std::fs::rename(before, &now) {
         Ok(()) => {
@@ -119,6 +176,28 @@ mod adopt_tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
+    /// A new-name folder that holds only logs or a recovery recording is in the
+    /// way of the real one. It moves aside with its files; nothing is deleted.
+    #[test]
+    fn a_folder_in_the_way_is_moved_aside_never_deleted() {
+        let base = std::env::temp_dir().join(format!("fyf-adopt-aside-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+
+        std::fs::create_dir_all(base.join(APP_DIR_NAME).join("logs")).unwrap();
+        std::fs::write(base.join(APP_DIR_NAME).join("logs").join("fuckyouflow.log.2026-09-11"), b"x").unwrap();
+        seed(&base, "Lalia", Some("lalia.db"));
+        let got = adopt(base.clone());
+        assert_eq!(got, base.join(APP_DIR_NAME));
+        assert!(got.join("lalia.db").exists(), "the history moved into place");
+        let aside: Vec<_> = std::fs::read_dir(&base).unwrap().flatten()
+            .filter(|e| e.file_name().to_string_lossy().starts_with("FuckYouFlow-aside-")).collect();
+        assert_eq!(aside.len(), 1, "the folder that was in the way still exists");
+        assert!(aside[0].path().join("logs").join("fuckyouflow.log.2026-09-11").exists(), "its log survived");
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     /// The installed program is never mistaken for a data folder, which is what
     /// would happen on Windows where the program lives one name away.
     #[test]
@@ -136,13 +215,27 @@ mod adopt_tests {
     }
 }
 
+/// Tests get folders of their own. Before 11 September 2026 they wrote their
+/// events into the real journal of whoever ran `cargo test`, 14 runs on the
+/// owner's machine, and a test prune could have deleted real journal files.
+#[cfg(test)]
+fn test_base(kind: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("fyf-test-{kind}-{}", std::process::id()))
+}
+
 pub fn config_dir() -> PathBuf {
     static DIR: OnceLock<PathBuf> = OnceLock::new();
+    #[cfg(test)]
+    return DIR.get_or_init(|| test_base("config").join(APP_DIR_NAME)).clone();
+    #[cfg(not(test))]
     DIR.get_or_init(|| adopt(dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")))).clone()
 }
 
 pub fn local_dir() -> PathBuf {
     static DIR: OnceLock<PathBuf> = OnceLock::new();
+    #[cfg(test)]
+    return DIR.get_or_init(|| test_base("local").join(APP_DIR_NAME)).clone();
+    #[cfg(not(test))]
     DIR.get_or_init(|| adopt(dirs::data_local_dir().unwrap_or_else(|| PathBuf::from(".")))).clone()
 }
 
@@ -215,6 +308,58 @@ pub fn temp_dir() -> PathBuf {
 
 pub fn recovery_dir() -> PathBuf {
     local_dir().join("recovery")
+}
+
+/// Where recordings are kept when "keep audio" is on.
+pub fn audio_dir() -> PathBuf {
+    local_dir().join("audio")
+}
+
+/// Deletes a recording this app kept, and nothing else.
+///
+/// A history row's `audio_path` also holds the user's own file when a sound
+/// file was transcribed. That file belongs to the user: deleting the row, all
+/// history, or old history must never delete it. Found in the audit of
+/// 11 September 2026, before anyone lost a recording to it.
+pub fn remove_kept_audio(path: &str) {
+    if !remove_if_inside(std::path::Path::new(path), &audio_dir()) {
+        tracing::info!("history row pointed at a file outside the recordings folder; the file was left in place");
+    }
+}
+
+fn remove_if_inside(path: &std::path::Path, dir: &std::path::Path) -> bool {
+    match (path.canonicalize(), dir.canonicalize()) {
+        (Ok(f), Ok(d)) if f.starts_with(&d) => std::fs::remove_file(f).is_ok(),
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod kept_audio_tests {
+    use super::*;
+
+    #[test]
+    fn only_files_inside_the_recordings_folder_are_deleted() {
+        let base = std::env::temp_dir().join(format!("fyf-kept-audio-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let audio = base.join("audio");
+        std::fs::create_dir_all(&audio).unwrap();
+        let ours = audio.join("a.wav");
+        let theirs = base.join("meeting.m4a");
+        std::fs::write(&ours, b"x").unwrap();
+        std::fs::write(&theirs, b"x").unwrap();
+
+        assert!(remove_if_inside(&ours, &audio));
+        assert!(!ours.exists());
+        assert!(!remove_if_inside(&theirs, &audio), "the user's own file is not ours to delete");
+        assert!(theirs.exists());
+        // A path that climbs out of the folder is still outside it.
+        let sneaky = audio.join("..").join("meeting.m4a");
+        assert!(!remove_if_inside(&sneaky, &audio));
+        assert!(theirs.exists());
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }
 
 pub fn ensure_all() -> std::io::Result<()> {

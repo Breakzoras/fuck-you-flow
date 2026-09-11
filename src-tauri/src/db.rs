@@ -301,6 +301,52 @@ impl Db {
         Ok(db)
     }
 
+    /// Adds the dictations of a second, orphaned history file to this one.
+    ///
+    /// An older build that runs after the data folder was renamed cannot see
+    /// the new folder, starts an empty history under its old name and writes
+    /// there. On 10-11 September 2026 that hid 24 dictations from the real
+    /// history. Rows carry a UUID, so a row already present is skipped, and the
+    /// daily totals move over only when rows did. Only columns both files know
+    /// are copied, so a file from an older schema still merges.
+    pub fn merge_from(&self, other: &Path) -> anyhow::Result<usize> {
+        let conn = self.conn.lock();
+        conn.execute("ATTACH DATABASE ?1 AS o", params![other.to_string_lossy()])?;
+        let result = (|| -> anyhow::Result<usize> {
+            let cols = |schema: &str, table: &str| -> anyhow::Result<Vec<String>> {
+                let mut st = conn.prepare(&format!("PRAGMA {schema}.table_info({table})"))?;
+                let names = st.query_map([], |r| r.get::<_, String>(1))?.collect::<Result<Vec<_>, _>>()?;
+                Ok(names)
+            };
+            let theirs = cols("o", "history")?;
+            if theirs.is_empty() {
+                return Ok(0);
+            }
+            let shared: Vec<String> = cols("main", "history")?.into_iter().filter(|c| theirs.contains(c)).collect();
+            if !shared.iter().any(|c| c == "id") {
+                anyhow::bail!("the other file has no history ids");
+            }
+            let list = shared.iter().map(|c| format!("\"{c}\"")).collect::<Vec<_>>().join(", ");
+            let tx = conn.unchecked_transaction()?;
+            let added = tx.execute(&format!("INSERT OR IGNORE INTO main.history ({list}) SELECT {list} FROM o.history"), [])?;
+            if added > 0 && !cols("o", "stats_daily")?.is_empty() {
+                tx.execute(
+                    "INSERT INTO main.stats_daily (day, dictations, words, audio_ms, corrections, retries, edits)
+                     SELECT day, dictations, words, audio_ms, corrections, retries, edits FROM o.stats_daily WHERE true
+                     ON CONFLICT(day) DO UPDATE SET dictations = dictations + excluded.dictations,
+                        words = words + excluded.words, audio_ms = audio_ms + excluded.audio_ms,
+                        corrections = corrections + excluded.corrections, retries = retries + excluded.retries,
+                        edits = edits + excluded.edits",
+                    [],
+                )?;
+            }
+            tx.commit()?;
+            Ok(added)
+        })();
+        let _ = conn.execute("DETACH DATABASE o", []);
+        result
+    }
+
     pub fn open_in_memory() -> anyhow::Result<Db> {
         let conn = Connection::open_in_memory()?;
         let db = Db { conn: Mutex::new(conn) };
@@ -887,6 +933,35 @@ mod tests {
             undone: false,
             edited_text: None,
         }
+    }
+
+    /// The case of 10-11 September 2026: an old build wrote dictations into a
+    /// second history. They move over once, and the day's totals with them.
+    #[test]
+    fn an_orphaned_history_merges_once() {
+        let base = std::env::temp_dir().join(format!("fyf-merge-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        let orphan_path = base.join("orphan.db");
+        {
+            let orphan = Db::open(&orphan_path).unwrap();
+            orphan.insert_history(&entry("ένα")).unwrap();
+            orphan.insert_history(&entry("δύο")).unwrap();
+            orphan.bump_daily(3, 3000, 0).unwrap();
+            orphan.bump_daily(3, 3000, 0).unwrap();
+        }
+        let real = Db::open(&base.join("real.db")).unwrap();
+        real.insert_history(&entry("τρία")).unwrap();
+        real.bump_daily(3, 3000, 0).unwrap();
+
+        assert_eq!(real.merge_from(&orphan_path).unwrap(), 2);
+        assert_eq!(real.merge_from(&orphan_path).unwrap(), 0, "a second run adds nothing");
+        assert_eq!(real.list_history(None, 10, 0).unwrap().len(), 3);
+        let s = real.stats_summary(40.0).unwrap();
+        assert_eq!(s.dictations, 3, "the day's totals were added exactly once");
+
+        drop(real);
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
