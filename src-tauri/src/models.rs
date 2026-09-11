@@ -220,6 +220,10 @@ pub fn move_models(from: &Path, to: &Path) -> bool {
     }
     let Ok(entries) = std::fs::read_dir(from) else { return false };
     let mut all_out = true;
+    // The models first, then the small files that record their verified
+    // checksum: a marker may only follow a model that really moved.
+    let mut models = Vec::new();
+    let mut markers = Vec::new();
     for entry in entries {
         let entry = match entry {
             Ok(en) => en,
@@ -232,12 +236,14 @@ pub fn move_models(from: &Path, to: &Path) -> bool {
             }
         };
         let src = entry.path();
-        // The models and the small files that record their verified checksum.
-        // Leaving a marker behind makes the model look unverified afterwards.
-        let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if ext != "bin" && ext != "sha256" {
-            continue;
+        match src.extension().and_then(|e| e.to_str()) {
+            Some("bin") => models.push(src),
+            Some("sha256") => markers.push(src),
+            _ => {}
         }
+    }
+    let mut moved = std::collections::HashSet::new();
+    for src in models {
         let Some(name) = src.file_name() else { continue };
         let dest = to.join(name);
         let Ok(src_len) = std::fs::metadata(&src).map(|m| m.len()) else {
@@ -248,7 +254,8 @@ pub fn move_models(from: &Path, to: &Path) -> bool {
         if dest.exists() {
             // The user already has this file. Two copies of a gigabyte help
             // nobody, so the installer's one goes, as long as it is the same
-            // file. A different size means something we did not put there.
+            // file. A different size, or different bytes at the same size,
+            // means something we did not put there.
             let dest_len = match std::fs::metadata(&dest).map(|m| m.len()) {
                 Ok(n) => n,
                 Err(err) => {
@@ -257,8 +264,9 @@ pub fn move_models(from: &Path, to: &Path) -> bool {
                     continue;
                 }
             };
-            if dest_len != src_len {
-                tracing::warn!("model {} exists in both places with different sizes; leaving both alone", name.to_string_lossy());
+            let same = dest_len == src_len && same_samples(&src, &dest, src_len).unwrap_or(false);
+            if !same {
+                tracing::warn!("model {} exists in both places and the two differ; leaving both alone", name.to_string_lossy());
                 all_out = false;
             } else if let Err(err) = std::fs::remove_file(&src) {
                 tracing::warn!("model {} is in both places and the installed copy will not delete: {err}", name.to_string_lossy());
@@ -275,14 +283,66 @@ pub fn move_models(from: &Path, to: &Path) -> bool {
         // install folder perfectly well; it is only the small update that
         // becomes unsafe, and the answer below says so.
         match std::fs::rename(&src, &dest) {
-            Ok(()) => tracing::info!("{} moved to {}", name.to_string_lossy(), to.display()),
+            Ok(()) => {
+                tracing::info!("{} moved to {}", name.to_string_lossy(), to.display());
+                moved.insert(src.with_extension("sha256"));
+            }
             Err(err) => {
                 tracing::warn!("{} stays in the install folder: {err}", name.to_string_lossy());
                 all_out = false;
             }
         }
     }
+    for src in markers {
+        let Some(name) = src.file_name() else { continue };
+        if src.with_extension("bin").exists() {
+            // Its model stayed here, so the marker stays with it.
+            continue;
+        }
+        let dest = to.join(name);
+        let done = if moved.contains(&src) {
+            std::fs::rename(&src, &dest)
+        } else {
+            // The model outside was already there. It keeps its own marker or
+            // none; this one described the copy that was just removed, and
+            // beside the other file it could vouch for bytes nobody checked.
+            std::fs::remove_file(&src)
+        };
+        if let Err(err) = done {
+            tracing::warn!("checksum marker {} could not be tidied: {err}", name.to_string_lossy());
+            all_out = false;
+        }
+    }
     all_out
+}
+
+/// Two files of the same length count as the same model when sixteen slices
+/// spread over the whole length match, the first and the last included. It
+/// reads one megabyte in all, so startup stays instant, and any different file
+/// of the same size fails it. Damage confined to
+/// the gap between two slices would pass; the size check the engine makes on
+/// every start has the same blind spot.
+fn same_samples(a: &Path, b: &Path, len: u64) -> std::io::Result<bool> {
+    use std::io::{Read, Seek, SeekFrom};
+    const SLICE: u64 = 64 * 1024;
+    const SLICES: u64 = 16;
+    let (mut fa, mut fb) = (std::fs::File::open(a)?, std::fs::File::open(b)?);
+    let (mut ba, mut bb) = (vec![0u8; SLICE as usize], vec![0u8; SLICE as usize]);
+    for i in 0..SLICES {
+        let at = if len <= SLICE { 0 } else { (len - SLICE) * i / (SLICES - 1) };
+        let n = SLICE.min(len - at) as usize;
+        fa.seek(SeekFrom::Start(at))?;
+        fb.seek(SeekFrom::Start(at))?;
+        fa.read_exact(&mut ba[..n])?;
+        fb.read_exact(&mut bb[..n])?;
+        if ba[..n] != bb[..n] {
+            return Ok(false);
+        }
+        if len <= SLICE {
+            break;
+        }
+    }
+    Ok(true)
 }
 
 pub fn find_model(id: &str) -> Option<(ModelSpec, PathBuf)> {
@@ -548,6 +608,18 @@ mod move_models_tests {
         assert!(!move_models(&from, &to), "the shipped copy is still in the install folder");
         assert!(from.join("ggml-large.bin").exists());
         assert_eq!(std::fs::read(to.join("ggml-large.bin")).unwrap(), b"a longer file the user downloaded");
+    }
+
+    #[test]
+    fn a_different_file_of_the_same_size_keeps_both_copies_and_the_marker() {
+        let (from, to) = playground("samesize");
+        write(&from, "ggml-large.bin", b"shipped weights");
+        write(&from, "ggml-large.sha256", b"abc123");
+        write(&to, "ggml-large.bin", b"damaged weights");
+        assert!(!move_models(&from, &to));
+        assert_eq!(std::fs::read(from.join("ggml-large.bin")).unwrap(), b"shipped weights");
+        assert!(from.join("ggml-large.sha256").exists(), "the marker stays with its model");
+        assert!(!to.join("ggml-large.sha256").exists(), "and never vouches for the other file");
     }
 
     #[test]

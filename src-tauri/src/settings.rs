@@ -361,8 +361,8 @@ impl Settings {
         for attempt in 0..5u64 {
             match std::fs::read(path) {
                 Ok(bytes) => {
-                    // A file saved as ANSI by an editor is not UTF-8; read what
-                    // can be read instead of throwing all of it away.
+                    // A file saved as ANSI by an editor is not UTF-8. Every
+                    // readable choice in it is kept.
                     let text = String::from_utf8(bytes).unwrap_or_else(|e| {
                         tracing::warn!("settings.json is not UTF-8; reading what can be read");
                         String::from_utf8_lossy(e.as_bytes()).into_owned()

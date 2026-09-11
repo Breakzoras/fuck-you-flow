@@ -9,8 +9,8 @@
 ;
 ; An old copy started "as administrator" cannot be closed from here (Windows
 ; answers Access is denied; seen on 11 September 2026). Then the user is asked
-; to quit it from the tray and press Retry, instead of ending up on the old
-; version without a word.
+; to quit it from the tray and press Retry, and always learns why the old
+; version is still there.
 !macro NSIS_HOOK_PREINSTALL
   nsExec::Exec 'taskkill /IM lalia.exe /F'
   Pop $0

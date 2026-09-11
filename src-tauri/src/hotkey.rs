@@ -672,8 +672,8 @@ mod win {
             // hundreds of processes (10 September 2026). A thread at normal
             // priority waits its turn behind all of them; this one sleeps in
             // GetMessage and runs for moments per key, so it can go first.
-            // HIGHEST rather than TIME_CRITICAL: ahead of ordinary threads
-            // without being able to starve the machine if it ever spins.
+            // HIGHEST puts it ahead of ordinary threads and still leaves
+            // the machine room to breathe if it ever spins.
             let _ = windows::Win32::System::Threading::SetThreadPriority(
                 windows::Win32::System::Threading::GetCurrentThread(),
                 windows::Win32::System::Threading::THREAD_PRIORITY_HIGHEST,

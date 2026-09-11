@@ -163,7 +163,7 @@ export default function App() {
     api
       .installUpdate()
       // The installer normally ends this process, so the line below runs only
-      // when it did not. Give the buttons back rather than leave it stuck.
+      // when it did not. Then the buttons come back and the card stays usable.
       .then(() => setUpdating(null))
       .catch((err) => {
         toast(String(err), "err");
