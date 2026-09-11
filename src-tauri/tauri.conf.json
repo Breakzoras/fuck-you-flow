@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Fuck You Flow",
   "mainBinaryName": "fuckyouflow",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "identifier": "gr.luram.lalia",
   "build": {
     "beforeDevCommand": "pnpm dev",

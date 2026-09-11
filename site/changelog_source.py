@@ -18,18 +18,99 @@ KINDS = {
 
 RELEASES = [
     {
-        "version": "0.9.5",
-        "date": "2026-09-10",
+        "version": "0.9.6",
+        "date": "2026-09-11",
         "summary": (
-            "The day the right Alt key stopped working. Proving it was never the key led to "
-            "twenty-three more faults, a rebuilt paste that lands on the first try, shortcuts "
-            "on the mouse, and the program finally carrying its own name.",
-            "Η μέρα που το δεξί Alt σταμάτησε να δουλεύει. Η απόδειξη ότι δεν έφταιγε ποτέ το "
-            "πλήκτρο οδήγησε σε άλλα είκοσι τρία λάθη, σε μια επικόλληση χτισμένη από την αρχή "
-            "που πετυχαίνει με την πρώτη, σε συντομεύσεις στο ποντίκι και στο να αποκτήσει "
-            "επιτέλους το πρόγραμμα το δικό του όνομα.",
+            "Versions 0.9.4 and 0.9.5 were never published, so this release carries both: the "
+            "right Alt key that stopped working and the twenty-three faults found while proving "
+            "it was never the key, a rebuilt paste, shortcuts on the mouse, the program's own "
+            "name, an update that now announces itself, and eleven fixes from a full audit.",
+            "Οι εκδόσεις 0.9.4 και 0.9.5 δεν δημοσιεύτηκαν ποτέ, οπότε αυτή η έκδοση φέρνει και "
+            "τις δύο: το δεξί Alt που σταμάτησε να δουλεύει και τα είκοσι τρία λάθη που βρέθηκαν "
+            "όσο αποδεικνυόταν ότι δεν έφταιγε ποτέ το πλήκτρο, μια επικόλληση χτισμένη από την "
+            "αρχή, συντομεύσεις στο ποντίκι, το δικό του όνομα για το πρόγραμμα, μια ενημέρωση "
+            "που πλέον ανακοινώνεται μόνη της και έντεκα διορθώσεις από έναν πλήρη έλεγχο.",
         ),
         "lines": [
+            ("added",
+             "The app looks for a new version a few seconds after it opens. When there is one, "
+             "its window comes to the front with a large Update now card in the middle, and if "
+             "you are dictating at that moment it waits until you finish. When there is nothing "
+             "newer, nothing appears. Check for updates is also in the tray menu.",
+             "Η εφαρμογή ψάχνει για νέα έκδοση λίγα δευτερόλεπτα αφού ανοίξει. Όταν υπάρχει, το "
+             "παράθυρό της έρχεται μπροστά με μια μεγάλη κάρτα Ενημέρωση τώρα στη μέση και αν "
+             "εκείνη τη στιγμή υπαγορεύετε, περιμένει να τελειώσετε. Όταν δεν υπάρχει κάτι νεότερο, "
+             "δεν εμφανίζεται τίποτα. Ο Έλεγχος για ενημερώσεις υπάρχει και στο μενού του εικονιδίου."),
+            ("fixed",
+             "Deleting a History entry that came from an audio file you transcribed also deleted "
+             "your original audio file, wherever it was on the disk. Only the copies the app made "
+             "itself are deleted now.",
+             "Η διαγραφή μιας εγγραφής του Ιστορικού που προερχόταν από αρχείο ήχου που "
+             "μεταγράψατε έσβηνε και το δικό σας αρχικό αρχείο, όπου κι αν βρισκόταν στον δίσκο. "
+             "Τώρα σβήνονται μόνο τα αντίγραφα που έφτιαξε η ίδια η εφαρμογή."),
+            ("fixed",
+             "Two rare faults could close the app in the middle of a dictation without a word: "
+             "unusual content on the clipboard, and a cleanup rule that ran too long on a long "
+             "transcript. In both cases the text is now kept as it is and the dictation carries on.",
+             "Δύο σπάνια λάθη μπορούσαν να κλείσουν την εφαρμογή στη μέση μιας υπαγόρευσης χωρίς "
+             "κουβέντα: ασυνήθιστο περιεχόμενο στο πρόχειρο και ένας κανόνας καθαρισμού που "
+             "κρατούσε πολύ σε μεγάλο κείμενο. Και στις δύο περιπτώσεις το κείμενο μένει πλέον "
+             "όπως είναι και η υπαγόρευση συνεχίζει."),
+            ("fixed",
+             "Installing over an older version could leave the old program running. The new one "
+             "then closed at once, and you stayed on the old version without being told. The "
+             "installer now closes the old one, and when Windows will not let it, it asks you to "
+             "quit it from the tray and try again.",
+             "Η εγκατάσταση πάνω σε παλαιότερη έκδοση μπορούσε να αφήσει το παλιό πρόγραμμα να "
+             "τρέχει. Το νέο έκλεινε αμέσως και μένατε στην παλιά έκδοση χωρίς να το ξέρετε. Ο "
+             "installer κλείνει πλέον το παλιό και όταν τα Windows δεν τον αφήνουν, σας ζητάει να "
+             "το κλείσετε από το εικονίδιο και να ξαναδοκιμάσετε."),
+            ("fixed",
+             "An old copy started after the new version had moved your data saw an empty history "
+             "and began a second one of its own. The two are now joined the next time the app "
+             "starts, and nothing is deleted.",
+             "Ένα παλιό αντίγραφο που ξεκινούσε αφού η νέα έκδοση είχε μεταφέρει τα δεδομένα σας "
+             "έβλεπε άδειο ιστορικό και ξεκινούσε δεύτερο δικό του. Τα δύο ενώνονται πλέον την "
+             "επόμενη φορά που ξεκινάει η εφαρμογή και δεν σβήνεται τίποτα."),
+            ("fixed",
+             "During the move to the new folder names, a folder that held only recordings or "
+             "logs could be deleted. It is now kept under another name.",
+             "Κατά τη μετακόμιση στα νέα ονόματα φακέλων, ένας φάκελος με μόνο ηχογραφήσεις ή "
+             "αρχεία καταγραφής μπορούσε να σβηστεί. Τώρα κρατιέται με άλλο όνομα."),
+            ("fixed",
+             "If the settings file could not be read for a moment, your choices were replaced by "
+             "the defaults. They are now kept, and a file that cannot be read is saved aside.",
+             "Αν το αρχείο ρυθμίσεων δεν διαβαζόταν για μια στιγμή, οι επιλογές σας "
+             "αντικαθίσταντο από τις προεπιλογές. Τώρα κρατιούνται και ένα αρχείο που δεν "
+             "διαβάζεται φυλάγεται στην άκρη."),
+            ("fixed",
+             "Delete all data left full copies of the history in the backup folder. They are "
+             "deleted too now.",
+             "Η Διαγραφή όλων των δεδομένων άφηνε ολόκληρα αντίγραφα του ιστορικού στον φάκελο "
+             "αντιγράφων ασφαλείας. Τώρα σβήνονται κι αυτά."),
+            ("fixed",
+             "After an update the Windows startup entry could keep naming the old program file, "
+             "which the installer had just removed. It now names the new one.",
+             "Μετά από ενημέρωση η αυτόματη εκκίνηση των Windows μπορούσε να δείχνει ακόμα το "
+             "παλιό αρχείο του προγράμματος, που ο installer είχε μόλις σβήσει. Τώρα δείχνει το νέο."),
+            ("fixed",
+             "Pressing the update button twice could start two downloads at once. A second "
+             "press is now turned down while the first download runs.",
+             "Δύο πατήματα στο κουμπί ενημέρωσης μπορούσαν να ξεκινήσουν δύο κατεβάσματα μαζί. "
+             "Ένα δεύτερο πάτημα απορρίπτεται πλέον όσο τρέχει το πρώτο κατέβασμα."),
+            ("fixed",
+             "A damaged speech model of the right size could make the app throw away the good "
+             "copy that came with the installer. The two files are now compared before either "
+             "is removed.",
+             "Ένα χαλασμένο μοντέλο φωνής με το σωστό μέγεθος μπορούσε να κάνει την εφαρμογή να "
+             "πετάξει το καλό αντίγραφο που ήρθε με τον installer. Τα δύο αρχεία συγκρίνονται "
+             "πλέον πριν σβηστεί οποιοδήποτε."),
+            ("changed",
+             "The part of the app that listens for keys now runs ahead of ordinary work, so a "
+             "busy machine is less likely to make Windows drop it.",
+             "Το κομμάτι της εφαρμογής που ακούει τα πλήκτρα τρέχει πλέον πριν από την υπόλοιπη "
+             "δουλειά του υπολογιστή, οπότε ένα φορτωμένο μηχάνημα έχει λιγότερες πιθανότητες να "
+             "κάνει τα Windows να το πετάξουν."),
             ("fixed",
              "The hotkey went dead for up to half a minute at a time. Windows removes the "
              "part of the app that listens for keys when one busy moment takes too long, "
@@ -38,8 +119,8 @@ RELEASES = [
              "Windows and none of them reached the app.",
              "Το πλήκτρο νέκρωνε ως και μισό λεπτό κάθε φορά. Τα Windows αφαιρούν το "
              "κομμάτι της εφαρμογής που ακούει τα πλήκτρα όταν μια στιγμή φόρτου κρατήσει "
-             "πολύ, χωρίς να το πουν πουθενά. Τώρα ξαναμπαίνει κάθε δευτερόλεπτο αντί για "
-             "κάθε τριάντα. Σε μηχάνημα στο φόρτο, έντεκα συνεχόμενα πατήματα έφτασαν στα "
+             "πολύ, χωρίς να το πουν πουθενά. Τώρα ξαναμπαίνει κάθε δευτερόλεπτο, ενώ πριν "
+             "ξαναέμπαινε κάθε τριάντα. Σε μηχάνημα στο φόρτο, έντεκα συνεχόμενα πατήματα έφτασαν στα "
              "Windows και κανένα στην εφαρμογή."),
             ("fixed",
              "Everything on the clipboard that was not plain text was destroyed by every "
