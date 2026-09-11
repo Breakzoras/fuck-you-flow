@@ -1,10 +1,10 @@
 {
   "version": "0.9.6",
   "notes": "Everything from 0.9.4 and 0.9.5 plus a full audit: the right Alt stays alive, a rebuilt paste, shortcuts on the mouse, safer handling of your files, and updates that announce themselves.",
-  "pub_date": "2026-09-11T14:21:25Z",
+  "pub_date": "2026-09-11T14:42:37Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUW54UTVteS8zWG1XSDkyTnQrU05PeUpYYU5PUkZsU0ttNWxpVnZiaUNubHFZR3A5SnBFT1VoWUFDK0l0cmQrVUN5bGhzVzB5Q0N3YW41M0Qxc2h3aXdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTM1ODg5CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuNl94NjQtc2V0dXAuZXhlCjkrc1Bhc1hXelVvWXVXU2ppQlQzdE81NWxzdkgyWmJOa0h2aDEzSWRWd0JyUFFPSVJWVDYyQ2lOOCtqc1VLcVBCd3orQ29YT3BzaCtMMHFDRVBmbkJRPT0K",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWxaSC9jenEzU1VxVXdtY2dUMFVFVFp5RGUzWTNBYmlyT1NXTGtRNm1ic2F3bjhqbUhXNEpCSElJQjZHUXRGVDc2QWJQMmw1c08yVGx0TlRhWDhZMVFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTM3NDY2CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuNl94NjQtc2V0dXAuZXhlCkdNVG9mdzh1UkIrVzdVSmRXODVaa2Fnc1ByL0FiUy9OOVA4RkFIWWl1QVZUcHBIOHNldm50ZzVOOXBXalFwbEdmZVVBY3BXdGRicGhNaHk3VkF0aUJBPT0K",
       "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.6/Fuck.You.Flow.Update.0.9.6.exe"
     }
   }
