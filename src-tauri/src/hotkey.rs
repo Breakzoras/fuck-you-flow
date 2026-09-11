@@ -411,6 +411,11 @@ pub fn reset_pressed_state() {
     let down = st.down.clone();
     st.last_down.retain(|vk, _| down.contains(vk));
     refresh_active(&mut st.bindings, &down);
+    // The Alt that stopped the recording is often still held here, and its
+    // release still needs the mask. Once no Alt is held, nothing is left to mask.
+    if !down.iter().any(|vk| matches!(*vk, VK_LMENU | VK_RMENU | VK_MENU)) {
+        st.alt_mask_pending = false;
+    }
 }
 
 /// A chord is active exactly while every key in it is held.
