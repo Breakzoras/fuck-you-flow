@@ -245,6 +245,8 @@ th { font-size: 13px; color: var(--fg-2); font-weight: 700; text-transform: uppe
   border: 2px solid var(--accent); background: var(--bg-2); color: var(--fg);
 }
 .update-card h2 { margin: 0 0 12px; font-size: 28px; color: var(--accent); }
+/* The title only parks the focus; it is not something to press. */
+.update-card h2:focus { outline: none; }
 .update-card .update-lead { margin: 0 0 12px; font-weight: 700; }
 .update-card .update-notes { margin: 0 0 16px; }
 .update-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, UserAttentionType } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, EngineInfo, PipelineSnapshot, Settings, UpdateInfo } from "./api";
 import { AppCtx, makeT, makeTk } from "./hooks";
@@ -112,15 +112,20 @@ export default function App() {
   // comes to the front with the update in the middle of it (Lu, 11 September
   // 2026). The app usually starts hidden in the tray, so the bar alone sat in
   // a window nobody opened and installed copies stayed old for days.
-  // Coming to the front takes the keyboard from the window that has it. During
-  // a dictation that is the window the text is about to land in, so the card
-  // waits until the dictation has finished.
+  // The check that runs by itself shows the window and flashes its taskbar
+  // button, and the keyboard stays where it was. Someone typing in another app
+  // a few seconds after logon would otherwise send the next Space or Enter into
+  // the card and start an install nobody asked for (pre-release review,
+  // 11 September 2026). "Check for updates" in the tray is a request, so that
+  // one takes the keyboard. A card that turns up during a dictation still waits
+  // until the dictation has finished.
   const wantFront = useRef(false);
-  const bringFront = useCallback(async () => {
+  const bringFront = useCallback(async (takeKeyboard: boolean) => {
     const w = getCurrentWindow();
     await w.unminimize().catch(() => {});
     await w.show().catch(() => {});
-    await w.setFocus().catch(() => {});
+    if (takeKeyboard) await w.setFocus().catch(() => {});
+    else await w.requestUserAttention(UserAttentionType.Informational).catch(() => {});
   }, []);
   const lookForUpdate = useCallback(async (manual: boolean) => {
     try {
@@ -133,7 +138,7 @@ export default function App() {
       setPrompt(true);
       // The tray menu already brought the window up; a manual check is never mid-dictation.
       const now = manual ? null : await api.snapshot().catch(() => null);
-      if (manual || now?.phase === "idle") await bringFront();
+      if (manual || now?.phase === "idle") await bringFront(manual);
       else wantFront.current = true;
     } catch (err) {
       if (manual) toast(`${t("update_failed")}: ${err}`, "err");
@@ -142,7 +147,7 @@ export default function App() {
   useEffect(() => {
     if (wantFront.current && snap?.phase === "idle") {
       wantFront.current = false;
-      void bringFront();
+      void bringFront(false);
     }
   }, [snap, bringFront]);
   // The listeners below live for the whole session; the ref hands them the
@@ -263,7 +268,8 @@ export default function App() {
               onKeyDown={(e) => { if (e.key === "Escape" && !updating) setPrompt(false); }}
             >
               <div className="update-card">
-                <h2 id="update-modal-title">{t("update_title")}</h2>
+                {/* The title holds the focus, so a stray Enter or Space presses nothing. */}
+                <h2 id="update-modal-title" tabIndex={-1} autoFocus>{t("update_title")}</h2>
                 <p className="update-lead">{t("update_ready").replace("{v}", update.version).replace("{c}", update.current)}</p>
                 {update.notes && <p className="update-notes">{update.notes}</p>}
                 {!update.small_download && <p className="muted">{t("update_big")}</p>}
@@ -277,9 +283,9 @@ export default function App() {
                   ) : (
                     <>
                       {update.small_download ? (
-                        <button className="primary" autoFocus onClick={startInstall}>{t("update_now")}</button>
+                        <button className="primary" onClick={startInstall}>{t("update_now")}</button>
                       ) : (
-                        <button className="primary" autoFocus onClick={() => { openUrl("https://fuckyouflow.app"); }}>{t("update_site")}</button>
+                        <button className="primary" onClick={() => { openUrl("https://fuckyouflow.app"); }}>{t("update_site")}</button>
                       )}
                       <button onClick={() => setPrompt(false)}>{t("update_later")}</button>
                     </>
