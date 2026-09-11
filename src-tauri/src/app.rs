@@ -229,7 +229,9 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             );
         }
     }
-    if changed {
+    // Never on top of a file that could not be read: that would replace the
+    // user's real choices with the defaults this run started from.
+    if changed && !crate::settings::read_failed() {
         let _ = settings.save(&crate::paths::settings_file());
     }
     let settings = settings;

@@ -94,7 +94,7 @@ impl DictionaryEngine {
             if c.exceptions.iter().any(|ctx| !ctx.is_empty() && out.contains(ctx.as_str())) {
                 continue;
             }
-            let replaced = c.regex.replace_all(&out, |caps: &fancy_regex::Captures<_>| preserve_case(&caps[0], &c.rule.correct)).to_string();
+            let replaced = super::replace_all_or_keep(&c.regex, &out, |caps: &fancy_regex::Captures<_>| preserve_case(&caps[0], &c.rule.correct)).to_string();
             if replaced != out {
                 applied.push(format!("{} -> {}", c.rule.wrong, c.rule.correct));
                 rule_ids.push(c.rule.id.clone());

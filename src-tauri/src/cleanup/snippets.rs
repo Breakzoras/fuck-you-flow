@@ -52,7 +52,7 @@ impl SnippetEngine {
         for c in &self.items {
             if c.regex.is_match(&out).unwrap_or(false) {
                 let expansion = c.snippet.expansion.clone();
-                let replaced = c.regex.replace_all(&out, expansion.as_str()).to_string();
+                let replaced = super::replace_all_or_keep(&c.regex, &out, expansion.as_str()).to_string();
                 if replaced != out {
                     applied.push(c.snippet.trigger.clone());
                     ids.push(c.snippet.id.clone());

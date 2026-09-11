@@ -341,23 +341,58 @@ impl Default for LanguageModeSetting {
     }
 }
 
+/// Set when settings.json exists but could not be read at all this run.
+static READ_FAILED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// True when this run started from defaults because the file would not open.
+/// The startup save checks it, so the defaults never land on top of the real
+/// file (audit, 11 September 2026).
+pub fn read_failed() -> bool {
+    READ_FAILED.load(std::sync::atomic::Ordering::SeqCst)
+}
+
 impl Settings {
     pub fn load(path: &Path) -> Self {
-        match std::fs::read_to_string(path) {
-            // Notepad and PowerShell write UTF-8 with a byte-order mark, which
-            // serde_json rejects as "expected value at line 1 column 1".
-            Ok(text) => {
-                let text = text.trim_start_matches('\u{feff}');
-                match serde_json::from_str::<Settings>(text) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        tracing::warn!("settings.json has something the app cannot read ({e}); keeping every part that still makes sense");
-                        let _ = std::fs::copy(path, path.with_extension("json.bak"));
-                        Settings::salvage(text)
-                    }
+        // Another program holding the file for a moment (antivirus, a backup or
+        // sync tool) fails the read with a sharing error. Any error used to
+        // mean defaults, and the startup save then wrote those defaults over
+        // the user's real choices. Wait the moment out first.
+        let mut last_err = None;
+        for attempt in 0..5u64 {
+            match std::fs::read(path) {
+                Ok(bytes) => {
+                    // A file saved as ANSI by an editor is not UTF-8; read what
+                    // can be read instead of throwing all of it away.
+                    let text = String::from_utf8(bytes).unwrap_or_else(|e| {
+                        tracing::warn!("settings.json is not UTF-8; reading what can be read");
+                        String::from_utf8_lossy(e.as_bytes()).into_owned()
+                    });
+                    return Self::parse(path, &text);
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Settings::default(),
+                Err(e) => {
+                    last_err = Some(e);
+                    std::thread::sleep(std::time::Duration::from_millis(100 * (attempt + 1)));
                 }
             }
-            Err(_) => Settings::default(),
+        }
+        tracing::warn!("settings.json could not be opened ({:?}); running on defaults and leaving the file as it is", last_err);
+        let _ = std::fs::copy(path, path.with_extension("json.unread.bak"));
+        READ_FAILED.store(true, std::sync::atomic::Ordering::SeqCst);
+        Settings::default()
+    }
+
+    fn parse(path: &Path, text: &str) -> Self {
+        // Notepad and PowerShell write UTF-8 with a byte-order mark, which
+        // serde_json rejects as "expected value at line 1 column 1".
+        let text = text.trim_start_matches('\u{feff}');
+        match serde_json::from_str::<Settings>(text) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("settings.json has something the app cannot read ({e}); keeping every part that still makes sense");
+                let _ = std::fs::copy(path, path.with_extension("json.bak"));
+                Settings::salvage(text)
+            }
         }
     }
 
@@ -404,7 +439,14 @@ impl Settings {
             std::fs::create_dir_all(parent)?;
         }
         let tmp = path.with_extension("json.tmp");
-        std::fs::write(&tmp, serde_json::to_string_pretty(self)?)?;
+        {
+            // On the disk before the rename, so a power cut cannot leave an
+            // empty settings.json behind a successful-looking save.
+            use std::io::Write;
+            let mut f = std::fs::File::create(&tmp)?;
+            f.write_all(serde_json::to_string_pretty(self)?.as_bytes())?;
+            f.sync_all()?;
+        }
         std::fs::rename(&tmp, path)?;
         Ok(())
     }
@@ -413,6 +455,27 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A file an editor saved as ANSI is not UTF-8. It used to count as
+    /// unreadable and every choice went back to its default.
+    #[test]
+    fn a_file_that_is_not_utf8_keeps_its_choices() {
+        let dir = std::env::temp_dir().join(format!("fyf-settings-ansi-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        let mut s = Settings::default();
+        s.hotkeys.hands_free = "F13".into();
+        s.general.ui_language = "el".into();
+        let mut bytes = serde_json::to_vec(&s).unwrap();
+        // Replace the "F13" value with "F13\xE9": one Latin-1 byte, invalid UTF-8.
+        let pos = bytes.windows(5).position(|w| w == b"\"F13\"").unwrap();
+        bytes.insert(pos + 4, 0xE9);
+        std::fs::write(&path, &bytes).unwrap();
+        let got = Settings::load(&path);
+        assert_eq!(got.general.ui_language, "el", "the rest of the file survived");
+        assert!(!read_failed());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     /// One word the app does not know must not cost the user everything else
     /// they ever set. Before this, a single bad value reset the shortcut, the

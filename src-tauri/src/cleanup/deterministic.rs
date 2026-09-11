@@ -82,7 +82,7 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
 
     if o.intensity == CleanupIntensity::Strong {
         let before = text.clone();
-        text = REPEAT_WORD.replace_all(&text, "$1").to_string();
+        text = super::replace_all_or_keep(&REPEAT_WORD, &text, "$1").to_string();
         if text != before {
             applied.push("removed repeated word".into());
         }
@@ -140,7 +140,7 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
 
 fn strip_noise_tags(text: &str) -> String {
     static TAGS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\s*[\[\(](?:music|applause|laughter|noise|silence|blank_audio|inaudible|μουσική|γέλια|χειροκρότημα|ήχος|σιωπή)[^\]\)]*[\]\)]\s*").unwrap());
-    let t = TAGS.replace_all(text, " ").to_string();
+    let t = super::replace_all_or_keep(&TAGS, text, " ").to_string();
     let t = t.trim_start_matches(|c: char| c == '-' || c == '–' || c == ' ');
     t.to_string()
 }
@@ -171,40 +171,40 @@ static FILLERS_STRONG: Lazy<Regex> = Lazy::new(|| {
 });
 
 fn remove_fillers(text: &str, intensity: &CleanupIntensity) -> String {
-    let mut t = FILLERS_LIGHT.replace_all(text, "").to_string();
+    let mut t = super::replace_all_or_keep(&FILLERS_LIGHT, text, "").to_string();
     if matches!(intensity, CleanupIntensity::Strong) {
-        t = FILLERS_NORMAL.replace_all(&t, "").to_string();
+        t = super::replace_all_or_keep(&FILLERS_NORMAL, &t, "").to_string();
     }
     if matches!(intensity, CleanupIntensity::Strong) {
-        t = FILLERS_STRONG.replace_all(&t, "").to_string();
+        t = super::replace_all_or_keep(&FILLERS_STRONG, &t, "").to_string();
     }
     // a filler often leaves ", ," or " , " behind
     static ORPHAN_COMMA: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*,\s*,+").unwrap());
     static LEADING_COMMA: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?:\s*[,;:.!?])+\s*").unwrap());
     static COMMA_BEFORE_END: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*,\s*([.!?;])").unwrap());
-    t = ORPHAN_COMMA.replace_all(&t, ",").to_string();
-    t = LEADING_COMMA.replace_all(&t, "").to_string();
-    t = COMMA_BEFORE_END.replace_all(&t, "$1").to_string();
+    t = super::replace_all_or_keep(&ORPHAN_COMMA, &t, ",").to_string();
+    t = super::replace_all_or_keep(&LEADING_COMMA, &t, "").to_string();
+    t = super::replace_all_or_keep(&COMMA_BEFORE_END, &t, "$1").to_string();
     t
 }
 
 fn resolve_self_corrections(text: &str) -> String {
-    let t = SELF_CORR_EN.replace_all(text, "$2").to_string();
-    SELF_CORR_EL.replace_all(&t, "$2").to_string()
+    let t = super::replace_all_or_keep(&SELF_CORR_EN, text, "$2").to_string();
+    super::replace_all_or_keep(&SELF_CORR_EL, &t, "$2").to_string()
 }
 
 fn normalize_spacing(text: &str) -> String {
-    let t = WS.replace_all(text.trim(), " ").to_string();
-    let t = SPACE_BEFORE_PUNCT.replace_all(&t, "$1").to_string();
-    let t = DOUBLE_PUNCT.replace_all(&t, "$1").to_string();
+    let t = super::replace_all_or_keep(&WS, text.trim(), " ").to_string();
+    let t = super::replace_all_or_keep(&SPACE_BEFORE_PUNCT, &t, "$1").to_string();
+    let t = super::replace_all_or_keep(&DOUBLE_PUNCT, &t, "$1").to_string();
     // ensure a space after sentence punctuation when followed by a letter; for the
     // period only when an uppercase letter follows, so "example.com" and
     // "file.bin" stay intact
     static AFTER_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"([!?;,])(\p{L})|(\.)(\p{Lu})").unwrap());
-    let t = AFTER_PUNCT.replace_all(&t, "$1$3 $2$4").to_string();
+    let t = super::replace_all_or_keep(&AFTER_PUNCT, &t, "$1$3 $2$4").to_string();
     // repair URLs and domains damaged by the previous rule ("example. com")
     static DOMAIN_FIX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b([a-z0-9-]+)\. (com|gr|io|net|org|eu|ai|dev|app|co|uk|de|fr|info)\b").unwrap());
-    DOMAIN_FIX.replace_all(&t, "$1.$2").to_string()
+    super::replace_all_or_keep(&DOMAIN_FIX, &t, "$1.$2").to_string()
 }
 
 fn capitalize_sentences(text: &str) -> String {

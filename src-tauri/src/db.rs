@@ -889,6 +889,9 @@ impl Db {
         conn.execute_batch(
             "DELETE FROM history; DELETE FROM dictionary; DELETE FROM dictionary_exceptions; DELETE FROM snippets; DELETE FROM learning_events; DELETE FROM suggestions; DELETE FROM app_styles; DELETE FROM stats_daily;",
         )?;
+        // Deleted rows stay readable in the file's free pages until they are
+        // reused. "Delete everything" has to mean the file too.
+        conn.execute_batch("VACUUM;")?;
         Ok(())
     }
 }

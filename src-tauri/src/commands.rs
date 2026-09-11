@@ -573,9 +573,19 @@ pub fn export_all_data(state: State<'_, Arc<AppState>>) -> R<String> {
 #[tauri::command(async)]
 pub fn delete_all_data(state: State<'_, Arc<AppState>>) -> R<()> {
     state.shared.db.wipe_everything().map_err(e)?;
-    let _ = std::fs::remove_dir_all(crate::paths::local_dir().join("audio"));
+    let _ = std::fs::remove_dir_all(crate::paths::audio_dir());
     let _ = std::fs::remove_dir_all(crate::paths::recovery_dir());
     let _ = std::fs::create_dir_all(crate::paths::recovery_dir());
+    // The daily safety copies and the pre-migration copies hold the whole
+    // history too. Leaving them made "delete everything" keep 14 days of it.
+    let _ = std::fs::remove_dir_all(crate::paths::config_dir().join("backup"));
+    if let Ok(entries) = std::fs::read_dir(crate::paths::config_dir()) {
+        for entry in entries.flatten() {
+            if entry.file_name().to_string_lossy().ends_with(".bak") {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
     crate::app::reload_engines(&state);
     Ok(())
 }

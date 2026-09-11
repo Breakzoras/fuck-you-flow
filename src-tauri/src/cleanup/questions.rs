@@ -63,18 +63,17 @@ pub fn spoken_marks(text: &str) -> String {
         fancy_regex::Regex::new(r"(?i)[\s,]*(?<!\b(?:το|στο|του|ένα|τα|a|the)\s)\b(ερωτηματικό|ερωτηματικο|question mark|θαυμαστικό|θαυμαστικο|exclamation mark)\b[.!?;]*(?=\s|$)").unwrap()
     });
     let greek = looks_greek(text);
-    SPOKEN
-        .replace_all(text, |caps: &fancy_regex::Captures<'_, str>| {
-            let word = caps.get(1).map(|m| m.as_str().to_lowercase()).unwrap_or_default();
-            if word.starts_with("θαυμ") || word.starts_with("exclam") {
-                "!".to_string()
-            } else if greek || word.starts_with("ερωτ") {
-                ";".to_string()
-            } else {
-                "?".to_string()
-            }
-        })
-        .to_string()
+    super::replace_all_or_keep(&SPOKEN, text, |caps: &fancy_regex::Captures<'_, str>| {
+        let word = caps.get(1).map(|m| m.as_str().to_lowercase()).unwrap_or_default();
+        if word.starts_with("θαυμ") || word.starts_with("exclam") {
+            "!".to_string()
+        } else if greek || word.starts_with("ερωτ") {
+            ";".to_string()
+        } else {
+            "?".to_string()
+        }
+    })
+    .to_string()
 }
 
 /// Adds a question mark to every sentence whose wording makes it a question.

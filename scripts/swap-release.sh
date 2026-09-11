@@ -42,10 +42,26 @@ fi
 
 taskkill //F //IM fuckyouflow.exe >/dev/null 2>&1 && echo "stopped running instance"
 sleep 2
+if tasklist //FI "IMAGENAME eq fuckyouflow.exe" //NH 2>/dev/null | grep -qi "fuckyouflow.exe"; then
+  echo "REFUSED: the running copy would not close (started as administrator?). Quit it from the tray, then run this again."; exit 4
+fi
 taskkill //F //IM whisper-server.exe >/dev/null 2>&1
-# run from a copy outside the build tree, so the next build can replace fuckyouflow.exe
-RUN_DIR="$LOCALAPPDATA/FuckYouFlow/running"; mkdir -p "$RUN_DIR"; cp "$EXE" "$RUN_DIR/fuckyouflow.exe"
-cmd //c start "" "$(cygpath -w "$RUN_DIR/fuckyouflow.exe")" && echo "launched copy of $EXE"
+# Run from a copy outside the build tree (so the next build can replace the
+# exe) AND outside AppData. A shell inside the Claude desktop app lives in its
+# MSIX container: anything it writes under AppData lands in a private store
+# only Claude can see, and anything it launches runs inside that container too.
+# Until 11 September 2026 this script did both, so the "installed" copy and
+# its files existed for Claude alone, the Run key pointed at a path Windows
+# could not find, and nothing started at logon.
+RUN_DIR="/c/Claude Projects/fyf-run"; mkdir -p "$RUN_DIR"
+cp "$EXE" "$RUN_DIR/fuckyouflow.exe"
+if [ ! -d "$RUN_DIR/bundled/engine-vulkan" ] && [ -d "$ROOT/src-tauri/target/release/bundled" ]; then
+  cp -r "$ROOT/src-tauri/target/release/bundled" "$RUN_DIR/"
+fi
+# Started by Task Scheduler, the process is outside the container. The task
+# hands the exe to Explorer, so the app is Explorer's child like any click and
+# is not bound to the task's run-time limit.
+powershell -NoProfile -Command "\$a = New-ScheduledTaskAction -Execute \"\$env:WINDIR\\explorer.exe\" -Argument '\"C:\\Claude Projects\\fyf-run\\fuckyouflow.exe\"'; \$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 5); Register-ScheduledTask -TaskName FYFRun -Action \$a -Settings \$s -Force | Out-Null; Start-ScheduledTask -TaskName FYFRun" && echo "launched $RUN_DIR/fuckyouflow.exe outside the container"
 sleep 8
 grep -E "starting|hook installed|whisper-server ready|settings.json|ERROR" "$LOG" | tail -3
 rm -f "$ROOT/src-tauri/target/release/fuckyouflow-running.exe"
