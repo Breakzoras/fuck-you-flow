@@ -667,6 +667,17 @@ mod win {
 
     pub fn run_hook_thread() {
         unsafe {
+            // Windows drops a low-level hook whose callback misses the
+            // timeout, and the measured deaths all came at 100% CPU with
+            // hundreds of processes (10 September 2026). A thread at normal
+            // priority waits its turn behind all of them; this one sleeps in
+            // GetMessage and runs for moments per key, so it can go first.
+            // HIGHEST rather than TIME_CRITICAL: ahead of ordinary threads
+            // without being able to starve the machine if it ever spins.
+            let _ = windows::Win32::System::Threading::SetThreadPriority(
+                windows::Win32::System::Threading::GetCurrentThread(),
+                windows::Win32::System::Threading::THREAD_PRIORITY_HIGHEST,
+            );
             let hmod = GetModuleHandleW(None).ok().map(|h| windows::Win32::Foundation::HINSTANCE(h.0));
             let hook = match SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_proc), hmod, 0) {
                 Ok(h) => h,
