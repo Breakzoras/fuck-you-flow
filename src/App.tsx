@@ -144,6 +144,13 @@ export default function App() {
       if (manual) toast(`${t("update_failed")}: ${err}`, "err");
     }
   }, [t, toast, bringFront]);
+  // The card's title holds the focus, so a stray Enter or Space presses nothing
+  // and Escape still reaches the card. React's autoFocus moves the focus only
+  // for form fields and buttons, so the title is focused here.
+  const updateTitle = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (update && prompt) updateTitle.current?.focus();
+  }, [update, prompt]);
   useEffect(() => {
     if (wantFront.current && snap?.phase === "idle") {
       wantFront.current = false;
@@ -268,8 +275,7 @@ export default function App() {
               onKeyDown={(e) => { if (e.key === "Escape" && !updating) setPrompt(false); }}
             >
               <div className="update-card">
-                {/* The title holds the focus, so a stray Enter or Space presses nothing. */}
-                <h2 id="update-modal-title" tabIndex={-1} autoFocus>{t("update_title")}</h2>
+                <h2 id="update-modal-title" ref={updateTitle} tabIndex={-1}>{t("update_title")}</h2>
                 <p className="update-lead">{t("update_ready").replace("{v}", update.version).replace("{c}", update.current)}</p>
                 {update.notes && <p className="update-notes">{update.notes}</p>}
                 {!update.small_download && <p className="muted">{t("update_big")}</p>}
