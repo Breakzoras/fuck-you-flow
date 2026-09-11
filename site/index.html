@@ -384,6 +384,9 @@ background:transparent;width:23%}
 table.bill td:nth-child(2){color:var(--muted)}
 table.bill td:last-child{color:var(--fg);font-weight:700}
 .price-tag{display:block;font-size:15px;font-weight:400;color:var(--muted);margin-top:4px}
+/* each product wears its own square icon beside its name (Lu, 11 September 2026) */
+.th-name{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.th-ico{width:40px;height:40px;flex:none;display:block;border-radius:9px;border:1px solid var(--line)}
 
 /* honourable mentions */
 .thanks{list-style:none;display:grid;gap:20px;
@@ -684,7 +687,7 @@ table.bill td:first-child{width:auto}
     </div>
     <div class="tbl">
       <table class="bill">
-        <thead><tr><th scope="col">Feature</th><th scope="col">Wispr Flow<span class="price-tag">Pro: 12 to 15 dollars a month</span></th><th scope="col">Fuck You Flow<span class="price-tag">Free local dictation</span></th></tr></thead>
+        <thead><tr><th scope="col">Feature</th><th scope="col"><span class="th-name">Wispr Flow<img class="th-ico" src="/assets/wispr-flow-icon.png" width="40" height="40" alt="Wispr Flow icon" loading="lazy"></span><span class="price-tag">Pro: 12 to 15 dollars a month</span></th><th scope="col"><span class="th-name">Fuck You Flow<img class="th-ico" src="/assets/icon-256.png" width="40" height="40" alt="Fuck You Flow icon" loading="lazy"></span><span class="price-tag">Free local dictation</span></th></tr></thead>
         <tbody>
           <tr><td>Price</td><td>Free desktop plan; paid Pro for unlimited dictation</td><td>Current local app: free under MIT</td></tr>
           <tr><td>Words per week</td><td>2,000 on the free desktop plan</td><td>As many as you can say</td></tr>
@@ -980,12 +983,14 @@ table.bill td:first-child{width:auto}
 
    Near a real mouse the particles step aside. The drawing stops when the band
    scrolls out of view or the tab is hidden. With reduced motion, without WebGL,
-   or if the card cannot hold 25 frames a second even after halving the count,
+   or if the card cannot hold 25 frames a second even after halving the count
+   (checked every 120 frames), or loses its context,
    the still picture underneath stays as it was (Lu, 11 September 2026). */
 (function () {
   var host = document.getElementById("wave-band");
-  if (!host || !window.matchMedia) return;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!host || !window.matchMedia || !("IntersectionObserver" in window)) return;
+  var motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  if (motion.matches) return;
 
   var canvas = document.createElement("canvas");
   canvas.setAttribute("aria-hidden", "true");
@@ -1068,7 +1073,7 @@ table.bill td:first-child{width:auto}
     " vec2 d=(p-u_mouse)*u_res;",
     " float L=length(d);",
     " float R=110.*u_dpr;",
-    " float push=smoothstep(R,0.,L)*u_push;",
+    " float push=(1.-smoothstep(0.,R,L))*u_push;",
     " p+=d/max(L,1.)*push*R*.6/u_res;",
     " gl_Position=vec4(p*2.-1.,0.,1.);",
     " gl_PointSize=max(1.,size);",
@@ -1079,7 +1084,7 @@ table.bill td:first-child{width:auto}
   var DOT_FS = [
     "precision mediump float;varying float v_a;",
     "void main(){vec2 d=gl_PointCoord-.5;float r=length(d)*2.;",
-    " float core=smoothstep(1.,.3,r);float glow=smoothstep(1.,0.,r)*.3;",
+    " float core=1.-smoothstep(.3,1.,r);float glow=(1.-smoothstep(0.,1.,r))*.3;",
     " gl_FragColor=vec4(vec3(.784,1.,.353)*(core+glow)*v_a,1.);}"
   ].join("\n");
 
@@ -1117,10 +1122,14 @@ table.bill td:first-child{width:auto}
   ["u_res", "u_time", "u_dpr"].forEach(function (n) { WU[n] = gl.getUniformLocation(waveP, n); });
   ["u_res", "u_time", "u_dpr", "u_mouse", "u_push"].forEach(function (n) { DU[n] = gl.getUniformLocation(dotP, n); });
 
+  /* the band is measured once, then again on resize and scroll, never per frame */
+  var cw = 1, ch = 1, rect = null;
+  function measure() { cw = host.clientWidth; ch = host.clientHeight; rect = host.getBoundingClientRect(); }
+  measure();
   /* a phone gets half the particles and no extra resolution; so does a slow card */
   var count = MAX, dprCap = 1.5, slow = false;
   function tune() {
-    var small = host.clientWidth < 720;
+    var small = cw < 720;
     count = (small || slow) ? MAX / 2 : MAX;
     dprCap = (small || slow) ? 1 : 1.5;
   }
@@ -1131,8 +1140,8 @@ table.bill td:first-child{width:auto}
 
   function draw() {
     var dpr = Math.min(window.devicePixelRatio || 1, dprCap);
-    var w = Math.max(1, Math.round(host.clientWidth * dpr));
-    var h = Math.max(1, Math.round(host.clientHeight * dpr));
+    var w = Math.max(1, Math.round(cw * dpr));
+    var h = Math.max(1, Math.round(ch * dpr));
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     gl.viewport(0, 0, w, h);
 
@@ -1162,7 +1171,7 @@ table.bill td:first-child{width:auto}
     gl.disableVertexAttribArray(dotA);
   }
 
-  /* the frame clock: after 120 frames, below 25 a second means halve; twice means give up */
+  /* the frame clock: every 120 frames, below 25 a second means halve; a second time means give up */
   var frames = 0, ema = 16, gaveUp = false;
   function loop(now) {
     var dt = Math.min(now - last, 100);
@@ -1172,8 +1181,8 @@ table.bill td:first-child{width:auto}
     draw();
     frames++;
     if (frames > 20) ema += (dt - ema) * 0.05;
-    if ((frames === 120 || frames === 240) && ema > 40) {
-      if (!slow) { slow = true; tune(); }
+    if (frames % 120 === 0 && ema > 40) {
+      if (!slow) { slow = true; tune(); ema = 16; }
       else { giveUp(); return; }
     }
     raf = requestAnimationFrame(loop);
@@ -1185,21 +1194,22 @@ table.bill td:first-child{width:auto}
   host.appendChild(canvas);
   draw();
   host.classList.add("live");
-  window.addEventListener("resize", function () { tune(); if (!running) draw(); });
+  window.addEventListener("resize", function () { measure(); tune(); if (!running) draw(); });
+  window.addEventListener("scroll", measure, { passive: true });
 
   var seen = true;
   var sync = function () { (seen && !document.hidden) ? start() : stop(); };
-  if ("IntersectionObserver" in window) {
-    new IntersectionObserver(function (e) { seen = e[0].isIntersecting; sync(); }, { threshold: 0 }).observe(host);
-  }
+  new IntersectionObserver(function (e) { seen = e[0].isIntersecting; sync(); }, { threshold: 0 }).observe(host);
   document.addEventListener("visibilitychange", sync);
   sync();
+  /* 3. the visitor asks for less motion while the page is open; 4. the card loses its context */
+  if (motion.addEventListener) motion.addEventListener("change", function (e) { if (e.matches) giveUp(); });
+  canvas.addEventListener("webglcontextlost", giveUp);
 
   if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
     window.addEventListener("pointermove", function (e) {
       if ((e.pointerType && e.pointerType !== "mouse") || !running) return;
-      var r = host.getBoundingClientRect();
-      var x = (e.clientX - r.left) / r.width, y = 1 - (e.clientY - r.top) / r.height;
+      var x = (e.clientX - rect.left) / rect.width, y = 1 - (e.clientY - rect.top) / rect.height;
       if (x < -0.05 || x > 1.05 || y < -0.2 || y > 1.2) { pushT = 0; return; }
       mx = x; my = y; pushT = 1;
     }, { passive: true });
