@@ -216,6 +216,9 @@ background:transparent}
 .btn-acid:hover{background:var(--acid-deep);border-color:var(--acid-deep)}
 .btn-coral{border-color:var(--coral);color:var(--coral-text)}
 .btn-coral:hover{background:var(--coral);color:var(--coral-fg);border-color:var(--coral)}
+/* the download button carries the version under its label, from the same release facts as the page */
+.btn-l{display:flex;flex-direction:column;align-items:center;line-height:1.15;padding:8px 0}
+.btn-v{font-size:15px;font-weight:600;opacity:.82;margin-top:3px;letter-spacing:.01em}
 /* the four panes of the Windows mark, in the button's own ink */
 .winmark{margin-right:11px;flex:none}
 /* the reason the thing exists, said out loud */
@@ -307,6 +310,9 @@ background:var(--bg2);overflow:hidden;width:100%;height:clamp(180px,21vw,300px)}
    across the photograph. */
 .band::after{content:"";position:absolute;inset:0;pointer-events:none;
 background:linear-gradient(90deg,#000 0%,transparent 14%,transparent 86%,#000 100%)}
+/* the live drawing sits on the still picture and fades in once its first frame is up */
+.band canvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .8s}
+.band.live canvas{opacity:1}
 /* the quote and the receipt sit side by side under the table */
 .close{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:44px;
 align-items:center;margin-top:44px}
@@ -489,7 +495,7 @@ table.bill td:first-child{width:auto}
       <h1 id="h1">Δωρεάν υπαγόρευση στα ελληνικά για Windows.</h1>
       <p class="lead">Γράψτε με τη φωνή σας. Το FU Flow μετατρέπει ελληνική και αγγλική ομιλία σε κείμενο στις εφαρμογές των Windows με τοπικό Whisper. Χωρίς συνδρομή, εβδομαδιαίο όριο λέξεων ή λογαριασμό για τοπική υπαγόρευση. Από τη Luram AI Agency στη Θεσσαλονίκη.</p>
       <div class="cta">
-        <a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.6/Fuck.You.Flow.Setup.0.9.6.exe"><svg class="winmark" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path fill="currentColor" d="M1 1h10v10H1zM13 1h10v10H13zM1 13h10v10H1zM13 13h10v10H13z"/></svg>Κατεβάστε το για Windows</a>
+        <a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.6/Fuck.You.Flow.Setup.0.9.6.exe"><svg class="winmark" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path fill="currentColor" d="M1 1h10v10H1zM13 1h10v10H13zM1 13h10v10H1zM13 13h10v10H13z"/></svg><span class="btn-l"><span class="btn-t">Κατεβάστε το για Windows</span><small class="btn-v">Έκδοση 0.9.6</small></span></a>
         <a class="btn btn-coral" href="https://github.com/Breakzoras/fuck-you-flow">Δείτε τον κώδικα</a>
       </div>
       <p class="fine">Windows 10 και 11. Έκδοση 0.9.6 beta. 1,7 GB με τα μοντέλα ομιλίας μέσα. Η τοπική υπαγόρευση λειτουργεί χωρίς ίντερνετ μετά την εγκατάσταση. Άδεια MIT. Το άθροισμα ελέγχου SHA256 βρίσκεται στη <a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.6">σελίδα της έκδοσης</a>. Τι άλλαξε σε κάθε έκδοση βρίσκεται στο <a href="/el/changelog/">ιστορικό αλλαγών</a>.</p>
@@ -666,7 +672,7 @@ table.bill td:first-child{width:auto}
   </div>
 </section>
 
-<div class="band" role="img" aria-label="Ένα πράσινο ηχητικό κύμα στα αριστερά διαλύεται σε σωματίδια που κατακάθονται σε σειρές γραφής στα δεξιά.">
+<div class="band" id="wave-band" role="img" aria-label="Ένα πράσινο ηχητικό κύμα στα αριστερά διαλύεται σε σωματίδια που κατακάθονται σε σειρές γραφής στα δεξιά.">
   <img src="/assets/art-wave-letters.webp" width="1916" height="821" alt="">
 </div>
 
@@ -952,6 +958,253 @@ table.bill td:first-child{width:auto}
     new IntersectionObserver(function (e) { seen = e[0].isIntersecting; sync(); },
       { threshold: 0 }).observe(host);
     document.addEventListener("visibilitychange", sync);
+  }
+})();
+</script>
+<script>
+/* The wave band: the voice on the left turns into the writing on the right.
+
+   Everything here is drawn by the visitor's graphics card while the band is on
+   screen; nothing extra is downloaded. Two passes on one canvas.
+
+   1. The sound wave. A fragment program paints thin bars whose heights follow a
+      made-up voice: words, syllables and pauses, all read from smooth noise, so
+      it flows to the right like a recording and never repeats. Past the middle
+      the bars are bitten into pieces and fade out.
+   2. The particles. Each one is a single GL point. Its whole life is a formula
+      of time and four random numbers baked in once at load: born at the tip of
+      a bar (the bar height at its birth is recomputed from the same voice
+      formula), it flies to one of the five rows of writing, sits there and
+      twinkles, fades, and is born again. The processor never touches a particle
+      after load, which is what keeps this cheap on a weak card.
+
+   Near a real mouse the particles step aside. The drawing stops when the band
+   scrolls out of view or the tab is hidden. With reduced motion, without WebGL,
+   or if the card cannot hold 25 frames a second even after halving the count,
+   the still picture underneath stays as it was (Lu, 11 September 2026). */
+(function () {
+  var host = document.getElementById("wave-band");
+  if (!host || !window.matchMedia) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  var canvas = document.createElement("canvas");
+  canvas.setAttribute("aria-hidden", "true");
+  var gl = canvas.getContext("webgl", { antialias: false, alpha: false, depth: false, stencil: false });
+  if (!gl) return;
+
+  /* shared by both programs: the noise and the voice read from it.
+     The voice flows 26 bar cells a second; a cell is 4.5 CSS pixels wide. */
+  var NOISE = [
+    "float hash(float n){return fract(sin(n)*43758.5453);}",
+    "float noise1(float x){float i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(hash(i),hash(i+1.),f);}",
+    "float voice(float s){float w=smoothstep(.32,.52,noise1(s*.045+3.7));",
+    " float y=noise1(s*.21+11.);float g=.55+.45*noise1(s*1.9+5.);return w*pow(y,1.4)*g;}",
+    "float cellw(float d){return max(3.,4.5*d);}"
+  ].join("\n");
+
+  var WAVE_FS = [
+    "precision highp float;",
+    "uniform vec2 u_res;uniform float u_time;uniform float u_dpr;",
+    NOISE,
+    "float noise2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);float k=dot(i,vec2(1.,57.));",
+    " return mix(mix(hash(k),hash(k+1.),f.x),mix(hash(k+57.),hash(k+58.),f.x),f.y);}",
+    "void main(){",
+    " vec2 px=gl_FragCoord.xy;",
+    " float x=px.x/u_res.x;",
+    " float yc=px.y-u_res.y*.5;",
+    " float sp=cellw(u_dpr);",
+    " float bw=max(1.,sp*.45);",
+    " float cell=floor(px.x/sp);",
+    " float bx=fract(px.x/sp)*sp;",
+    " float v=voice(cell-u_time*26.);",
+    /* the wave lives on the left and dies toward the middle */
+    " float zone=smoothstep(.0,.05,x)*(1.-smoothstep(.30,.47,x));",
+    " float h=v*u_res.y*.46*zone;",
+    /* on its way there it is bitten into pieces */
+    " float eat=smoothstep(.20,.46,x);",
+    " float keep=step(eat*.94,noise2(vec2(cell*1.7,floor(yc/(2.*u_dpr)))*.53+u_time*.9));",
+    " float bar=(1.-smoothstep(bw-.8,bw+.6,bx))*(1.-smoothstep(h-1.,h+1.2,abs(yc)))*keep;",
+    " float line=exp(-abs(yc)/(1.1*u_dpr))*.9*zone;",
+    " float halo=exp(-abs(yc)/(u_res.y*.10))*.12*v*zone;",
+    " float core=exp(-abs(yc)/(u_res.y*.09));",
+    " vec3 acid=vec3(.784,1.,.353);",
+    " vec3 col=mix(acid,vec3(.93,1.,.78),core*.45)*bar+acid*(line+halo);",
+    " gl_FragColor=vec4(col,1.);",
+    "}"
+  ].join("\n");
+
+  var DOT_VS = [
+    "precision highp float;",
+    "attribute vec4 a;",
+    "uniform vec2 u_res;uniform float u_time;uniform float u_dpr;uniform vec2 u_mouse;uniform float u_push;",
+    "varying float v_a;",
+    NOISE,
+    "void main(){",
+    " float P=6.+9.*a.x;",
+    " float age=fract(u_time/P+a.y);",
+    " float born=u_time-age*P;",
+    /* born at the tip of a bar inside the breaking zone */
+    " float x0=.22+.22*a.z;",
+    " float cell=floor(x0*u_res.x/cellw(u_dpr));",
+    " float v=voice(cell-born*26.);",
+    " float sgn=a.w<.5?-1.:1.;",
+    " float y0=.5+sgn*v*.46*(.6+.4*hash(a.w*97.+a.x));",
+    /* the row of writing it settles in, and where along the row */
+    " float row=floor(hash(a.x*91.+a.y*7.)*5.);",
+    " float x1=.58+.40*hash(a.z*53.+a.x*3.);",
+    " float y1=.5+(row-2.)*.13;",
+    " float fl=min(1.,age/.34);",
+    " float e=1.-pow(1.-fl,2.2);",
+    " float arc=sin(fl*3.1416);",
+    " vec2 p=vec2(mix(x0,x1,e),mix(y0,y1,e)+arc*(a.w-.5)*.9+arc*(noise1(u_time*.9+a.x*40.)-.5)*.10);",
+    /* settled: a faint breath; the words of the row decide which dots are bold */
+    " float settled=smoothstep(.30,.40,age);",
+    " p.y+=settled*.004*sin(u_time*1.7+a.x*30.);",
+    " float word=smoothstep(.34,.56,noise1(x1*38.+row*9.));",
+    " float size=mix(1.2+1.6*a.y,(1.6+4.2*hash(a.y*77.+row))*mix(.35,1.,word),settled)*u_dpr;",
+    " float bright=mix(.55+.45*a.z,mix(.35,1.,word)*(.7+.3*sin(u_time*2.3+a.z*50.)),settled);",
+    " float alpha=smoothstep(0.,.04,age)*(1.-smoothstep(.90,1.,age));",
+    /* step aside from the mouse */
+    " vec2 d=(p-u_mouse)*u_res;",
+    " float L=length(d);",
+    " float R=110.*u_dpr;",
+    " float push=smoothstep(R,0.,L)*u_push;",
+    " p+=d/max(L,1.)*push*R*.6/u_res;",
+    " gl_Position=vec4(p*2.-1.,0.,1.);",
+    " gl_PointSize=max(1.,size);",
+    " v_a=alpha*bright;",
+    "}"
+  ].join("\n");
+
+  var DOT_FS = [
+    "precision mediump float;varying float v_a;",
+    "void main(){vec2 d=gl_PointCoord-.5;float r=length(d)*2.;",
+    " float core=smoothstep(1.,.3,r);float glow=smoothstep(1.,0.,r)*.3;",
+    " gl_FragColor=vec4(vec3(.784,1.,.353)*(core+glow)*v_a,1.);}"
+  ].join("\n");
+
+  function sh(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
+  }
+  function program(vsrc, fsrc) {
+    var v = sh(gl.VERTEX_SHADER, vsrc), f = sh(gl.FRAGMENT_SHADER, fsrc);
+    if (!v || !f) return null;
+    var p = gl.createProgram();
+    gl.attachShader(p, v);
+    gl.attachShader(p, f);
+    gl.linkProgram(p);
+    return gl.getProgramParameter(p, gl.LINK_STATUS) ? p : null;
+  }
+  var waveP = program("attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}", WAVE_FS);
+  var dotP = program(DOT_VS, DOT_FS);
+  if (!waveP || !dotP) return;
+
+  var MAX = 2400;
+  var seeds = new Float32Array(MAX * 4);
+  for (var i = 0; i < seeds.length; i++) seeds[i] = Math.random();
+  var triBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, triBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  var dotBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, dotBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, seeds, gl.STATIC_DRAW);
+  var waveA = gl.getAttribLocation(waveP, "a");
+  var dotA = gl.getAttribLocation(dotP, "a");
+  var WU = {}, DU = {};
+  ["u_res", "u_time", "u_dpr"].forEach(function (n) { WU[n] = gl.getUniformLocation(waveP, n); });
+  ["u_res", "u_time", "u_dpr", "u_mouse", "u_push"].forEach(function (n) { DU[n] = gl.getUniformLocation(dotP, n); });
+
+  /* a phone gets half the particles and no extra resolution; so does a slow card */
+  var count = MAX, dprCap = 1.5, slow = false;
+  function tune() {
+    var small = host.clientWidth < 720;
+    count = (small || slow) ? MAX / 2 : MAX;
+    dprCap = (small || slow) ? 1 : 1.5;
+  }
+  tune();
+
+  var clock = 0, last = 0, raf = null, running = false;
+  var mx = -9, my = -9, push = 0, pushT = 0;
+
+  function draw() {
+    var dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+    var w = Math.max(1, Math.round(host.clientWidth * dpr));
+    var h = Math.max(1, Math.round(host.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    gl.viewport(0, 0, w, h);
+
+    gl.disable(gl.BLEND);
+    gl.useProgram(waveP);
+    gl.bindBuffer(gl.ARRAY_BUFFER, triBuf);
+    gl.enableVertexAttribArray(waveA);
+    gl.vertexAttribPointer(waveA, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(WU.u_res, w, h);
+    gl.uniform1f(WU.u_time, clock);
+    gl.uniform1f(WU.u_dpr, dpr);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.disableVertexAttribArray(waveA);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.useProgram(dotP);
+    gl.bindBuffer(gl.ARRAY_BUFFER, dotBuf);
+    gl.enableVertexAttribArray(dotA);
+    gl.vertexAttribPointer(dotA, 4, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(DU.u_res, w, h);
+    gl.uniform1f(DU.u_time, clock);
+    gl.uniform1f(DU.u_dpr, dpr);
+    gl.uniform2f(DU.u_mouse, mx, my);
+    gl.uniform1f(DU.u_push, push);
+    gl.drawArrays(gl.POINTS, 0, count);
+    gl.disableVertexAttribArray(dotA);
+  }
+
+  /* the frame clock: after 120 frames, below 25 a second means halve; twice means give up */
+  var frames = 0, ema = 16, gaveUp = false;
+  function loop(now) {
+    var dt = Math.min(now - last, 100);
+    last = now;
+    clock = (clock + dt / 1000) % 2400;
+    push += (pushT - push) * 0.1;
+    draw();
+    frames++;
+    if (frames > 20) ema += (dt - ema) * 0.05;
+    if ((frames === 120 || frames === 240) && ema > 40) {
+      if (!slow) { slow = true; tune(); }
+      else { giveUp(); return; }
+    }
+    raf = requestAnimationFrame(loop);
+  }
+  function start() { if (running || gaveUp) return; running = true; last = performance.now(); raf = requestAnimationFrame(loop); }
+  function stop() { running = false; if (raf) cancelAnimationFrame(raf); raf = null; }
+  function giveUp() { gaveUp = true; stop(); host.classList.remove("live"); }
+
+  host.appendChild(canvas);
+  draw();
+  host.classList.add("live");
+  window.addEventListener("resize", function () { tune(); if (!running) draw(); });
+
+  var seen = true;
+  var sync = function () { (seen && !document.hidden) ? start() : stop(); };
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (e) { seen = e[0].isIntersecting; sync(); }, { threshold: 0 }).observe(host);
+  }
+  document.addEventListener("visibilitychange", sync);
+  sync();
+
+  if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    window.addEventListener("pointermove", function (e) {
+      if ((e.pointerType && e.pointerType !== "mouse") || !running) return;
+      var r = host.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width, y = 1 - (e.clientY - r.top) / r.height;
+      if (x < -0.05 || x > 1.05 || y < -0.2 || y > 1.2) { pushT = 0; return; }
+      mx = x; my = y; pushT = 1;
+    }, { passive: true });
+    document.addEventListener("mouseout", function (e) { if (!e.relatedTarget) pushT = 0; });
+    window.addEventListener("blur", function () { pushT = 0; });
   }
 })();
 </script>

@@ -266,6 +266,7 @@ TR = [('Skip to content', 'Στο περιεχόμενο'),
   'Windows με τοπικό Whisper. Χωρίς συνδρομή, εβδομαδιαίο όριο λέξεων ή λογαριασμό για τοπική υπαγόρευση. '
   'Από τη Luram AI Agency στη Θεσσαλονίκη.'),
  ('Download for Windows', 'Κατεβάστε το για Windows'),
+ ('<small class="btn-v">Version {{VERSION}}</small>', '<small class="btn-v">Έκδοση {{VERSION}}</small>'),
  ('>Read the code</a>', '>Δείτε τον κώδικα</a>'),
  ('Version {{VERSION}} beta. {{SIZE}} with the speech models included. Local dictation works offline after '
   'setup. MIT license. The SHA256 checksum is on the ',
