@@ -112,6 +112,16 @@ export default function App() {
   // comes to the front with the update in the middle of it (Lu, 11 September
   // 2026). The app usually starts hidden in the tray, so the bar alone sat in
   // a window nobody opened and installed copies stayed old for days.
+  // Coming to the front takes the keyboard from the window that has it. During
+  // a dictation that is the window the text is about to land in, so the card
+  // waits until the dictation has finished.
+  const wantFront = useRef(false);
+  const bringFront = useCallback(async () => {
+    const w = getCurrentWindow();
+    await w.unminimize().catch(() => {});
+    await w.show().catch(() => {});
+    await w.setFocus().catch(() => {});
+  }, []);
   const lookForUpdate = useCallback(async (manual: boolean) => {
     try {
       const u = await api.checkForUpdate();
@@ -121,14 +131,20 @@ export default function App() {
       }
       setUpdate(u);
       setPrompt(true);
-      const w = getCurrentWindow();
-      await w.unminimize().catch(() => {});
-      await w.show().catch(() => {});
-      await w.setFocus().catch(() => {});
+      // The tray menu already brought the window up; a manual check is never mid-dictation.
+      const now = manual ? null : await api.snapshot().catch(() => null);
+      if (manual || now?.phase === "idle") await bringFront();
+      else wantFront.current = true;
     } catch (err) {
       if (manual) toast(`${t("update_failed")}: ${err}`, "err");
     }
-  }, [t, toast]);
+  }, [t, toast, bringFront]);
+  useEffect(() => {
+    if (wantFront.current && snap?.phase === "idle") {
+      wantFront.current = false;
+      void bringFront();
+    }
+  }, [snap, bringFront]);
   // The listeners below live for the whole session; the ref hands them the
   // latest function, so the tray answer comes in the language chosen since.
   const lookRef = useRef(lookForUpdate);
