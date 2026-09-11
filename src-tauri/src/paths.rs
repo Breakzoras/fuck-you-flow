@@ -93,6 +93,51 @@ pub fn take_orphan_histories() -> Vec<PathBuf> {
     found
 }
 
+/// Folders this app moved out of the way: an old profile once its history was
+/// merged, and a new-name folder that stood in the way of the real one. Both
+/// can hold a full copy of the history, so "delete all data" takes them too
+/// (pre-release review, 11 September 2026). Only names of exactly those two
+/// shapes, ending in the seconds stamp, are ever returned.
+pub fn set_aside_folders() -> Vec<PathBuf> {
+    let mut prefixes = vec![format!("{APP_DIR_NAME}-aside-")];
+    prefixes.extend(OLD_APP_DIR_NAMES.iter().map(|n| format!("{}-merged-", n.replace(' ', ""))));
+    let mut bases: Vec<PathBuf> = [config_dir(), local_dir()].iter().filter_map(|d| d.parent().map(PathBuf::from)).collect();
+    bases.dedup();
+    let mut out = vec![];
+    for base in bases {
+        let Ok(entries) = std::fs::read_dir(&base) else { continue };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let ours = prefixes.iter().any(|p| {
+                name.strip_prefix(p.as_str()).is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()))
+            });
+            if ours && entry.path().is_dir() {
+                out.push(entry.path());
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod set_aside_tests {
+    use super::*;
+
+    #[test]
+    fn only_the_folders_this_app_set_aside_are_listed() {
+        let base = config_dir().parent().unwrap().to_path_buf();
+        for d in ["FuckYouFlow-aside-1757590000", "Lalia-merged-1757590001", "FuckYouFlow-merged-1757590002",
+                  "Lalia-merged-copy", "Lalia-orphan-2026-09-11", "SomeoneElse-aside-1757590003"] {
+            std::fs::create_dir_all(base.join(d)).unwrap();
+        }
+        let mut got: Vec<String> = set_aside_folders().iter()
+            .filter(|p| p.parent() == Some(base.as_path()))
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        got.sort();
+        assert_eq!(got, ["FuckYouFlow-aside-1757590000", "FuckYouFlow-merged-1757590002", "Lalia-merged-1757590001"]);
+    }
+}
+
 /// The folder to use, moving an older one into place when there is one.
 ///
 /// Every old name is looked at, and the one that actually holds files wins.

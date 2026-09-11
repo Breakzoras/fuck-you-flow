@@ -586,6 +586,9 @@ pub fn delete_all_data(state: State<'_, Arc<AppState>>) -> R<()> {
             }
         }
     }
+    for dir in crate::paths::set_aside_folders() {
+        let _ = std::fs::remove_dir_all(dir);
+    }
     crate::app::reload_engines(&state);
     Ok(())
 }
