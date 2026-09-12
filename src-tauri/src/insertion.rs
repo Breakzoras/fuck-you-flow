@@ -487,16 +487,31 @@ pub mod win {
                     let published = hglobal_from_wide(&text)
                         .map(|hg| SetClipboardData(CF_UNICODETEXT.0 as u32, Some(HANDLE(hg.0))).is_ok())
                         .unwrap_or(false);
-                    // The words stay in the Windows clipboard history on purpose.
+                    // Keep the Windows clipboard history away until the paste is
+                    // over. This is the opposite of what stood here, and the
+                    // reversal is measured.
                     //
-                    // Publishing real data made the paste reliable and took away
-                    // the only proof that the target read it, so a paste that
-                    // fails in silence now looks like one that worked. Windows
-                    // keeps its own list of everything copied, and Win+V puts the
-                    // transcript back one keystroke away no matter what happened
-                    // to the window or to the clipboard afterwards. The cloud is
-                    // still refused, so nothing leaves the machine.
-                    set_optout_formats_ex(true);
+                    // Letting the words into the history was deliberate: with real
+                    // data on the clipboard nothing could prove the target had read
+                    // it, so Win+V was kept as the rescue copy. The cost was
+                    // invisible until 12 September 2026, when the new watch named
+                    // the reader: `paste: nobody from the target process opened the
+                    // clipboard within 240 ms of Ctrl+V ... other readers:
+                    // explorer.exe`. The history lives in explorer.exe and opens
+                    // the clipboard the instant an entry appears. Windows lets one
+                    // process hold it at a time, so Chromium's own OpenClipboard
+                    // came back busy and it dropped the paste without a word. The
+                    // same mechanism was written up for msrdc.exe on 10 September
+                    // and then reintroduced from the other side.
+                    //
+                    // 0.9.3 set all three opt-out formats and pasted in 75 ms with
+                    // one counted read 3 ms after the key. 0.9.6 set only the cloud
+                    // one and lost ten dictations in a row into claude.exe.
+                    //
+                    // The rescue copy is not lost: when the watch sees nobody take
+                    // the words, `paste` republishes them with the history allowed,
+                    // once the paste is over and nothing is racing to read them.
+                    set_optout_formats_ex(false);
                     let _ = CloseClipboard();
                     if !published {
                         return Err(format!("SetClipboardData failed (error {})", GetLastError().0));
@@ -1098,6 +1113,18 @@ pub mod win {
             tracing::debug!("paste: the target is this program, so the clipboard watch cannot judge it");
         }
         if target_read_ms.is_none() && !target_is_us {
+            // Put the words back on the clipboard with the history allowed, so
+            // Win+V can reach them. Safe to do now and not before: the chord has
+            // already gone out, so nothing is waiting to read the clipboard and
+            // the history can take its copy without blocking anyone.
+            unsafe {
+                drain_done();
+                let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
+            }
+            let recoverable = wait_done(Duration::from_secs(2));
+            if let Err(e) = &recoverable {
+                tracing::warn!("the words could not be republished for the clipboard history: {e}");
+            }
             return InsertReport {
                 outcome: InsertOutcome::PasteNotConsumed,
                 method: "paste".into(),
