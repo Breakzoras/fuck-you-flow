@@ -21,6 +21,9 @@ made against counted facts.
 ## The shape of the problem, in counted lines
 
 31 Rust files, 12,352 lines. Verified with `find src-tauri/src -name "*.rs" -exec wc -l {} +`.
+The split below was counted a second time from the verdict rows of `LINUX-PORT-CORE.md`: 17 plus 8
+plus 6 comes to 31 files, and 4,414 plus 4,500 plus 3,438 comes to 12,352 lines, so the four groups
+are disjoint and complete.
 
 | Group | Files | Lines | Share |
 |---|---|---|---|
@@ -31,6 +34,21 @@ made against counted facts.
 
 The six files that need a Linux twin are `insertion.rs` (1,194), `hotkey.rs` (927),
 `models.rs` (644), `hw.rs` (403), `context.rs` (216) and `jobobject.rs` (54).
+
+Three of them are covered by the walls below. The other three are smaller and specific:
+
+- `models.rs` downloads and unpacks the speech engine. It writes to `%LOCALAPPDATA%\Lalia\models`
+  (line 174), looks for `whisper-server.exe` (line 477), and unpacks archives with the `tar.exe`
+  that ships inside Windows 10 (line 496). A Linux twin means XDG paths, suffix-free binary names
+  and the system `tar`.
+- `hw.rs` detects the graphics card and reads the system language. Its only hard break is
+  `GetUserDefaultLocaleName` at line 357 with no guard around it.
+- `jobobject.rs` ties child processes to the app so they die with it. That is a Windows job object,
+  and on Linux the same guarantee comes from a process group or `prctl`. 54 lines.
+
+`paths.rs` is worth naming for the opposite reason. At 423 lines it looked like a risk, and it is
+not one: it goes through the `dirs` crate, which already maps to the XDG directories on Linux. Its
+only Windows traces are an `.exe` check inside `is_installation` (line 31) and a doc comment.
 
 Nothing in the app exists purely as a Windows artifact, so no module gets deleted. Roughly seven
 lines in ten already work anywhere. The work ahead is a port with one hard edge, and the edge is

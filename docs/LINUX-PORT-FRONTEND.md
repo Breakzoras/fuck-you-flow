@@ -3,8 +3,9 @@
 Measured on branch `port/linux`, based on `fix/audit-2026-09-11` at commit b403881 (version 0.9.6).
 
 The web frontend is close to portable. It is 21 files of TypeScript, TSX and CSS under `src/`,
-and every call it makes to the operating system goes through a Tauri command on the Rust side.
-Nothing in it opens a file by absolute path, spawns a process, or reaches for a Win32 call. Two things do need work: user facing wording that names Windows, and one window
+and it reaches the machine only through Tauri: 15 call sites across 8 files, all of them either a
+command handled by the Rust side or a Tauri window API. Nothing in it opens a file by absolute
+path, spawns a process, or reaches for a Win32 call. Two things do need work: user facing wording that names Windows, and one window
 behaviour whose Linux support depends on the display server.
 
 ## What was checked
@@ -54,11 +55,22 @@ behaviour needs verification on a real Linux desktop.
 `src/overlay/main.tsx:176` explain Windows specific behaviour in prose. They are accurate history
 and should stay, with a note added when the Linux path lands.
 
-### 4. No direct command surface in `src/api.ts`
+### 4. The command surface is `src/api.ts`, and it is centralised
 
-`grep -c "invoke("` over `src/api.ts` returns 0, so the Tauri command calls are not centralised in
-that file. Where they live was not traced here, and it does not change the verdict: the frontend
-reaches the operating system only through the Rust side.
+`src/api.ts:1` imports `invoke` from `@tauri-apps/api/core`, and from line 111 onward every Rust
+command is wrapped in a typed one-line method: `get_settings`, `save_settings`,
+`get_pipeline_snapshot`, `pipeline_toggle`, `pipeline_cancel`, `pipeline_retry`, `paste_last` and
+the rest. Every call carries a type parameter, so the shape is `invoke<Settings>("get_settings")`.
+
+A first pass here counted these with `grep -c "invoke("` and got 0, which was a false reading: the
+generic parameter sits between the name and the parenthesis. Counted correctly,
+`grep -rn "invoke(\|@tauri-apps/api" src/` returns 15 hits across 8 files: `api.ts`, `App.tsx`,
+`GpuGauge.tsx`, `overlay/main.tsx`, `pages/History.tsx`, `pages/Home.tsx`, `pages/SettingsPage.tsx`
+and `scratch/main.tsx`.
+
+So the frontend does reach Tauri directly in eight places. All of them are either a command call
+into the Rust side or a Tauri window API such as the one in section 2. None of them is an
+operating system call of its own, which is why the verdict below stands.
 
 ## Verdict
 
