@@ -1046,12 +1046,22 @@ pub mod win {
             ),
         }
 
-        // Nobody seen reading it: keep the words on the clipboard rather than
+        // Nobody seen reading it: keep the words on the clipboard instead of
         // putting the old contents back over them. A missed read is possible, so
-        // the user is asked to check rather than told it failed, and either way
+        // the user is asked to check and no failure is announced, and either way
         // the words stay one Ctrl+V away. Restoring here is what left a dictation
         // recoverable only from History.
-        if target_read_ms.is_none() {
+        //
+        // Except when the target is this program: the app has its own notes
+        // window, and dictating into it makes target_pid our own pid, which every
+        // clipboard call we make ourselves would then match. The watch cannot
+        // separate the window from the rest of the process, so it gets no vote and
+        // the old behaviour stands.
+        let target_is_us = target_pid == std::process::id();
+        if target_is_us {
+            tracing::debug!("paste: the target is this program, so the clipboard watch cannot judge it");
+        }
+        if target_read_ms.is_none() && !target_is_us {
             return InsertReport {
                 outcome: InsertOutcome::PasteNotConsumed,
                 method: "paste".into(),
@@ -1244,6 +1254,78 @@ pub mod win {
 
     #[allow(dead_code)]
     fn _unused(_: PCWSTR) {}
+
+    #[cfg(test)]
+    mod watch_tests {
+        use super::*;
+
+        /// The watcher must name a process that holds the clipboard open, because
+        /// with real data on the clipboard that is the only proof left that a
+        /// paste was taken. If it cannot see one, every paste is reported as
+        /// unread and the previous clipboard is never put back. Holding it open
+        /// from this very process is the smallest case that exercises
+        /// `GetOpenClipboardWindow` and the pid comparison against a live
+        /// clipboard.
+        #[test]
+        fn the_watcher_names_whoever_holds_the_clipboard() {
+            ensure_started();
+            // Wait for the message window to exist before using it. `hwnd()`
+            // returns 0 until the thread `ensure_started` spawns has created it,
+            // and `OpenClipboard(Some(HWND(0)))` is `OpenClipboard(NULL)`: it
+            // succeeds while owning no window, so `GetOpenClipboardWindow` names
+            // nobody and the assertion below fails for a reason that has nothing
+            // to do with the watcher. That is exactly the blind spot documented
+            // on `watch_clipboard_readers`, and it made this test pass alone and
+            // fail beside the others.
+            let mut h = hwnd();
+            let waited = Instant::now();
+            while h.is_invalid() && waited.elapsed() < Duration::from_secs(2) {
+                std::thread::sleep(Duration::from_millis(10));
+                h = hwnd();
+            }
+            if h.is_invalid() {
+                eprintln!("skipped: the message window never came up");
+                return;
+            }
+            // Only opens and closes. The clipboard of whoever runs the tests is
+            // left exactly as it was: no EmptyClipboard, no SetClipboardData.
+            let opened = unsafe { OpenClipboard(Some(h)).is_ok() };
+            if !opened {
+                // Another process held it at this instant. Skipping beats a test
+                // that fails for reasons outside the code under test.
+                eprintln!("skipped: the clipboard was held by another process");
+                return;
+            }
+            let me = std::process::id();
+            let (seen_ms, others) = watch_clipboard_readers(me, Duration::from_millis(20));
+            unsafe { let _ = CloseClipboard(); }
+
+            assert!(
+                seen_ms.is_some(),
+                "the watcher missed a clipboard this very process was holding open"
+            );
+            assert!(others.is_empty(), "a reader was attributed elsewhere: {others:?}");
+        }
+
+        /// A pid that never touches the clipboard must never be reported as
+        /// having read it, otherwise a paste that went nowhere looks taken.
+        ///
+        /// Asked of an impossible pid on purpose. The first version of this test
+        /// asked about *this* process while the test above held the clipboard
+        /// open under the same pid, and failed: the clipboard is one shared
+        /// resource, and tests run in parallel. That failure is what showed the
+        /// real gap now handled in `paste`: when the target *is* this process,
+        /// every clipboard call the app makes itself counts as the target
+        /// reading, so the watch gets no vote there.
+        #[test]
+        fn a_pid_that_never_reads_is_never_reported() {
+            ensure_started();
+            // 0 is the System Idle Process and owns no window, so
+            // GetWindowThreadProcessId can never return it for a real holder.
+            let (seen_ms, _) = watch_clipboard_readers(0, Duration::from_millis(20));
+            assert!(seen_ms.is_none(), "saw a read from a pid that cannot read: {seen_ms:?}");
+        }
+    }
 }
 
 #[cfg(windows)]
