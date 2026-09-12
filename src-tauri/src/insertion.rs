@@ -747,6 +747,52 @@ pub mod win {
         }
     }
 
+    /// Who opened the clipboard after Ctrl+V went out, and how soon the target
+    /// did. Returns `(target's first read in ms, other processes seen)`.
+    ///
+    /// Publishing real data instead of a promise took away the only proof that a
+    /// paste landed. With delayed rendering every read arrived as
+    /// `WM_RENDERFORMAT` and was counted; with real data nobody ever asks, so
+    /// `rendered_by_target` reads 0 on success and on failure alike, and the
+    /// outcome below used to be `Pasted` no matter what. Measured 12 September
+    /// 2026: ten dictations in a row logged "0 read(s) by the target, 0 in total"
+    /// and "dictation success" while not one of them reached the window.
+    ///
+    /// `GetOpenClipboardWindow` names whoever holds the clipboard open right now,
+    /// and a reader holds it while it copies the data out: measured at 2 to 16 ms
+    /// for Chromium and Electron on 10 and 11 September 2026. Polling every
+    /// millisecond through the settle this code was sleeping through anyway costs
+    /// one cheap kernel call per tick and adds no delay.
+    ///
+    /// **Seeing nobody is not proof of failure.** A reader that opens and closes
+    /// between two ticks is missed, and one that calls `OpenClipboard(NULL)` owns
+    /// no window to name. So this decides only whether the previous clipboard
+    /// goes back, and the message it leads to asks rather than announces.
+    fn watch_clipboard_readers(target_pid: u32, budget: Duration) -> (Option<u64>, Vec<String>) {
+        let start = Instant::now();
+        let mut target_at: Option<u64> = None;
+        let mut others: Vec<String> = Vec::new();
+        while start.elapsed() < budget {
+            let holder = unsafe { GetOpenClipboardWindow().ok().filter(|h| !h.is_invalid()) };
+            if let Some(h) = holder {
+                let mut pid = 0u32;
+                unsafe { GetWindowThreadProcessId(h, Some(&mut pid)); }
+                if pid != 0 && pid == target_pid {
+                    if target_at.is_none() {
+                        target_at = Some(start.elapsed().as_millis() as u64);
+                    }
+                } else if pid != 0 {
+                    let name = process_name(pid);
+                    if !others.contains(&name) {
+                        others.push(name);
+                    }
+                }
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        (target_at, others)
+    }
+
     /// Whether the clipboard's text right now is exactly `expected`. `None`
     /// when it could not be opened or holds no text.
     fn clipboard_holds(expected: &[u16]) -> Option<bool> {
@@ -977,26 +1023,41 @@ pub mod win {
         // Measured 5 September 2026: Electron and Chromium read 2 to 3 ms after
         // Ctrl+V. A quarter of a second is eighty times that, and it happens
         // after the text is already visible, so the user never waits for it.
-        std::thread::sleep(Duration::from_millis(opts.settle_ms.max(60).min(400) + 180));
-
-        {
-            let sh = st.shared.lock();
-            let others = if sh.other_readers.is_empty() { "none".to_string() } else { sh.other_readers.join(", ") };
-            tracing::debug!("paste: settle {} ms, other readers of the clipboard: {}", opts.settle_ms, others);
-        }
+        // Watch the clipboard through the settle instead of sleeping blind
+        // through it. See `watch_clipboard_readers` for why the old counters
+        // cannot answer this any more.
+        let settle = Duration::from_millis(opts.settle_ms.max(60).min(400) + 180);
+        let target_pid = st.shared.lock().target_pid;
+        let (target_read_ms, seen_others) = watch_clipboard_readers(target_pid, settle);
 
         // A window that cannot hold text was refused earlier; everything that
         // reaches here received the keystroke with real data waiting for it.
         let _ = attempts;
 
-        // How the target consumed the paste. This decides how short settle_ms can
-        // safely be: the clipboard must not be restored before the last read.
-        {
-            let sh = st.shared.lock();
-            let last_ms = sh.last_render.zip(sh.keystroke_at).map(|(r, k)| r.saturating_duration_since(k).as_millis() as u64);
-            let others = if sh.other_readers.is_empty() { "none".to_string() } else { sh.other_readers.join(", ") };
-            tracing::debug!("paste: {} read(s) by the target, {} in total, last read {:?} ms after Ctrl+V, settle {} ms, other readers: {}",
-                sh.rendered_by_target, sh.rendered_after_keystroke, last_ms, opts.settle_ms, others);
+        let others = if seen_others.is_empty() { "none".to_string() } else { seen_others.join(", ") };
+        match target_read_ms {
+            Some(ms) => tracing::info!(
+                "paste: the target read the clipboard {ms} ms after Ctrl+V, settle {} ms, other readers: {others}",
+                opts.settle_ms
+            ),
+            None => tracing::warn!(
+                "paste: nobody from the target process opened the clipboard within {} ms of Ctrl+V; the words may not have landed, so they stay on the clipboard. other readers: {others}",
+                settle.as_millis()
+            ),
+        }
+
+        // Nobody seen reading it: keep the words on the clipboard rather than
+        // putting the old contents back over them. A missed read is possible, so
+        // the user is asked to check rather than told it failed, and either way
+        // the words stay one Ctrl+V away. Restoring here is what left a dictation
+        // recoverable only from History.
+        if target_read_ms.is_none() {
+            return InsertReport {
+                outcome: InsertOutcome::PasteNotConsumed,
+                method: "paste".into(),
+                message: Some("msg_also_on_clipboard".to_string()),
+                elapsed_ms: started.elapsed().as_millis() as u64,
+            };
         }
 
         if opts.restore_clipboard {
