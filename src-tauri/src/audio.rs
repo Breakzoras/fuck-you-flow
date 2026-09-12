@@ -322,8 +322,19 @@ fn build_stream(
     tracing::info!("opening microphone '{resolved}' at {in_rate} Hz, {channels} ch, {sample_format:?}");
 
     static XRUNS: AtomicU32 = AtomicU32::new(0);
-    static XRUN_REPORTED: once_cell::sync::Lazy<Mutex<Instant>> =
-        once_cell::sync::Lazy::new(|| Mutex::new(Instant::now() - Duration::from_secs(3600)));
+    // `None` until the first xrun, so the first one reports at once and the
+    // rest are rate-limited from there.
+    //
+    // This used to hold `Instant::now() - Duration::from_secs(3600)` as a
+    // "long ago" sentinel. On Windows an `Instant` counts from boot, so
+    // subtracting an hour from it panics with "overflow when subtracting
+    // duration from instant" whenever the machine has been up for less than
+    // an hour, and the release profile aborts on panic. Measured 12 September
+    // 2026: boot at 08:03, five aborts between 08:26 and 08:58, every one of
+    // them inside that first hour, each killing the app mid-session without a
+    // window or a message. Never build an `Instant` in the past.
+    static XRUN_REPORTED: once_cell::sync::Lazy<Mutex<Option<Instant>>> =
+        once_cell::sync::Lazy::new(|| Mutex::new(None));
 
     let err_status = status.clone();
     let err_cb = move |e: cpal::Error| {
@@ -337,8 +348,8 @@ fn build_stream(
             let n = XRUNS.fetch_add(1, Ordering::Relaxed) + 1;
             let now = std::time::Instant::now();
             let mut last = XRUN_REPORTED.lock();
-            if now.duration_since(*last) >= Duration::from_secs(60) {
-                *last = now;
+            if last.map_or(true, |t| now.saturating_duration_since(t) >= Duration::from_secs(60)) {
+                *last = Some(now);
                 let total = XRUNS.swap(0, Ordering::Relaxed);
                 tracing::warn!("audio stream notification: {total} buffer over- or underruns in the last minute ({e})");
             } else {
@@ -669,6 +680,54 @@ pub fn decode_wav_file(path: &std::path::Path) -> anyhow::Result<Vec<f32>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// No source file may build an `Instant` that sits in the past.
+    ///
+    /// On Windows an `Instant` counts from boot, so `Instant::now() - d`
+    /// panics whenever the machine has been up for less than `d`, and the
+    /// release profile aborts on panic. One such sentinel in this file killed
+    /// the app five times inside one hour on 12 September 2026, each time
+    /// silently and mid-session. A "long ago" marker is `Option::None`, never
+    /// arithmetic on a clock. This guards every module, not just this one.
+    #[test]
+    fn no_instant_is_ever_built_in_the_past() {
+        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut offenders = Vec::new();
+        let mut stack = vec![src.clone()];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).expect("read src") {
+                let path = entry.expect("entry").path();
+                if path.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+                    continue;
+                }
+                let text = std::fs::read_to_string(&path).expect("read file");
+                for (i, line) in text.lines().enumerate() {
+                    let code = line.trim_start();
+                    // Skip comments: the explanation of this very bug quotes
+                    // the pattern it forbids.
+                    if code.starts_with("//") || code.starts_with("*") {
+                        continue;
+                    }
+                    if let Some(rest) = code.split_once("Instant::now()").map(|(_, r)| r.trim_start()) {
+                        if rest.starts_with('-') && !rest.starts_with("->") {
+                            offenders.push(format!("{}:{}: {}", path.display(), i + 1, code));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            offenders.is_empty(),
+            "subtracting from Instant::now() aborts the app when uptime is shorter              than the amount subtracted; use Option<Instant> instead:
+{}",
+            offenders.join("
+")
+        );
+    }
 
     #[test]
     fn tail_pitch_sees_a_final_rise() {
