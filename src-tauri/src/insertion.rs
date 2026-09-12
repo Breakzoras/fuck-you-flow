@@ -731,6 +731,22 @@ pub mod win {
         }
     }
 
+    /// "the same window" or "a different one", for the line logged just before
+    /// the chord. The captured handle lives in the pipeline, so this compares
+    /// against what the clipboard state recorded at publish time.
+    fn opts_target_note(fg: HWND) -> &'static str {
+        let recorded = STATE.get().map(|st| st.shared.lock().target_pid).unwrap_or(0);
+        let mut pid = 0u32;
+        unsafe { GetWindowThreadProcessId(fg, Some(&mut pid)); }
+        if recorded == 0 {
+            "not recorded"
+        } else if pid == recorded {
+            "the same process"
+        } else {
+            "A DIFFERENT PROCESS"
+        }
+    }
+
     fn send_paste_chord(shift: bool) {
         unsafe {
             let mut inputs = vec![key(VK_CONTROL, false)];
@@ -997,6 +1013,26 @@ pub mod win {
             }
             Some(true) => {}
             None => tracing::debug!("could not read the clipboard back before the key press"),
+        }
+
+        // Name the window that is about to receive the chord, on every paste and
+        // not only on a refusal.
+        //
+        // Until now the log said which window was captured when the key went
+        // down (`begin: target captured`) and nothing about where Ctrl+V
+        // actually went a few seconds later, so a paste delivered to the overlay,
+        // to this app's own notes window, or to a game that grabbed the
+        // foreground looked exactly like one delivered to the target. On
+        // 12 September 2026 ten dictations were lost with no way to tell those
+        // apart. Two cheap calls, once per dictation.
+        {
+            let fg = unsafe { GetForegroundWindow() };
+            let mut pid = 0u32;
+            unsafe { GetWindowThreadProcessId(fg, Some(&mut pid)); }
+            tracing::info!(
+                "paste: sending Ctrl+V to {:?} '{}' ({}), captured target was {:?}",
+                fg, window_class(fg), process_name(pid), opts_target_note(fg)
+            );
         }
 
         send_paste_chord(opts.shift_paste);
