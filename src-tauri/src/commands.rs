@@ -878,7 +878,8 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
         let s = state.shared.settings.read().clone();
         (s, state.shared.engine.clone())
     };
-    let lang = settings.language.mode.whisper_code().to_string();
+    let lang = settings.language.whisper_code();
+    let mut heard: Option<String> = None;
     // Two minutes a piece: long enough that the engine keeps its context, short
     // enough that a failure costs little and progress moves visibly.
     let cuts = crate::audiofile::cut_points(samples.len(), 120, &samples);
@@ -899,15 +900,27 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
         // The tail of what came before is the recognition hint, exactly as it
         // is while dictating: names and endings carry across a cut that way.
         let tail: String = raw.chars().rev().take(200).collect::<Vec<_>>().into_iter().rev().collect();
-        let req = crate::asr::TranscriptionRequest {
-            wav,
-            language: lang.clone(),
-            prompt: if tail.trim().is_empty() { None } else { Some(tail.trim().to_string()) },
-            beam_size: settings.asr.beam_size,
-            vad: settings.asr.vad,
-        };
-        match engine.transcribe(req).await {
+        let prompt = if tail.trim().is_empty() { None } else { Some(tail.trim().to_string()) };
+        let req = crate::asr::TranscriptionRequest { wav: wav.clone(), language: lang.clone(), prompt: prompt.clone(), beam_size: settings.asr.beam_size, vad: settings.asr.vad };
+        let mut result = engine.transcribe(req).await;
+        // The engine guessed a language the user never chose: the same piece
+        // again, with their own language forced this time.
+        if let Ok(t) = &result {
+            if settings.language.needs_lock(t.detected_language.as_deref(), &t.text) {
+                let forced = settings.language.primary().to_string();
+                crate::journal::info("language.locked", serde_json::json!({ "heard": t.detected_language, "forced": forced, "source": "file" }));
+                tracing::info!("piece {} came back as {:?}; transcribing it again as {forced}", i + 1, t.detected_language);
+                let again = crate::asr::TranscriptionRequest { wav, language: forced, prompt, beam_size: settings.asr.beam_size, vad: settings.asr.vad };
+                if let Ok(t2) = engine.transcribe(again).await {
+                    result = Ok(t2);
+                }
+            }
+        }
+        match result {
             Ok(t) => {
+                if heard.is_none() {
+                    heard = t.detected_language.clone();
+                }
                 if !t.text.trim().is_empty() {
                     if !raw.is_empty() {
                         raw.push(' ');
@@ -937,11 +950,7 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
         auto_capitalize: settings.cleanup.auto_capitalize,
         trailing_punctuation: true,
         capitalize_first: true,
-        language: if lang == "auto" {
-            if crate::cleanup::deterministic::looks_greek(&raw) { "el".into() } else { "en".into() }
-        } else {
-            lang.clone()
-        },
+        language: settings.language.effective(heard.as_deref(), &raw),
     };
     let outcome = {
         let dict = state.shared.dict.read();
@@ -1180,4 +1189,50 @@ pub async fn install_update(app: tauri::AppHandle) -> R<()> {
         return Err(e(err));
     }
     Ok(())
+}
+
+// ----- the pill: dragging it and docking it -----
+
+/// The pill was dropped with its top-left corner at (x, y) on screen. It is
+/// docked to the nearest edge at that spot, the setting is saved, and the
+/// window is moved to exactly where the dock says, so what the user sees is
+/// what every later dictation gets.
+#[tauri::command]
+pub fn overlay_dock(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, x: i32, y: i32) -> R<Settings> {
+    let Some(w) = app.get_webview_window("overlay") else { return Err("no overlay window".into()) };
+    let (edge, along) = crate::overlay::dock_at(&w, x, y);
+    let mut s = state.shared.settings.read().clone();
+    s.overlay.position = crate::settings::OverlayPosition::Docked;
+    s.overlay.dock_edge = edge.to_string();
+    s.overlay.dock_along = along;
+    s.save(&crate::paths::settings_file()).map_err(e)?;
+    *state.shared.settings.write() = s.clone();
+    crate::overlay::place(&w, &s.overlay, 0);
+    crate::journal::info("overlay.docked", serde_json::json!({ "edge": edge, "along": along }));
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    Ok(s)
+}
+
+/// Put the pill on screen for a few seconds, idle and holding the mouse, so
+/// the user can drag it without having to dictate at the same time. If a
+/// dictation starts meanwhile the pipeline owns the pill and this does not
+/// hide it.
+#[tauri::command]
+pub fn overlay_preview(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) {
+    let settings = state.shared.settings.read().clone();
+    crate::overlay::emit_state(&app, crate::overlay::OverlayPayload { state: crate::overlay::OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0, movable: true });
+    crate::overlay::show(&app, &settings.overlay, 0);
+    let snapshot = state.shared.snapshot.clone();
+    let app2 = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(15)).await;
+        if snapshot.lock().phase != crate::pipeline::Phase::Idle {
+            return;
+        }
+        crate::overlay::emit_state(&app2, crate::overlay::OverlayPayload { state: crate::overlay::OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
+        let hide = app2.state::<Arc<AppState>>().shared.settings.read().overlay.hide_when_idle;
+        if hide {
+            crate::overlay::hide(&app2);
+        }
+    });
 }

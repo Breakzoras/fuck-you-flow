@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, ModelStatus, RuntimeStatus, Settings, LanguageMode, UpdateInfo } from "../api";
+import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, languageName, LANGUAGE_CHOICES, ModelStatus, RuntimeStatus, Settings, LanguageMode, UpdateInfo } from "../api";
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
 
@@ -72,8 +72,11 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
           <Field label={t("ui_language")} hint={t("lang_ui_hint")}>
             <Select value={draft.general.ui_language} onChange={(v) => patch((s) => { s.general.ui_language = v; return s; })} options={[{ value: "en", label: "English" }, { value: "el", label: "Ελληνικά" }]} />
           </Field>
+          <Field label={t("lang_primary")} hint={t("lang_primary_hint")}>
+            <Select value={draft.language.primary ?? "el"} onChange={(v) => patch((s) => { s.language.primary = v; return s; })} options={LANGUAGE_CHOICES.map((l) => ({ value: l.code, label: l.name }))} />
+          </Field>
           <Field label={t("lang_mode")} hint={t("lang_mode_hint")}>
-            <Select value={draft.language.mode} onChange={(v) => patch((s) => { s.language.mode = v; return s; })} options={dictationOptions(draft.general.ui_language, t)} />
+            <Select value={draft.language.mode} onChange={(v) => patch((s) => { s.language.mode = v; return s; })} options={dictationOptions(draft.language.primary ?? "el", t)} />
           </Field>
         </Card>
       )}
@@ -116,11 +119,15 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
 
       {tab === "overlay" && (
         <Card>
-          <Field label={t("position")}>
+          <Field label={t("position")} hint={t("pos_drag_hint")}>
             <Select value={draft.overlay.position} onChange={(v) => patch((s) => { s.overlay.position = v; return s; })} options={[
               { value: "bottom_center", label: t("pos_bc") }, { value: "top_center", label: t("pos_tc") }, { value: "bottom_right", label: t("pos_br") }, { value: "bottom_left", label: t("pos_bl") },
+              { value: "docked", label: t("pos_docked") },
             ]} />
           </Field>
+          <div className="row">
+            <button type="button" onClick={() => api.overlayPreview()}>{t("pos_move_now")}</button>
+          </div>
           <Field label={t("overlay_style")}>
             <Select value={draft.overlay.style ?? "full"} onChange={(v) => patch((s) => { s.overlay.style = v; return s; })} options={[{ value: "full", label: t("ov_full") }, { value: "minimal", label: t("ov_minimal") }]} />
           </Field>
@@ -168,16 +175,17 @@ function MicTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settings) =>
   );
 }
 
-/// The dictation languages, most useful first for whoever is reading the menu.
-/// Someone running the app in English is dictating English and has no reason to
-/// meet Greek at the top of a list; someone running it in Greek almost always
-/// mixes English words into Greek sentences, so the bilingual mode leads there.
-function dictationOptions(uiLanguage: string, t: (k: "lang_multi" | "lang_greek" | "lang_english" | "lang_auto") => string): { value: LanguageMode; label: string }[] {
-  const multi = { value: "multi" as const, label: t("lang_multi") };
-  const greek = { value: "greek" as const, label: t("lang_greek") };
+/// The dictation modes, named after the language the person picked as their
+/// own, most useful first. Someone whose language is English has no use for a
+/// mixed mode; everyone else mixes English words into their own sentences all
+/// day, so the mixed mode leads for them.
+function dictationOptions(primary: string, t: (k: "lang_multi" | "lang_primary_only" | "lang_english" | "lang_auto") => string): { value: LanguageMode; label: string }[] {
+  const name = languageName(primary);
+  const multi = { value: "multi" as const, label: t("lang_multi").replace("{lang}", name) };
+  const own = { value: "primary" as const, label: t("lang_primary_only").replace("{lang}", name) };
   const english = { value: "english" as const, label: t("lang_english") };
   const auto = { value: "auto" as const, label: t("lang_auto") };
-  return uiLanguage === "el" ? [multi, greek, english, auto] : [english, auto, multi, greek];
+  return primary === "en" ? [english, auto] : [multi, own, english, auto];
 }
 
 /// The manual check. The app also asks the server on its own, fifteen seconds

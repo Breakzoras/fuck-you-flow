@@ -12,6 +12,7 @@ pub mod hw;
 pub mod insertion;
 pub mod jobobject;
 pub mod journal;
+pub mod languages;
 pub mod learning;
 pub mod logging;
 pub mod models;
@@ -122,6 +123,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
+            commands::overlay_dock,
+            commands::overlay_preview,
             commands::save_settings,
             commands::get_pipeline_snapshot,
             commands::pipeline_toggle,

@@ -25,7 +25,9 @@ html, body { margin: 0; overflow: hidden; height: 100%; }
    badge is pinned to the edge the window is anchored to, so a bigger window
    never moves the badge on screen. */
 body { display: flex; justify-content: center; align-items: flex-end; }
-body[data-pos="top_center"] { align-items: flex-start; }
+body[data-pos="top_center"], body[data-pos="top"] { align-items: flex-start; }
+body[data-pos="left"] { justify-content: flex-start; align-items: center; }
+body[data-pos="right"] { justify-content: flex-end; align-items: center; }
 body { font-family: "Segoe UI", system-ui, sans-serif; user-select: none; }
 .pill {
   display: flex;
@@ -48,13 +50,20 @@ body { font-family: "Segoe UI", system-ui, sans-serif; user-select: none; }
   cursor: default;
 }
 .head { display: flex; align-items: center; justify-content: center; gap: 8px; }
-.pill.mini { min-width: 0; min-height: 0; width: 26px; height: 26px; padding: 0; border-radius: 50%; margin: 6px auto; border: 2px solid var(--pill-sub); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); }
-.pill.mini .dot { width: 10px; height: 10px; }
-.pill.mini.rec { border-color: var(--rec); box-shadow: 0 4px 14px rgba(255, 92, 92, 0.45); }
-.pill.mini.busy { border-color: var(--accent); }
-.pill.mini.success { border-color: var(--ok); box-shadow: 0 4px 14px rgba(79, 208, 138, 0.35); }
-.pill.mini.err { border-color: var(--err); }
-.pill.mini.warn { border-color: var(--warn); }
+/* The discreet style is the dot alone: no pill, no ring, no text. The colour is
+   the whole message, so it is a size that can be read from the corner of the
+   eye (22px) with a soft halo of the same colour. */
+.pill.mini { min-width: 0; min-height: 0; width: 30px; height: 30px; padding: 0; border-radius: 50%; margin: 6px auto; background: transparent; border: 0; box-shadow: none; }
+.pill.mini .dot { width: 22px; height: 22px; background: var(--pill-sub); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.28), 0 3px 12px rgba(0, 0, 0, 0.45); }
+.pill.mini.rec .dot { box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.28), 0 0 18px 4px rgba(255, 92, 92, 0.55); }
+.pill.mini.busy .dot { animation: pulse 1.1s infinite; }
+.pill.mini.success .dot { box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.28), 0 0 18px 4px rgba(79, 208, 138, 0.45); }
+.pill.mini.warn .dot { box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.28), 0 0 18px 4px rgba(255, 190, 92, 0.5); }
+/* The pill takes the mouse while it can be dragged; the hand says so. */
+.pill.movable, .pill.rec { cursor: grab; }
+.pill.dragging { cursor: grabbing; opacity: 0.85; }
+.pill.movable { box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--accent) inset; }
+.drag-hint { font-size: 14px; font-weight: 700; color: var(--accent); white-space: nowrap; }
 .pill.rec { box-shadow: 0 6px 24px rgba(255, 92, 92, 0.45), 0 0 0 2px var(--rec) inset; }
 .pill.err { box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--err) inset; }
 .pill.warn { box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--warn) inset; }

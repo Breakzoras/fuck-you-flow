@@ -357,11 +357,7 @@ impl TranscriptionProvider for WhisperServer {
 
 /// whisper.cpp reports full names ("greek", "english"); the app uses ISO codes.
 fn normalize_lang(s: String) -> String {
-    match s.to_ascii_lowercase().as_str() {
-        "greek" | "el" => "el".into(),
-        "english" | "en" => "en".into(),
-        other => other.to_string(),
-    }
+    crate::languages::code_from_name(&s)
 }
 
 /// Locate whisper-server.exe: the app runtime dir first, then a dev checkout.

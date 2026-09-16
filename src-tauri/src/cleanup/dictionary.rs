@@ -140,13 +140,18 @@ fn preserve_case(matched: &str, correct: &str) -> String {
 /// Build the recognition prompt: dictionary terms joined as a natural phrase list.
 /// Whisper treats the prompt as preceding text, so a comma list of names works
 /// well and stays under the 224-token context.
-pub fn build_hint_prompt(terms: &[String], language: &str) -> Option<String> {
+/// `language` is what the engine is told ("el", "en" or "auto"); `primary` is
+/// the user's own language, which decides the exemplar when the engine is
+/// left to guess. A Greek exemplar in front of a Turkish speaker would pull the
+/// guess towards Greek, so only Greek gets Greek words.
+pub fn build_hint_prompt(terms: &[String], language: &str, primary: &str) -> Option<String> {
     // The prompt is "preceding text": Whisper copies its punctuation habits, so a
     // short exemplar with question marks makes it punctuate questions more often.
+    let greek_mixed = language == "auto" && primary == "el";
     let exemplar = match language {
         "el" => "Τι λες; Πώς σου φαίνεται; Ωραία, πάμε.",
-        "en" => "What do you think? How does it look? Fine, let's go.",
-        _ => "Τι λες; Πώς σου φαίνεται; What do you think? Fine, let's go.",
+        "auto" if greek_mixed => "Τι λες; Πώς σου φαίνεται; What do you think? Fine, let's go.",
+        _ => "What do you think? How does it look? Fine, let's go.",
     };
     if terms.is_empty() {
         return Some(exemplar.to_string());
@@ -155,8 +160,8 @@ pub fn build_hint_prompt(terms: &[String], language: &str) -> Option<String> {
     let joined: String = joined.chars().take(600).collect();
     Some(match language {
         "el" => format!("Λεξιλόγιο: {joined}. {exemplar}"),
-        "en" => format!("Vocabulary: {joined}. {exemplar}"),
-        _ => format!("Λεξιλόγιο, vocabulary: {joined}. {exemplar}"),
+        "auto" if greek_mixed => format!("Λεξιλόγιο, vocabulary: {joined}. {exemplar}"),
+        _ => format!("Vocabulary: {joined}. {exemplar}"),
     })
 }
 
@@ -236,7 +241,7 @@ mod tests {
         let e = DictionaryEngine::new(vec![rule("Λούραμ", "Luram", "whole_word", false), rule("γλυκόζ μέντορ", "Glucose Mentor", "phrase", false)], vec![]);
         let terms = e.hint_terms(10);
         assert_eq!(terms.len(), 2);
-        let p = build_hint_prompt(&terms, "el").unwrap();
+        let p = build_hint_prompt(&terms, "el", "el").unwrap();
         assert!(p.starts_with("Λεξιλόγιο: "));
     }
 }

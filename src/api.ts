@@ -1,15 +1,34 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type LanguageMode = "greek" | "english" | "auto" | "multi";
+// "primary" is the user's own language (settings.language.primary); older
+// settings files say "greek" and the backend reads that as the same thing.
+export type LanguageMode = "primary" | "english" | "auto" | "multi";
 export type CleanupIntensity = "off" | "light" | "normal" | "strong";
 export type InsertionMethod = "auto" | "paste" | "type" | "copy_only";
-export type OverlayPosition = "bottom_center" | "top_center" | "bottom_right" | "bottom_left" | "custom";
+export type OverlayPosition = "bottom_center" | "top_center" | "bottom_right" | "bottom_left" | "custom" | "docked";
+
+// The languages a person can pick as their own, in the language itself. Must
+// match `languages::CHOICES` in the backend, which rejects anything else.
+export const LANGUAGE_CHOICES: { code: string; name: string }[] = [
+  { code: "el", name: "Ελληνικά" }, { code: "en", name: "English" }, { code: "de", name: "Deutsch" }, { code: "fr", name: "Français" },
+  { code: "es", name: "Español" }, { code: "it", name: "Italiano" }, { code: "pt", name: "Português" }, { code: "nl", name: "Nederlands" },
+  { code: "sv", name: "Svenska" }, { code: "da", name: "Dansk" }, { code: "no", name: "Norsk" }, { code: "fi", name: "Suomi" },
+  { code: "pl", name: "Polski" }, { code: "cs", name: "Čeština" }, { code: "sk", name: "Slovenčina" }, { code: "hu", name: "Magyar" },
+  { code: "ro", name: "Română" }, { code: "bg", name: "Български" }, { code: "sr", name: "Српски" }, { code: "hr", name: "Hrvatski" },
+  { code: "uk", name: "Українська" }, { code: "ru", name: "Русский" }, { code: "tr", name: "Türkçe" }, { code: "ar", name: "العربية" },
+  { code: "he", name: "עברית" }, { code: "hi", name: "हिन्दी" }, { code: "id", name: "Bahasa Indonesia" }, { code: "ms", name: "Bahasa Melayu" },
+  { code: "vi", name: "Tiếng Việt" }, { code: "th", name: "ไทย" }, { code: "ja", name: "日本語" }, { code: "ko", name: "한국어" }, { code: "zh", name: "中文" },
+];
+
+export function languageName(code: string): string {
+  return LANGUAGE_CHOICES.find((l) => l.code === code)?.name ?? code;
+}
 
 export interface Settings {
   general: { ui_language: string; theme: string; autostart: boolean; first_run_done: boolean; play_sounds: boolean; machine_profiled?: boolean; debug_mode?: boolean };
   hotkeys: { push_to_talk: string; hands_free: string; paste_last: string; tap_toggles_hands_free: boolean; tap_ms: number };
   audio: { device_name: string | null; keep_stream_warm: boolean; preroll_ms: number; min_speech_ms: number; max_recording_seconds: number };
-  language: { mode: LanguageMode };
+  language: { mode: LanguageMode; primary: string };
   asr: {
     provider: string; model_id: string; use_gpu: boolean; vad: boolean; threads: number; beam_size: number;
     hints_from_dictionary: boolean; max_hint_terms: number; openai_base_url: string; openai_model: string;
@@ -21,7 +40,7 @@ export interface Settings {
     intonation_questions?: boolean;
   };
   insertion: { method: InsertionMethod; restore_clipboard: boolean; paste_settle_ms: number; trailing_space: boolean; notepad_when_lost: boolean };
-  overlay: { position: OverlayPosition; custom_x: number; custom_y: number; monitor_name: string | null; hide_when_idle: boolean; scale: number; style: "full" | "minimal" };
+  overlay: { position: OverlayPosition; custom_x: number; custom_y: number; monitor_name: string | null; hide_when_idle: boolean; scale: number; style: "full" | "minimal"; dock_edge: string; dock_along: number };
   privacy: {
     keep_history: boolean; retention_days: number | null; keep_audio: boolean; context_awareness: boolean;
     learning_enabled: boolean; learn_from_edits: boolean; redact_logs: boolean;
@@ -109,6 +128,7 @@ export interface SeenKey { at_ms: number; key: string; down: boolean; injected: 
 
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
+  overlayPreview: () => invoke<void>("overlay_preview"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
   snapshot: () => invoke<PipelineSnapshot>("get_pipeline_snapshot"),
   toggle: () => invoke<void>("pipeline_toggle"),

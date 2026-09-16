@@ -139,13 +139,17 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
         let locale = crate::hw::user_locale();
         let greek = locale.starts_with("el");
         settings.general.ui_language = if greek { "el" } else { "en" }.into();
-        // A Greek speaker mixes English words into Greek sentences all day, so
-        // the bilingual mode earns its cost there. Everyone else gets their own
-        // language alone, which is both faster and more accurate.
-        settings.language.mode = if greek {
-            crate::settings::LanguageMode::Multi
-        } else if locale.starts_with("en") {
+        // Anyone whose language is other than English mixes English words into their
+        // own sentences all day, so the mixed mode (own language plus English)
+        // earns its cost for them. An English speaker gets English alone, which
+        // is both faster and more accurate. A locale the engine cannot dictate
+        // in falls back to guessing among everything.
+        let own = locale.split(['-', '_']).next().unwrap_or("").to_string();
+        settings.language.mode = if locale.starts_with("en") {
             crate::settings::LanguageMode::English
+        } else if crate::languages::is_choice(&own) {
+            settings.language.primary = own;
+            crate::settings::LanguageMode::Multi
         } else {
             crate::settings::LanguageMode::Auto
         };

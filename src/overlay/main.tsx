@@ -3,7 +3,7 @@ import { tk } from "../i18n";
 import ReactDOM from "react-dom/client";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
 import "./overlay.css";
 
 type OverlayState =
@@ -17,6 +17,58 @@ interface Payload {
   preview?: string | null;
   can_retry: boolean;
   seconds: number;
+  /// On screen only to be dragged (the button in Settings).
+  movable?: boolean;
+}
+
+const DRAG_HINT: Record<string, string> = {
+  en: "Drag me to where you want me",
+  el: "Σύρε με εκεί που με θέλεις",
+};
+
+// Dragging is done by hand, with pointer events and window moves, and never
+// with the window manager's own drag. The pill window is deliberately one that
+// never takes focus: the words being dictated go to whatever window had it.
+// Windows' native drag would activate the pill, the target would lose focus,
+// and the dictation would end up in the clipboard, away from the document. Pointer
+// events reach a window that cannot be activated, so nothing changes hands.
+//
+// Distances arrive in CSS pixels and the window is moved in physical ones, so
+// the screen's scale factor sits between the two.
+async function beginDrag(e: React.PointerEvent<HTMLDivElement>) {
+  if (e.button !== 0) return;
+  // The retry button keeps its click; capturing the pointer here would eat it.
+  if ((e.target as HTMLElement).closest("button")) return;
+  const el = e.currentTarget;
+  const win = getCurrentWindow();
+  const scale = await win.scaleFactor();
+  const origin = await win.outerPosition();
+  const startX = e.screenX;
+  const startY = e.screenY;
+  let moved = false;
+  let last = { x: origin.x, y: origin.y };
+  el.setPointerCapture(e.pointerId);
+  el.classList.add("dragging");
+  const onMove = (ev: PointerEvent) => {
+    const dx = Math.round((ev.screenX - startX) * scale);
+    const dy = Math.round((ev.screenY - startY) * scale);
+    if (Math.abs(dx) + Math.abs(dy) < 4 && !moved) return;
+    moved = true;
+    last = { x: origin.x + dx, y: origin.y + dy };
+    win.setPosition(new PhysicalPosition(last.x, last.y)).catch(() => {});
+  };
+  const onUp = () => {
+    el.removeEventListener("pointermove", onMove);
+    el.removeEventListener("pointerup", onUp);
+    el.removeEventListener("pointercancel", onUp);
+    el.classList.remove("dragging");
+    try { el.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+    // A click that never moved stays a click: the retry button lives here.
+    if (moved) invoke("overlay_dock", { x: last.x, y: last.y }).catch((err) => console.error("overlay_dock failed", err));
+  };
+  el.addEventListener("pointermove", onMove);
+  el.addEventListener("pointerup", onUp);
+  el.addEventListener("pointercancel", onUp);
 }
 
 const LABELS: Record<string, Record<OverlayState, string>> = {
@@ -87,8 +139,10 @@ const STRESS_LINE: Record<string, string> = {
 async function fetchPrefs(): Promise<{ lang: string; style: string; pos: string } | null> {
   for (let attempt = 0; attempt < 40; attempt++) {
     try {
-      const s = await invoke<{ general: { ui_language: string }; overlay: { style?: string; position?: string } }>("get_settings");
-      return { lang: s.general.ui_language in LABELS ? s.general.ui_language : "en", style: s.overlay.style ?? "full", pos: s.overlay.position ?? "bottom_center" };
+      const s = await invoke<{ general: { ui_language: string }; overlay: { style?: string; position?: string; dock_edge?: string } }>("get_settings");
+      // A docked pill hugs the edge it was dropped on; the presets name theirs.
+      const pos = s.overlay.position === "docked" ? (s.overlay.dock_edge ?? "bottom") : (s.overlay.position ?? "bottom_center");
+      return { lang: s.general.ui_language in LABELS ? s.general.ui_language : "en", style: s.overlay.style ?? "full", pos };
     } catch {
       await new Promise((r) => setTimeout(r, 250));
     }
@@ -172,26 +226,30 @@ function Overlay() {
   const cls = ["pill", p.state, recording ? "rec" : "", busy ? "busy" : "", error ? "err" : "", warn ? "warn" : ""].join(" ");
   // The state guard covers the one render between leaving "processing" and the
   // effect above clearing the flag, so the line never flashes over "Done".
-  // The window is wider and taller than the badge now, so its empty area would
-  // sit on top of whatever the user is trying to click. Windows can be told to
-  // pass the pointer straight through, and that is switched off only while the
-  // retry button is on screen and waiting to be pressed.
+  // The window is wider and taller than the badge, so its empty area would sit
+  // on top of whatever the user is trying to click. Windows can be told to pass
+  // the pointer straight through, and that is switched off only while there is
+  // something here to take the mouse: the retry button, a dictation in progress
+  // (so the pill can be dragged to a better spot while it is up), or the
+  // "show me so I can move it" preview from Settings.
+  const takesMouse = p.can_retry || recording || !!p.movable;
   useEffect(() => {
-    getCurrentWindow().setIgnoreCursorEvents(!p.can_retry).catch(() => {});
-  }, [p.can_retry]);
+    getCurrentWindow().setIgnoreCursorEvents(!takesMouse).catch(() => {});
+  }, [takesMouse]);
 
   const stress = stressed && p.state === "processing" ? STRESS_LINE[lang] : null;
 
   if (style === "minimal") {
-    // One dot with a coloured ring: red listening, amber working, green done.
-    // The dot has no room for a line, so the warning rides in the tooltip.
+    // A single dot and nothing else: red while listening, lime while working,
+    // green when done, amber when the words landed in the clipboard and wait
+    // to be pasted. It has no room for a line, so the message rides in the tooltip.
     return (
       <div
-        className={cls + " mini"}
+        className={cls + " mini" + (p.movable ? " movable" : "")}
         role="status"
         aria-live="polite"
-        title={LABELS[lang][p.state] + (stress ? ` · ${stress}` : "")}
-        data-tauri-drag-region
+        title={(p.movable ? DRAG_HINT[lang] : LABELS[lang][p.state]) + (stress ? ` · ${stress}` : "")}
+        onPointerDown={beginDrag}
       >
         <div className="dot" />
       </div>
@@ -199,7 +257,8 @@ function Overlay() {
   }
 
   return (
-    <div className={cls} role="status" aria-live="polite" data-tauri-drag-region>
+    <div className={cls + (p.movable ? " movable" : "")} role="status" aria-live="polite" onPointerDown={beginDrag}>
+      {p.movable ? <div className="drag-hint">{DRAG_HINT[lang]}</div> : null}
       <div className="head">
         <div className="dot" />
         <div className="title">{LABELS[lang][p.state]}{recording ? ` ${seconds.toFixed(1)}s` : ""}</div>

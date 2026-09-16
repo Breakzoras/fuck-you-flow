@@ -4,23 +4,81 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+/// What the engine is told to listen for. "Primary" is the user's own language
+/// (`LanguageModeSetting::primary`); until 0.9.7 it could only be Greek, and
+/// settings files from then still say "greek", which the alias keeps reading.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LanguageMode {
-    Greek,
+    #[serde(alias = "greek")]
+    Primary,
     English,
     Auto,
     Multi,
 }
 
-impl LanguageMode {
-    /// Value passed to whisper-server. Multi means "auto" with a bilingual prompt.
-    pub fn whisper_code(&self) -> &'static str {
-        match self {
-            LanguageMode::Greek => "el",
-            LanguageMode::English => "en",
-            LanguageMode::Auto | LanguageMode::Multi => "auto",
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LanguageModeSetting {
+    pub mode: LanguageMode,
+    /// ISO code of the user's own language. Multi means this one plus English;
+    /// Primary means this one alone. A code outside `languages::CHOICES` is
+    /// replaced by Greek, so a hand-edited file cannot send the engine an
+    /// unknown language.
+    pub primary: String,
+}
+
+impl Default for LanguageModeSetting {
+    fn default() -> Self {
+        Self { mode: LanguageMode::Multi, primary: "el".into() }
+    }
+}
+
+impl LanguageModeSetting {
+    /// The user's own language, always one the engine knows.
+    pub fn primary(&self) -> &str {
+        if crate::languages::is_choice(&self.primary) { &self.primary } else { "el" }
+    }
+
+    /// Value passed to whisper-server. Multi means "auto", and a result in a
+    /// third language is redone with the primary forced (see `languages::needs_lock`).
+    pub fn whisper_code(&self) -> String {
+        match self.mode {
+            LanguageMode::Primary => self.primary().to_string(),
+            LanguageMode::English => "en".into(),
+            LanguageMode::Auto | LanguageMode::Multi => "auto".into(),
         }
+    }
+
+    /// The language the cleanup rules and the History entry should use for a
+    /// transcript, given what the engine reported it heard.
+    pub fn effective(&self, detected: Option<&str>, text: &str) -> String {
+        match self.mode {
+            LanguageMode::Primary => self.primary().to_string(),
+            LanguageMode::English => "en".into(),
+            LanguageMode::Multi => {
+                let d = detected.map(crate::languages::code_from_name).unwrap_or_default();
+                if d == "en" || d == self.primary() {
+                    d
+                } else if self.primary() != "el" && crate::cleanup::deterministic::looks_greek(text) {
+                    // never label Greek letters as anything else
+                    "el".into()
+                } else if self.primary() == "el" && !crate::cleanup::deterministic::looks_greek(text) {
+                    "en".into()
+                } else {
+                    self.primary().to_string()
+                }
+            }
+            LanguageMode::Auto => detected
+                .map(crate::languages::code_from_name)
+                .filter(|d| !d.is_empty() && d != "auto")
+                .unwrap_or_else(|| if crate::cleanup::deterministic::looks_greek(text) { "el".into() } else { "en".into() }),
+        }
+    }
+
+    /// Whether a mixed-mode transcript must be redone with the primary forced.
+    pub fn needs_lock(&self, detected: Option<&str>, text: &str) -> bool {
+        self.mode == LanguageMode::Multi && crate::languages::needs_lock(self.primary(), detected, text)
     }
 }
 
@@ -50,6 +108,9 @@ pub enum OverlayPosition {
     BottomRight,
     BottomLeft,
     Custom,
+    /// Wherever the user last dragged it: an edge of the screen and how far
+    /// along that edge (see `OverlaySettings::dock_edge` and `dock_along`).
+    Docked,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -230,8 +291,14 @@ pub struct OverlaySettings {
     /// Hide the pill completely while idle (it appears on hotkey press).
     pub hide_when_idle: bool,
     pub scale: f32,
-    /// "full" (state text and waveform) or "minimal" (one dot with a coloured ring).
+    /// "full" (state text and waveform) or "minimal" (one coloured dot).
     pub style: String,
+    /// For `OverlayPosition::Docked`: "bottom", "top", "left" or "right".
+    pub dock_edge: String,
+    /// For `OverlayPosition::Docked`: 0.0 is the start of the edge (left, or
+    /// top), 1.0 the end. A fraction, so the same setting lands in the same
+    /// place on a screen of a different size.
+    pub dock_along: f32,
 }
 
 impl Default for OverlaySettings {
@@ -244,6 +311,8 @@ impl Default for OverlaySettings {
             hide_when_idle: true,
             scale: 1.0,
             style: "full".into(),
+            dock_edge: "bottom".into(),
+            dock_along: 0.5,
         }
     }
 }
@@ -327,18 +396,6 @@ pub struct Settings {
     pub insertion: InsertionSettings,
     pub overlay: OverlaySettings,
     pub privacy: PrivacySettings,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct LanguageModeSetting {
-    pub mode: LanguageMode,
-}
-
-impl Default for LanguageModeSetting {
-    fn default() -> Self {
-        Self { mode: LanguageMode::Multi }
-    }
 }
 
 /// Set when settings.json exists but could not be read at all this run.

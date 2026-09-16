@@ -24,7 +24,7 @@ use crate::engine::EngineManager;
 use crate::hotkey::{ChordId, HotkeyEvent, CAPTURE_ESCAPE};
 use crate::insertion::{self, InsertOptions, InsertOutcome};
 use crate::overlay::{self, OverlayPayload, OverlayState};
-use crate::settings::{InsertionMethod, LanguageMode, Settings};
+use crate::settings::{InsertionMethod, Settings};
 
 #[derive(Debug)]
 pub enum PipelineMsg {
@@ -260,7 +260,7 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                                 s.mode = Mode::HandsFree;
                             }
                             shared.snapshot.lock().hands_free = true;
-                            overlay::emit_state(&app, OverlayPayload { state: OverlayState::HandsFree, message: None, preview: None, can_retry: false, seconds: 0.0 });
+                            overlay::emit_state(&app, OverlayPayload { state: OverlayState::HandsFree, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
                             continue;
                         }
                         finalize(&app, &shared, session.take().unwrap(), &mut level_task, &last_recovery, &mut idle_timer).await;
@@ -276,7 +276,7 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                                 // Ctrl+Win already recording, Space added: switch to hands-free
                                 s.mode = Mode::HandsFree;
                                 shared.snapshot.lock().hands_free = true;
-                                overlay::emit_state(&app, OverlayPayload { state: OverlayState::HandsFree, message: None, preview: None, can_retry: false, seconds: 0.0 });
+                                overlay::emit_state(&app, OverlayPayload { state: OverlayState::HandsFree, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
                             }
                             Some(_) => {
                                 finalize(&app, &shared, session.take().unwrap(), &mut level_task, &last_recovery, &mut idle_timer).await;
@@ -357,10 +357,10 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
     tracing::debug!("begin: target captured in {} ms ({}, hwnd {})", t0.elapsed().as_millis(), ctx.target.process_name, ctx.target.hwnd);
     overlay::show(app, &settings.overlay, ctx.target.hwnd);
     tracing::debug!("begin: overlay shown at {} ms", t0.elapsed().as_millis());
-    overlay::emit_state(app, OverlayPayload { state: OverlayState::Starting, message: None, preview: None, can_retry: false, seconds: 0.0 });
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::Starting, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
 
     if ctx.category == AppCategory::Sensitive {
-        overlay::emit_state(app, OverlayPayload { state: OverlayState::Sensitive, message: Some(ctx.friendly_name.clone()), preview: None, can_retry: false, seconds: 0.0 });
+        overlay::emit_state(app, OverlayPayload { state: OverlayState::Sensitive, message: Some(ctx.friendly_name.clone()), preview: None, can_retry: false, seconds: 0.0, movable: false });
         schedule_idle(app, shared, idle_timer, 1800);
         return None;
     }
@@ -373,7 +373,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
             Ok(Ok(_)) => {}
             Ok(Err(e)) => {
                 tracing::error!("microphone: {e}");
-                overlay::emit_state(app, OverlayPayload { state: OverlayState::MicUnavailable, message: Some(e), preview: None, can_retry: false, seconds: 0.0 });
+                overlay::emit_state(app, OverlayPayload { state: OverlayState::MicUnavailable, message: Some(e), preview: None, can_retry: false, seconds: 0.0, movable: false });
                 schedule_idle(app, shared, idle_timer, 2500);
                 return None;
             }
@@ -382,7 +382,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                 // recover it, but leaving the badge spinning for the rest of
                 // the session helps nobody.
                 tracing::error!("the microphone thread died while opening the device");
-                overlay::emit_state(app, OverlayPayload { state: OverlayState::MicUnavailable, message: Some("msg_mic_thread_died".into()), preview: None, can_retry: false, seconds: 0.0 });
+                overlay::emit_state(app, OverlayPayload { state: OverlayState::MicUnavailable, message: Some("msg_mic_thread_died".into()), preview: None, can_retry: false, seconds: 0.0, movable: false });
                 schedule_idle(app, shared, idle_timer, 2500);
                 return None;
             }
@@ -393,7 +393,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
 
     // 3. Engine warm? Recording proceeds anyway; the wait happens at release.
     let state = if mode == Mode::HandsFree { OverlayState::HandsFree } else { OverlayState::Recording };
-    overlay::emit_state(app, OverlayPayload { state, message: None, preview: None, can_retry: false, seconds: 0.0 });
+    overlay::emit_state(app, OverlayPayload { state, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
     set_phase(shared, Phase::Recording, mode == Mode::HandsFree);
     tracing::info!("recording started in {} ms (target {}, {})", t0.elapsed().as_millis(), ctx.friendly_name, ctx.target.process_name);
     crate::journal::info(
@@ -418,7 +418,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
         if info.is_password {
             shared.audio.discard();
             CAPTURE_ESCAPE.store(false, std::sync::atomic::Ordering::Relaxed);
-            overlay::emit_state(app, OverlayPayload { state: OverlayState::Sensitive, message: Some("password field".into()), preview: None, can_retry: false, seconds: 0.0 });
+            overlay::emit_state(app, OverlayPayload { state: OverlayState::Sensitive, message: Some("password field".into()), preview: None, can_retry: false, seconds: 0.0, movable: false });
             set_phase(shared, Phase::Idle, false);
             schedule_idle(app, shared, idle_timer, 1800);
             return None;
@@ -435,10 +435,10 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
     let segments: Arc<Mutex<Segmenter>> = Arc::new(Mutex::new(Segmenter::default()));
     let seg = segments.clone();
     let segment_enabled = settings.asr.segment_while_speaking;
-    let lang_code = settings.language.mode.whisper_code().to_string();
+    let lang_code = settings.language.whisper_code();
     let hints = if settings.asr.hints_from_dictionary {
         let terms = shared.dict.read().hint_terms(settings.asr.max_hint_terms);
-        build_hint_prompt(&terms, &lang_code)
+        build_hint_prompt(&terms, &lang_code, settings.language.primary())
     } else {
         None
     };
@@ -501,7 +501,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
 async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
     drop_recording(shared, s, level_task);
     crate::hotkey::reset_pressed_state();
-    overlay::emit_state(app, OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: false, seconds: 0.0 });
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
     finish_cancel(app, shared, idle_timer);
 }
 
@@ -513,7 +513,7 @@ async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_
 /// recording, once per letter.
 async fn cancel_quietly(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
     drop_recording(shared, s, level_task);
-    overlay::emit_state(app, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0 });
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
     finish_cancel(app, shared, idle_timer);
 }
 
@@ -589,7 +589,7 @@ fn schedule_idle(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &mut 
     let hide = shared.settings.read().overlay.hide_when_idle;
     *idle_timer = Some(tokio::spawn(async move {
         tokio::time::sleep(Duration::from_millis(ms)).await;
-        overlay::emit_state(&app, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0 });
+        overlay::emit_state(&app, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
         if hide {
             overlay::hide(&app);
         }
@@ -614,7 +614,7 @@ async fn process(
     let released_at = Instant::now();
     let settings = shared.settings.read().clone();
     set_phase(shared, Phase::Processing, false);
-    overlay::emit_state(app, OverlayPayload { state: OverlayState::Processing, message: None, preview: None, can_retry: false, seconds: samples.len() as f32 / 16000.0 });
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::Processing, message: None, preview: None, can_retry: false, seconds: samples.len() as f32 / 16000.0, movable: false });
 
     // 1. Empty / accidental press?
     //
@@ -634,6 +634,7 @@ async fn process(
             preview: None,
             can_retry: false,
             seconds: 0.0,
+            movable: false,
         });
         finish_idle(shared, app, idle_timer, 2600);
         return;
@@ -643,12 +644,12 @@ async fn process(
         Some(a) => {
             tracing::info!("no speech: {} ms audio, {} ms speech, peak {:.3}", a.total_ms, a.speech_ms, a.peak);
             crate::journal::info("record.no_speech", serde_json::json!({ "audio_ms": a.total_ms, "speech_ms": a.speech_ms, "peak": a.peak }));
-            overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0 });
+            overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
             finish_idle(shared, app, idle_timer, 1200);
             return;
         }
         None => {
-            overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0 });
+            overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
             finish_idle(shared, app, idle_timer, 1200);
             return;
         }
@@ -692,7 +693,7 @@ async fn process(
             }
         }
         if !shared.engine.is_ready() {
-            overlay::emit_state(app, OverlayPayload { state, message: msg, preview: None, can_retry: true, seconds: 0.0 });
+            overlay::emit_state(app, OverlayPayload { state, message: msg, preview: None, can_retry: true, seconds: 0.0, movable: false });
             shared.snapshot.lock().last_error = Some("engine not ready".into());
             finish_idle(shared, app, idle_timer, 3000);
             return;
@@ -700,13 +701,17 @@ async fn process(
     }
 
     // 4. Transcribe with dictionary hints.
-    let lang_code = settings.language.mode.whisper_code().to_string();
+    let lang_code = settings.language.whisper_code();
     let prompt = if settings.asr.hints_from_dictionary {
         let terms = shared.dict.read().hint_terms(settings.asr.max_hint_terms);
-        build_hint_prompt(&terms, &lang_code)
+        build_hint_prompt(&terms, &lang_code, settings.language.primary())
     } else {
         None
     };
+    // Kept for the one case where the whole recording has to be heard again
+    // with the language forced; a few hundred kilobytes for a normal sentence.
+    let wav_whole = wav.clone();
+    let prompt_whole = prompt.clone();
     // Segments finished while the user was speaking: collect them in order and
     // transcribe only what came after the last cut. Any failure falls back to
     // one pass over the whole recording.
@@ -788,7 +793,7 @@ async fn process(
                     crate::asr::AsrError::Offline(_) => OverlayState::Offline,
                     _ => OverlayState::Failed,
                 };
-                overlay::emit_state(app, OverlayPayload { state, message: Some(e.to_string()), preview: None, can_retry: true, seconds: 0.0 });
+                overlay::emit_state(app, OverlayPayload { state, message: Some(e.to_string()), preview: None, can_retry: true, seconds: 0.0, movable: false });
                 shared.snapshot.lock().last_error = Some(e.to_string());
                 finish_idle(shared, app, idle_timer, 3500);
                 return;
@@ -803,13 +808,41 @@ async fn process(
             let s2 = settings.clone();
             tokio::spawn(async move { engine.apply(&app2, &s2).await });
             if head_parts.is_empty() {
-                overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("transcription took longer than the limit; restarting the speech engine".into()), preview: None, can_retry: true, seconds: 0.0 });
+                overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("transcription took longer than the limit; restarting the speech engine".into()), preview: None, can_retry: true, seconds: 0.0, movable: false });
                 finish_idle(shared, app, idle_timer, 3500);
                 return;
             }
             tracing::warn!("the tail timed out; keeping the {} piece(s) already transcribed", head_parts.len());
             crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
         }
+    };
+    // The engine was free to guess the language and guessed one the user never
+    // chose. Everything heard so far, the pieces done while speaking included,
+    // is thrown away and the whole recording is heard once more with the user's
+    // own language forced. Rare, and worth a second on those occasions:
+    // a Greek sentence that comes out in Czech is worse than no sentence.
+    let joined_so_far = {
+        let mut v = head_parts.clone();
+        v.push(result.text.clone());
+        v.join(" ")
+    };
+    let (result, head_parts) = if settings.language.needs_lock(result.detected_language.as_deref(), &joined_so_far) {
+        let forced = settings.language.primary().to_string();
+        tracing::info!("the engine heard {:?}; hearing the whole recording again as {forced}", result.detected_language);
+        crate::journal::info("language.locked", serde_json::json!({ "heard": result.detected_language, "forced": forced, "source": "dictation" }));
+        overlay::emit_state(app, OverlayPayload { state: OverlayState::Processing, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
+        let again = TranscriptionRequest { wav: wav_whole, language: forced, prompt: prompt_whole, beam_size: settings.asr.beam_size, vad: settings.asr.vad };
+        match tokio::time::timeout(transcribe_limit, shared.engine.transcribe(again)).await {
+            Ok(Ok(r)) => (r, Vec::new()),
+            // The second pass failed: the first one is still a transcript, and
+            // a transcript in the wrong language beats a blank pill.
+            _ => {
+                tracing::warn!("the forced pass failed; keeping the first result");
+                (result, head_parts)
+            }
+        }
+    } else {
+        (result, head_parts)
     };
     let tail_pitch = crate::audio::tail_pitch_features(&speech);
     if let Some((peak, end)) = tail_pitch {
@@ -826,18 +859,14 @@ async fn process(
     };
     tracing::info!("raw transcript ({} ms inference): {}", result.inference_ms, crate::logging::redact(&raw));
     if raw.is_empty() || is_hallucination(&raw) || (result.no_speech_prob.unwrap_or(0.0) > 0.85 && raw.split_whitespace().count() <= 2) {
-        overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0 });
+        overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
         finish_idle(shared, app, idle_timer, 1200);
         return;
     }
 
     // 5. Cleanup.
-    overlay::emit_state(app, OverlayPayload { state: OverlayState::Cleaning, message: None, preview: None, can_retry: false, seconds: 0.0 });
-    let effective_lang = match settings.language.mode {
-        LanguageMode::Greek => "el".to_string(),
-        LanguageMode::English => "en".to_string(),
-        _ => result.detected_language.clone().unwrap_or_else(|| if crate::cleanup::deterministic::looks_greek(&raw) { "el".into() } else { "en".into() }),
-    };
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::Cleaning, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
+    let effective_lang = settings.language.effective(result.detected_language.as_deref(), &raw);
     let opts = CleanupOptions {
         intensity: settings.cleanup.intensity.clone(),
         remove_fillers: settings.cleanup.remove_fillers,
@@ -854,7 +883,7 @@ async fn process(
         run_deterministic(&raw, &opts, &dict, &snips)
     };
     if outcome.cleaned.trim().is_empty() {
-        overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0 });
+        overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
         finish_idle(shared, app, idle_timer, 1200);
         return;
     }
@@ -964,7 +993,7 @@ async fn process(
 
     let latency_ms = released_at.elapsed().as_millis() as u64;
     let preview: String = final_text.trim().chars().take(60).collect();
-    overlay::emit_state(app, OverlayPayload { state: state.clone(), message, preview: Some(preview), can_retry: state == OverlayState::Failed, seconds: 0.0 });
+    overlay::emit_state(app, OverlayPayload { state: state.clone(), message, preview: Some(preview), can_retry: state == OverlayState::Failed, seconds: 0.0, movable: false });
     shared.snapshot.lock().last_transcript = Some(final_text.trim().to_string());
     // The recording is one file that the next dictation overwrites, so keeping
     // it costs nothing and is the last copy of what was actually said.
@@ -1000,7 +1029,7 @@ async fn process(
             raw_text: raw.clone(),
             cleaned_text: outcome.cleaned.clone(),
             final_text: final_text.trim().to_string(),
-            language: settings.language.mode.whisper_code().to_string(),
+            language: settings.language.whisper_code(),
             detected_language: result.detected_language.clone(),
             app_name: Some(ctx.friendly_name.clone()),
             app_process: Some(ctx.target.process_name.clone()),
@@ -1053,6 +1082,7 @@ async fn process(
                     preview: None,
                     can_retry: false,
                     seconds: 0.0,
+                    movable: false,
                 });
             }
             if counted {
@@ -1094,7 +1124,7 @@ async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &m
         }
     };
     let Some(text) = text else {
-        overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("msg_no_previous".into()), preview: None, can_retry: false, seconds: 0.0 });
+        overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("msg_no_previous".into()), preview: None, can_retry: false, seconds: 0.0, movable: false });
         // Without this the badge sat on "Failed" until the next dictation, or
         // stayed on screen for ever when it is set to hide when idle.
         schedule_idle(app, shared, idle_timer, 2500);
@@ -1117,6 +1147,7 @@ async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &m
             preview: Some(text.chars().take(60).collect()),
             can_retry: false,
             seconds: 0.0,
+            movable: false,
         });
         schedule_idle(app, shared, idle_timer, 3000);
         return;
@@ -1129,7 +1160,7 @@ async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &m
         Some(InsertOutcome::Pasted) | Some(InsertOutcome::PastedNoRestore) => OverlayState::Success,
         _ => OverlayState::TargetChanged,
     };
-    overlay::emit_state(app, OverlayPayload { state, message: r.and_then(|r| r.message), preview: Some(text.chars().take(60).collect()), can_retry: false, seconds: 0.0 });
+    overlay::emit_state(app, OverlayPayload { state, message: r.and_then(|r| r.message), preview: Some(text.chars().take(60).collect()), can_retry: false, seconds: 0.0, movable: false });
     // Through the shared timer, so starting a dictation within the next second
     // and a half cancels it. As a loose task it kept its appointment and hid the
     // badge a moment after the new recording had shown it, leaving the user

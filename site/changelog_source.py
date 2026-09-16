@@ -18,6 +18,73 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.7",
+        "date": "2026-09-16",
+        "summary": (
+            "The dictation language stays yours: when the engine guesses a third language, "
+            "the recording is heard again in the one you chose. Any of thirty-three languages "
+            "can be that one now. The bar can be dragged to any edge of the screen, the "
+            "discreet style is a single dot, and a crash that killed the app in the first hour "
+            "after every boot is gone.",
+            "Η γλώσσα της υπαγόρευσης μένει η δική σας: όταν η μηχανή μαντέψει τρίτη γλώσσα, "
+            "η ηχογράφηση ακούγεται ξανά στη γλώσσα που διαλέξατε. Δική σας μπορεί πλέον να "
+            "είναι οποιαδήποτε από τριάντα τρεις γλώσσες. Η μπάρα σέρνεται σε όποια πλευρά της "
+            "οθόνης θέλετε, η διακριτική εμφάνιση είναι μια τελεία και μια κατάρρευση που "
+            "σκότωνε την εφαρμογή την πρώτη ώρα μετά από κάθε εκκίνηση των Windows χάθηκε.",
+        ),
+        "lines": [
+            ("fixed",
+             "In the mixed mode (your language and English) the engine was free to guess among "
+             "all ninety-nine languages it knows, and a short Greek phrase could come out in "
+             "Czech or Turkish. Now anything that is neither your language nor English is heard "
+             "again with your language forced. It costs about a second, only on those occasions.",
+             "Στη μεικτή λειτουργία (η γλώσσα σας και αγγλικά) η μηχανή ήταν ελεύθερη να μαντέψει "
+             "ανάμεσα και στις ενενήντα εννιά γλώσσες που ξέρει και μια σύντομη ελληνική φράση "
+             "μπορούσε να βγει τσέχικα ή τουρκικά. Τώρα ό,τι δεν είναι ούτε η γλώσσα σας ούτε "
+             "αγγλικά ακούγεται ξανά με τη γλώσσα σας κλειδωμένη. Κοστίζει περίπου ένα "
+             "δευτερόλεπτο, μόνο σε αυτές τις περιπτώσεις."),
+            ("added",
+             "Your language is a choice in Settings, Language, with thirty-three to pick from. "
+             "The modes are named after it: your language and English mixed, your language "
+             "only, English only, or auto-detect among everything. A fresh install picks the "
+             "language of your Windows.",
+             "Η γλώσσα σας είναι επιλογή στις Ρυθμίσεις, Γλώσσα, με τριάντα τρεις διαθέσιμες. "
+             "Οι λειτουργίες παίρνουν το όνομά της: η γλώσσα σας και αγγλικά μαζί, μόνο η "
+             "γλώσσα σας, μόνο αγγλικά ή αυτόματη ανίχνευση ανάμεσα σε όλες. Μια καινούργια "
+             "εγκατάσταση διαλέγει τη γλώσσα των Windows σας."),
+            ("added",
+             "The bar can be dragged with the mouse while it is on screen. It sticks to the "
+             "nearest edge, top, bottom, left or right, at the spot where you let go, and "
+             "remembers the place. Settings, Overlay has a button that shows the bar for fifteen "
+             "seconds so you can move it without dictating.",
+             "Η μπάρα σέρνεται με το ποντίκι όσο είναι στην οθόνη. Κολλάει στην πιο κοντινή "
+             "πλευρά, πάνω, κάτω, αριστερά ή δεξιά, στο σημείο που την αφήσατε και θυμάται τη "
+             "θέση. Στις Ρυθμίσεις, Μπάρα υπάρχει κουμπί που τη δείχνει για δεκαπέντε δευτερόλεπτα "
+             "για να τη μετακινήσετε χωρίς να υπαγορεύετε."),
+            ("changed",
+             "The discreet style is now a single dot and nothing else: red while listening, "
+             "green when done, amber when the words landed in the clipboard and wait for you to paste them.",
+             "Η διακριτική εμφάνιση είναι πλέον μια τελεία και τίποτα άλλο: κόκκινη όσο ακούει, "
+             "πράσινη όταν τελειώσει, πορτοκαλί όταν οι λέξεις μπήκαν στο πρόχειρο και περιμένουν "
+             "να τις επικολλήσετε."),
+            ("fixed",
+             "For the first hour after Windows started, the app could close without a word the "
+             "moment the microphone stumbled. A clock that counts from boot was asked for a time "
+             "before boot. Both the cause and a test that forbids it are in.",
+             "Την πρώτη ώρα μετά την εκκίνηση των Windows η εφαρμογή μπορούσε να κλείσει χωρίς "
+             "κουβέντα τη στιγμή που σκόνταφτε το μικρόφωνο. Ένα ρολόι που μετράει από την "
+             "εκκίνηση ρωτήθηκε για μια στιγμή πριν από αυτήν. Μπήκε και η διόρθωση και ένα "
+             "τεστ που το απαγορεύει."),
+            ("fixed",
+             "The Windows clipboard history (Win+V) could grab the text before the window you "
+             "were dictating into, and the paste came out empty. The history is kept out of the "
+             "way until the paste is over.",
+             "Το ιστορικό προχείρου των Windows (Win+V) μπορούσε να αρπάξει το κείμενο πριν από "
+             "το παράθυρο στο οποίο υπαγορεύατε και η επικόλληση έβγαινε άδεια. Το ιστορικό "
+             "μένει στην άκρη μέχρι να τελειώσει η επικόλληση."),
+        ],
+    },
+    {
         "version": "0.9.6",
         "date": "2026-09-11",
         "summary": (
