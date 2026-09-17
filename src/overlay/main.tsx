@@ -50,6 +50,13 @@ async function beginDrag(e: React.PointerEvent<HTMLDivElement>) {
   el.setPointerCapture(e.pointerId);
   el.classList.add("dragging");
   const onMove = (ev: PointerEvent) => {
+    // The two awaits above give a quick click time to end before these
+    // listeners exist, and then no pointerup ever arrives. Without this check
+    // the pill followed a cursor with no button held until the next click.
+    if ((ev.buttons & 1) === 0) {
+      onUp();
+      return;
+    }
     const dx = Math.round((ev.screenX - startX) * scale);
     const dy = Math.round((ev.screenY - startY) * scale);
     if (Math.abs(dx) + Math.abs(dy) < 4 && !moved) return;
