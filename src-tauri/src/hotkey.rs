@@ -407,7 +407,13 @@ pub fn stop_recording_keys() {
 pub fn reset_pressed_state() {
     let mut st = STATE.lock().unwrap();
     #[cfg(windows)]
-    st.down.retain(|&vk| unsafe { (GetAsyncKeyState(vk as i32) as u16 & 0x8000) != 0 });
+    {
+        let pressed_at = st.last_down.clone();
+        st.down.retain(|&vk| {
+            let async_held = unsafe { (GetAsyncKeyState(vk as i32) as u16 & 0x8000) != 0 };
+            still_held(async_held, pressed_at.get(&vk).copied())
+        });
+    }
     let down = st.down.clone();
     st.last_down.retain(|vk, _| down.contains(vk));
     refresh_active(&mut st.bindings, &down);
@@ -416,6 +422,26 @@ pub fn reset_pressed_state() {
     if !down.iter().any(|vk| matches!(*vk, VK_LMENU | VK_RMENU | VK_MENU)) {
         st.alt_mask_pending = false;
     }
+}
+
+/// How long after the hook saw a key go down it counts as held, whatever
+/// Windows says.
+const JUST_PRESSED: Duration = Duration::from_secs(1);
+
+/// Whether a key the hook saw go down still counts as held when the pipeline
+/// resets the key state.
+///
+/// Windows records a key as held only after every keyboard hook has returned,
+/// and the hands-free stop reaches the pipeline from inside the hook. The reset
+/// then runs a millisecond or two after the press, often before Windows has
+/// caught up, and asking it alone dropped the Alt the user was still holding:
+/// its release came through unreported and unmasked, Chrome took the bare Alt
+/// as a trip to its menu, and the paste went there (seven dictations in a row
+/// on 17 September 2026). A key pressed within the last second stays; a key
+/// Windows calls up and that was pressed longer ago is a release the hook
+/// missed, and is forgotten as before.
+fn still_held(async_held: bool, pressed_at: Option<std::time::Instant>) -> bool {
+    async_held || pressed_at.is_some_and(|t| t.elapsed() < JUST_PRESSED)
 }
 
 /// A chord is active exactly while every key in it is held.
@@ -861,6 +887,42 @@ mod tests {
         down.clear();
         refresh_active(&mut bindings, &down);
         assert!(!bindings[0].active);
+    }
+
+    /// 17 September 2026: seven dictations in a row stopped with a tap of the
+    /// right Alt, and none reached Claude or Slack. The pipeline resets the key
+    /// state a millisecond or two after the stop press, before Windows has
+    /// recorded that press as held, so the Alt was dropped, its release got no
+    /// mask, and Chrome moved the focus to its menu just before Ctrl+V. The one
+    /// paste that landed that morning was the one whose release was still seen.
+    #[test]
+    fn the_key_that_just_stopped_a_recording_survives_the_reset() {
+        set_bindings(vec![(ChordId::HandsFree, Chord::parse("RAlt").unwrap())]);
+        {
+            let mut st = STATE.lock().unwrap();
+            st.down.insert(VK_RMENU);
+            st.last_down.insert(VK_RMENU, std::time::Instant::now());
+            st.bindings[0].active = true;
+            st.alt_mask_pending = true;
+        }
+        // Nothing in a test holds a key, so Windows reports the Alt as up:
+        // exactly what the pipeline saw in the failing dictations.
+        reset_pressed_state();
+        let st = STATE.lock().unwrap();
+        assert!(st.down.contains(&VK_RMENU), "the Alt pressed a moment ago is still down");
+        assert!(st.bindings[0].active, "its release must still be reported");
+        assert!(st.alt_mask_pending, "its release must still get the mask");
+    }
+
+    #[test]
+    fn a_key_whose_release_went_missing_is_forgotten_on_reset() {
+        assert!(still_held(false, Some(std::time::Instant::now())), "pressed a moment ago");
+        let long_ago = std::time::Instant::now().checked_sub(Duration::from_secs(5));
+        if let Some(t) = long_ago {
+            assert!(!still_held(false, Some(t)), "pressed five seconds ago and Windows says it is up");
+        }
+        assert!(still_held(true, None), "Windows says it is held");
+        assert!(!still_held(false, None));
     }
 
     /// AltGr and "hold the right Alt to speak" are the same physical key.
