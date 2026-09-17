@@ -425,8 +425,10 @@ pub fn reset_pressed_state() {
 }
 
 /// How long after the hook saw a key go down it counts as held, whatever
-/// Windows says.
-const JUST_PRESSED: Duration = Duration::from_secs(1);
+/// Windows says. The gap it covers is a few milliseconds; a quarter of a
+/// second leaves room for a busy machine, and past that Windows has long
+/// caught up with a key that is really held.
+const JUST_PRESSED: Duration = Duration::from_millis(250);
 
 /// Whether a key the hook saw go down still counts as held when the pipeline
 /// resets the key state.
@@ -437,7 +439,7 @@ const JUST_PRESSED: Duration = Duration::from_secs(1);
 /// caught up, and asking it alone dropped the Alt the user was still holding:
 /// its release came through unreported and unmasked, Chrome took the bare Alt
 /// as a trip to its menu, and the paste went there (seven dictations in a row
-/// on 17 September 2026). A key pressed within the last second stays; a key
+/// on 17 September 2026). A key pressed within `JUST_PRESSED` stays; a key
 /// Windows calls up and that was pressed longer ago is a release the hook
 /// missed, and is forgotten as before.
 fn still_held(async_held: bool, pressed_at: Option<std::time::Instant>) -> bool {
