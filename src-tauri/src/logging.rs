@@ -85,21 +85,49 @@ impl Write for LocalDaily {
     }
 }
 
+/// The dated log files in `dir`, oldest first, ordered by the date in the
+/// name. Sorting whole names put every
+/// `fuckyouflow.log.*` before every `lalia.log.*` ('f' before 'l'), so on a
+/// machine that ran the old builds the prune deleted the newest logs first and
+/// kept the old ones forever. On the same day the old name counts as older.
+/// Each entry says whether it carries the current name.
+fn dated_logs(dir: &Path) -> Vec<(PathBuf, bool)> {
+    let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut files: Vec<(String, bool, PathBuf)> = rd
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.is_file())
+        .filter_map(|p| {
+            let (day, current) = {
+                let name = p.file_name()?.to_str()?;
+                match name.strip_prefix(PREFIX) {
+                    Some(day) => (day.to_string(), true),
+                    None => (name.strip_prefix(OLD_PREFIX)?.to_string(), false),
+                }
+            };
+            Some((day, current, p))
+        })
+        .collect();
+    files.sort();
+    files.into_iter().map(|(_, current, p)| (p, current)).collect()
+}
+
+/// The newest log this program writes, for the Diagnostics page. Files left by
+/// the old "Lalia" builds are skipped: their lines describe a program that is
+/// no longer running.
+pub fn newest_log(dir: &Path) -> Option<PathBuf> {
+    dated_logs(dir).into_iter().filter(|(_, current)| *current).map(|(p, _)| p).last()
+}
+
 /// Keeps a week. Called whenever a new day's file is opened. Without this the
 /// text log grew for the life of the install; only the journal was pruned.
 fn prune(dir: &Path) {
-    let Ok(rd) = std::fs::read_dir(dir) else { return };
-    let mut files: Vec<PathBuf> = rd
-        .filter_map(|e| e.ok())
-        .map(|e| e.path())
-        .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with(PREFIX) || n.starts_with(OLD_PREFIX)))
-        .collect();
+    let files = dated_logs(dir);
     if files.len() <= KEEP_DAYS {
         return;
     }
-    files.sort();
     let cut = files.len() - KEEP_DAYS;
-    for p in files.into_iter().take(cut) {
+    for (p, _) in files.into_iter().take(cut) {
         let _ = std::fs::remove_file(p);
     }
 }
@@ -179,6 +207,61 @@ mod tests {
         assert_eq!(left.len(), KEEP_DAYS, "keeps a week");
         assert_eq!(left.first().map(String::as_str), Some("fuckyouflow.log.2026-09-04"));
         assert!(dir.join("events-2026-09-01.jsonl").exists(), "leaves the journal alone");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn names_in(dir: &Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(dir)
+            .expect("read")
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names
+    }
+
+    /// Logs from the builds named Lalia sit in the same folder after the
+    /// rename. They are older, so they go first, whatever their name sorts to.
+    #[test]
+    fn prune_removes_old_lalia_logs_before_new_ones() {
+        let dir = std::env::temp_dir().join(format!("fuckyouflow-prune-rename-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        for day in 5..=10 {
+            std::fs::write(dir.join(format!("{OLD_PREFIX}2026-09-{day:02}")), b"x").expect("seed old");
+        }
+        for day in 10..=16 {
+            std::fs::write(dir.join(format!("{PREFIX}2026-09-{day:02}")), b"x").expect("seed new");
+        }
+
+        prune(&dir);
+
+        let left = names_in(&dir);
+        let expected: Vec<String> = (10..=16).map(|day| format!("{PREFIX}2026-09-{day:02}")).collect();
+        assert_eq!(left, expected, "the week of new logs stays and every old one goes");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Diagnostics reads the newest file of the running program, never an old
+    /// Lalia log or the crash log, whatever sorts last by name.
+    #[test]
+    fn newest_log_is_the_current_programs_latest_day() {
+        let dir = std::env::temp_dir().join(format!("fuckyouflow-newest-log-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        for name in [
+            format!("{PREFIX}2026-09-15"),
+            format!("{PREFIX}2026-09-16"),
+            format!("{OLD_PREFIX}2026-09-09"),
+            "panic.log".to_string(),
+            "events-2026-09-16.jsonl".to_string(),
+        ] {
+            std::fs::write(dir.join(name), b"x").expect("seed");
+        }
+
+        assert_eq!(newest_log(&dir), Some(dir.join(format!("{PREFIX}2026-09-16"))));
 
         let _ = std::fs::remove_dir_all(&dir);
     }

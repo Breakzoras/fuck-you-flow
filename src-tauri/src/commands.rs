@@ -637,20 +637,10 @@ pub fn recent_problems() -> Vec<String> {
     // once the app has crashed even once, `panic.log`, whose name sorts after
     // every `fuckyouflow.log.<date>`. Taking the last name in the folder therefore
     // meant that from the first crash onwards this list showed old crash lines
-    // and hid every warning and error of the running app.
-    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(crate::paths::logs_dir())
-        .map(|rd| {
-            rd.filter_map(|e| e.ok())
-                .map(|e| e.path())
-                .filter(|p| {
-                    p.is_file()
-                        && p.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with("fuckyouflow.log.") || n.starts_with("lalia.log.")).unwrap_or(false)
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    files.sort();
-    let Some(path) = files.pop() else { return Vec::new() };
+    // and hid every warning and error of the running app. The same happened
+    // with logs left by the old "Lalia" builds, whose names sort after the new
+    // ones, so `newest_log` orders by date and skips them.
+    let Some(path) = crate::logging::newest_log(&crate::paths::logs_dir()) else { return Vec::new() };
     let text = std::fs::read_to_string(&path).unwrap_or_default();
     let is_problem = |l: &str| {
         l.contains(" WARN ") || l.contains(" ERROR ") || l.contains("PANIC") || l.contains("dictation failed")

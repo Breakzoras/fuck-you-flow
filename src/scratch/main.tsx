@@ -111,6 +111,12 @@ function Scratch() {
     };
   }, []);
 
+  // scratch.html is fixed at lang="en"; a screen reader takes its
+  // pronunciation from this attribute, so it follows the interface language.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   // Selected on arrival: one Ctrl+C, or one drag, and the words are yours.
   useEffect(() => {
     if (p && box.current) {

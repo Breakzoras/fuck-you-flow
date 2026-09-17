@@ -349,7 +349,11 @@ function ShortcutsTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settin
       patch((s) => { s.hotkeys[key] = chord; return s; });
     } catch (e) { toast(String(e), "err"); } finally { setRecording(null); }
   };
-  const Row = ({ k, label }: { k: "push_to_talk" | "hands_free" | "paste_last"; label: string }) => (
+  // Called inline as a plain function. It used to be a component declared in
+  // here (`<Row />`), which is a new type on every render, so each keystroke
+  // made React unmount the field and typing a shortcut by hand stopped after
+  // one character.
+  const row = (k: "push_to_talk" | "hands_free" | "paste_last", label: string) => (
     <Field label={label}>
       <div className="row">
         <input type="text" value={draft.hotkeys[k]} onChange={(e) => patch((s) => { s.hotkeys[k] = e.target.value; return s; })} style={{ maxWidth: 260 }} />
@@ -359,9 +363,9 @@ function ShortcutsTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settin
   );
   return (
     <Card>
-      <Row k="push_to_talk" label={t("ptt")} />
-      <Row k="hands_free" label={t("hf")} />
-      <Row k="paste_last" label={t("pl")} />
+      {row("push_to_talk", t("ptt"))}
+      {row("hands_free", t("hf"))}
+      {row("paste_last", t("pl"))}
       <Toggle label={t("tap_toggle")} checked={draft.hotkeys.tap_toggles_hands_free} onChange={(v) => patch((s) => { s.hotkeys.tap_toggles_hands_free = v; return s; })} />
       <p className="hint">Ctrl, Shift, Alt, Win, RCtrl, RShift, RAlt, F1-F24, CapsLock, ScrollLock, Pause, A-Z, 0-9, Mouse4, Mouse5. Escape = {t("cancel")}.</p>
     </Card>

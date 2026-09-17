@@ -200,6 +200,12 @@ function Overlay() {
     };
   }, []);
 
+  // overlay.html is fixed at lang="el"; follow the interface language so a
+  // screen reader pronounces the labels in the language they are written in.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   // Time the wait, then ask the card once. One question per slow dictation,
   // asked only after the threshold, so a fast machine never pays for it.
   useEffect(() => {

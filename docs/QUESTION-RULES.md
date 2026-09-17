@@ -320,7 +320,7 @@ Confidence: High (enable by default), Medium (opt-in), Low (leave off).
 | E2 | Sentence-initial preposition + wh-word | High | To whom did you send it? | To the man who called. | On |
 | E3 | Sentence-initial auxiliary/modal (incl. negated contractions) + pronoun/there/this/that | High | Do you have a minute? Isn't it late? | Do it now. Have a seat. | On |
 | E3b | Same with a determiner + noun subject | Medium | Is the door locked? | Do the dishes. | Off |
-| E4a | Sentence-final auxiliary + pronoun tag, or ", right" | High | You do care, don't you? | You know I do. | On |
+| E4a | Sentence-final ", auxiliary + pronoun" tag, or ", right" (comma required) | High | You do care, don't you? | You know I do. | On |
 | E4b | Sentence-final ", okay", ", correct", ", yes", ", no", ", huh" | Medium | We leave at eight, okay? | It went okay. | Opt-in, comma required |
 | E5 | Interrogative matrix + embedded wh/if/whether ("Do you know", "Can you tell me", "Any idea") | High | Do you know where she went? | (see E6) | On (mostly subsumed by E3) |
 | E6 | Blocker: declarative or imperative matrix before the wh-word (I wonder, I don't know, tell me, let me know, that's why, this is how, no matter, whatever...) | High | (none) | I wonder who is coming. Tell me what you want. | On |

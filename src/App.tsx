@@ -106,6 +106,12 @@ export default function App() {
   const lang = settings?.general.ui_language ?? "en";
   const t = useMemo(() => makeT(lang), [lang]);
   const tk = useMemo(() => makeTk(lang), [lang]);
+  // index.html says lang="en" for the first paint only. A screen reader picks
+  // its pronunciation from this attribute, so a Greek interface left at "en"
+  // was read aloud with English rules.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   // Ask the update server once, a few seconds after the app opens. Nothing is
   // downloaded here. Nothing newer: not a word. Something newer: the dashboard

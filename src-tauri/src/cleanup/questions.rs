@@ -177,14 +177,27 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
     false
 }
 
-fn english_question(all: &[String], ends_with_bang: bool) -> bool {
+/// The words after the last comma of the sentence, the only place a tag
+/// question can sit. Empty when the sentence has no comma.
+fn after_last_comma(sentence: &str) -> Vec<String> {
+    match sentence.rfind(',') {
+        Some(at) => words(&sentence[at + 1..]),
+        None => Vec::new(),
+    }
+}
+
+fn english_question(all: &[String], tail: &[String], ends_with_bang: bool) -> bool {
     if all.is_empty() {
         return false;
     }
-    // E4a: tag at the end
+    // E4a: tag at the end, set off by a comma ("You did it, right", "You do
+    // care, don't you"). The comma is what makes it a tag: `words` drops
+    // punctuation, and looking at the last words alone turned plain statements
+    // into questions ("You are right?", "This is it?", "The problem was that?").
     if all.len() >= 3 {
-        let n = all.len();
-        if all[n - 1] == "right" || (AUX_EN.contains(&all[n - 2].as_str()) && SUBJ_EN.contains(&all[n - 1].as_str())) {
+        let right_tag = tail.len() == 1 && tail[0] == "right";
+        let aux_tag = tail.len() == 2 && AUX_EN.contains(&tail[0].as_str()) && SUBJ_EN.contains(&tail[1].as_str());
+        if right_tag || aux_tag {
             return true;
         }
     }
@@ -242,7 +255,7 @@ fn question_form(sentence: &str) -> String {
     let greek = looks_greek(trimmed);
     let all = words(trimmed);
     let bang = last == Some('!');
-    let is_q = if greek { greek_question(&all, bang) } else { english_question(&all, bang) };
+    let is_q = if greek { greek_question(&all, bang) } else { english_question(&all, &after_last_comma(trimmed), bang) };
     if !is_q {
         return sentence.to_string();
     }
@@ -318,5 +331,21 @@ mod tests {
         ] {
             assert_eq!(q(s), s, "{s}");
         }
+    }
+
+    /// A tag question needs its comma. Without one the last words are just the
+    /// end of a statement, and a question mark there lands in the user's text.
+    #[test]
+    fn english_tags_need_their_comma() {
+        for s in [
+            "You are right.", "That is right.", "Turn right.", "This is it.", "The problem was that.",
+            "I think that is it.", "Well, you are right.", "Yes, this is it.", "Right, so that was it.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        assert_eq!(q("You did it, right."), "You did it, right?");
+        assert_eq!(q("You do care, don't you."), "You do care, don't you?");
+        assert_eq!(q("It was late, wasn't it."), "It was late, wasn't it?");
+        assert_eq!(q("Well, she is here, isn't she."), "Well, she is here, isn't she?");
     }
 }

@@ -51,8 +51,11 @@ impl SnippetEngine {
         let mut ids = Vec::new();
         for c in &self.items {
             if c.regex.is_match(&out).unwrap_or(false) {
+                // Literal text. A plain `&str` replacer reads `$1`, `$name` and
+                // `${name}` as capture references and silently drops them, so a
+                // snippet "Price $100" inserted "Price ".
                 let expansion = c.snippet.expansion.clone();
-                let replaced = super::replace_all_or_keep(&c.regex, &out, expansion.as_str()).to_string();
+                let replaced = super::replace_all_or_keep(&c.regex, &out, fancy_regex::NoExpand(&expansion)).to_string();
                 if replaced != out {
                     applied.push(c.snippet.trigger.clone());
                     ids.push(c.snippet.id.clone());
@@ -86,5 +89,12 @@ mod tests {
     fn greek_trigger() {
         let e = SnippetEngine::new(vec![snip("η υπογραφή μου", "Με εκτίμηση,\nΛου")]);
         assert_eq!(e.apply("Ευχαριστώ. Η υπογραφή μου").text, "Ευχαριστώ. Με εκτίμηση,\nΛου");
+    }
+
+    #[test]
+    fn dollar_signs_in_the_expansion_are_inserted_as_written() {
+        let e = SnippetEngine::new(vec![snip("the price", "Price $100"), snip("my bin", "$HOME/bin ${name} $0 $$")]);
+        assert_eq!(e.apply("Quote: the price.").text, "Quote: Price $100");
+        assert_eq!(e.apply("Path my bin").text, "Path $HOME/bin ${name} $0 $$");
     }
 }

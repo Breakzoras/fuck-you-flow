@@ -1011,14 +1011,21 @@ pub mod win {
         match clipboard_holds(&to_wide(text)) {
             Some(false) => {
                 tracing::warn!("the clipboard was replaced between publishing and the key press; not pressing Ctrl+V");
-                let message = match wait_done(Duration::from_secs(2)) {
-                    Ok(()) => "msg_not_taken".to_string(),
-                    Err(_) => "msg_not_taken_no_clipboard".to_string(),
-                };
+                // Post first, then wait for the answer. The wait used to come
+                // before the post, when nothing had been asked yet, so it always
+                // ran out after two seconds and told the user the clipboard had
+                // refused the words while the copy that followed put them there.
                 unsafe {
                     drain_done();
                     let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
                 }
+                let message = match wait_done(Duration::from_secs(2)) {
+                    Ok(()) => "msg_not_taken".to_string(),
+                    Err(e) => {
+                        tracing::error!("the clipboard was replaced before the paste and the rescue copy failed too, the words are only in History: {e}");
+                        "msg_not_taken_no_clipboard".to_string()
+                    }
+                };
                 return InsertReport {
                     outcome: InsertOutcome::PasteNotConsumed,
                     method: "paste".into(),
