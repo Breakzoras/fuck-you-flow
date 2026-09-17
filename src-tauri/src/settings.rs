@@ -57,6 +57,13 @@ impl LanguageModeSetting {
             LanguageMode::Primary => self.primary().to_string(),
             LanguageMode::English => "en".into(),
             LanguageMode::Multi => {
+                // A language with an alphabet of its own is decided by the
+                // letters of the whole text. The engine's verdict describes the
+                // last piece only, and a Greek dictation that ends on "okay,
+                // thanks" still needs the Greek dictionary rules.
+                if let Some(mostly_own) = crate::languages::writes_mostly_in(self.primary(), text) {
+                    return if mostly_own { self.primary().to_string() } else { "en".into() };
+                }
                 let d = detected.map(crate::languages::code_from_name).unwrap_or_default();
                 if d == "en" || d == self.primary() {
                     d
@@ -557,6 +564,20 @@ mod tests {
             Settings::default().audio.preroll_ms,
             "only the broken part goes back to its default"
         );
+    }
+
+    #[test]
+    fn a_greek_dictation_ending_in_english_stays_greek() {
+        // The engine's verdict describes the last piece only.
+        let multi = LanguageModeSetting { mode: LanguageMode::Multi, primary: "el".into() };
+        assert_eq!(multi.effective(Some("en"), "Στείλε το στον Γιάννη και πες του ότι είναι έτοιμο. Okay, thanks."), "el");
+        assert_eq!(multi.effective(Some("el"), "Send it to John, okay."), "en");
+        let ru = LanguageModeSetting { mode: LanguageMode::Multi, primary: "ru".into() };
+        assert_eq!(ru.effective(Some("en"), "Отправь это Ивану, он ждёт. Okay."), "ru");
+        // a Latin alphabet cannot tell German from English, so the verdict stands
+        let de = LanguageModeSetting { mode: LanguageMode::Multi, primary: "de".into() };
+        assert_eq!(de.effective(Some("en"), "Okay, thanks."), "en");
+        assert_eq!(de.effective(Some("de"), "Schick es an Hans."), "de");
     }
 
     #[test]

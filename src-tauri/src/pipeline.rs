@@ -24,7 +24,7 @@ use crate::engine::EngineManager;
 use crate::hotkey::{ChordId, HotkeyEvent, CAPTURE_ESCAPE};
 use crate::insertion::{self, InsertOptions, InsertOutcome};
 use crate::overlay::{self, OverlayPayload, OverlayState};
-use crate::settings::{InsertionMethod, Settings};
+use crate::settings::{InsertionMethod, LanguageMode, LanguageModeSetting, Settings};
 
 #[derive(Debug)]
 pub enum PipelineMsg {
@@ -173,7 +173,7 @@ fn join_prompt(hints: Option<String>, previous: &str) -> Option<String> {
 /// segment holding one short word ("yes", "ok") would disappear from the
 /// finished text without a trace.
 #[must_use]
-fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: Vec<f32>, lang: &str, hints: Option<String>, beam: u32, vad: bool, min_speech_ms: u64) -> bool {
+fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: Vec<f32>, language: &LanguageModeSetting, hints: Option<String>, beam: u32, vad: bool, min_speech_ms: u64) -> bool {
     let Some(a) = crate::audio::analyze_speech(&samples, min_speech_ms) else { return false };
     if a.trimmed.is_empty() {
         return false;
@@ -184,12 +184,14 @@ fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: 
         let g = seg.lock();
         (g.jobs.len(), join_prompt(hints, &g.last_text))
     };
-    let req = TranscriptionRequest { wav, language: lang.to_string(), prompt, beam_size: beam, vad };
+    let req = TranscriptionRequest { wav, language: language.whisper_code(), prompt, beam_size: beam, vad };
     let engine = shared.engine.clone();
     let seg2 = seg.clone();
     let audio_ms = a.trimmed.len() / 16;
+    let language = language.clone();
     let handle = tokio::spawn(async move {
-        let r = engine.transcribe(req).await;
+        let label = format!("segment {n}");
+        let r = transcribe_in_chosen_languages(&language, req, &label, |q| engine.transcribe(q)).await;
         match &r {
             Ok(t) => {
                 tracing::debug!("segment {n}: {audio_ms} ms audio, {} ms inference", t.inference_ms);
@@ -204,6 +206,51 @@ fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: 
     });
     seg.lock().jobs.push(handle);
     true
+}
+
+/// One transcription that stays inside the two languages the user chose.
+///
+/// In the mixed mode the engine picks the language itself, and on a short piece
+/// it picks badly. On 17 September 2026 single Greek words said on their own
+/// came back as Russian, Spanish, Polish, Indonesian and Korean ("Χαρά" as
+/// "Хара", "Εντάξει" as "Endaxi", "Ναι" as "Нэй"), and the same audio sent
+/// again as Greek came back right every time. The pieces cut at each pause while
+/// the user speaks are exactly that short, so each one is checked on its own:
+/// a verdict or a word outside the two languages sends that piece, and only
+/// that piece, through once more with the user's own language forced.
+///
+/// Forcing the language on every piece was measured as well and is worse:
+/// English said on its own came back translated ("Thanks" as "Ευχαριστώ").
+async fn transcribe_in_chosen_languages<F, Fut>(
+    language: &LanguageModeSetting,
+    req: TranscriptionRequest,
+    what: &str,
+    run: F,
+) -> Result<crate::asr::TranscriptionResult, crate::asr::AsrError>
+where
+    F: Fn(TranscriptionRequest) -> Fut,
+    Fut: std::future::Future<Output = Result<crate::asr::TranscriptionResult, crate::asr::AsrError>>,
+{
+    if language.mode != LanguageMode::Multi {
+        return run(req).await;
+    }
+    let (wav, prompt, beam_size, vad) = (req.wav.clone(), req.prompt.clone(), req.beam_size, req.vad);
+    let first = run(req).await?;
+    if !language.needs_lock(first.detected_language.as_deref(), &first.text) {
+        return Ok(first);
+    }
+    let forced = language.primary().to_string();
+    tracing::info!("{what} came back as {:?}; hearing it again as {forced}", first.detected_language);
+    crate::journal::info("language.locked", serde_json::json!({ "heard": first.detected_language, "forced": forced, "source": "dictation", "piece": what }));
+    match run(TranscriptionRequest { wav, language: forced, prompt, beam_size, vad }).await {
+        Ok(again) => Ok(again),
+        // The second pass failed: the first one is still a transcript, and a
+        // word in the wrong language beats a hole in the sentence.
+        Err(e) => {
+            tracing::warn!("{what}: the forced pass failed, keeping the first result: {e}");
+            Ok(first)
+        }
+    }
 }
 
 /// Whisper hallucinations on silence, seen in the wild. If the whole transcript
@@ -443,6 +490,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
         None
     };
     let (beam, vad, min_speech_ms) = (settings.asr.beam_size, settings.asr.vad, settings.audio.min_speech_ms);
+    let language = settings.language.clone();
     *level_task = Some(tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_millis(33));
         let mut n: u32 = 0;
@@ -470,7 +518,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                         // trailing silence, the next one some leading silence
                         let end = len - pause / 2;
                         let samples = shared2.audio.recorded_range(cut, end);
-                        let queued = dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let queued = dispatch_segment(&shared2, &seg, samples, &language, hints.clone(), beam, vad, min_speech_ms);
                         let mut g = seg.lock();
                         if queued {
                             g.cut = end;
@@ -483,7 +531,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                         let at = crate::audio::quietest_point(&window, 16 * 200);
                         let end = len - 16 * 3000 + at;
                         let samples = shared2.audio.recorded_range(cut, end);
-                        let queued = dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let queued = dispatch_segment(&shared2, &seg, samples, &language, hints.clone(), beam, vad, min_speech_ms);
                         let mut g = seg.lock();
                         if queued {
                             g.cut = end;
@@ -775,8 +823,16 @@ async fn process(
     // no usable graphics card, where the same model runs thirty times slower
     // than on the card this was first measured against.
     let transcribe_limit = Duration::from_secs((40 + (audio_ms / 1000) * 4).max(150));
+    // The mixed mode may hear the last piece twice (see
+    // `transcribe_in_chosen_languages`), so it gets the budget twice; each
+    // request still has the engine client's own limit.
+    let passes = if settings.language.mode == LanguageMode::Multi { 2 } else { 1 };
     let result = match req {
-        Some(req) => tokio::time::timeout(transcribe_limit, shared.engine.transcribe(req)).await,
+        Some(req) => {
+            let engine = shared.engine.clone();
+            let work = transcribe_in_chosen_languages(&settings.language, req, "last piece", |q| engine.transcribe(q));
+            tokio::time::timeout(transcribe_limit * passes, work).await
+        }
         // everything was transcribed while speaking; nothing left after the last pause
         None => Ok(Ok(crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 })),
     };
@@ -816,11 +872,12 @@ async fn process(
             crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
         }
     };
-    // The engine was free to guess the language and guessed one the user never
-    // chose. Everything heard so far, the pieces done while speaking included,
-    // is thrown away and the whole recording is heard once more with the user's
-    // own language forced. Rare, and worth a second on those occasions:
-    // a Greek sentence that comes out in Czech is worse than no sentence.
+    // The last resort. Every piece was already checked on its own and heard
+    // again in the user's language when it strayed, so reaching here means a
+    // forced pass still wrote a word in a third alphabet or failed outright.
+    // Everything heard so far is thrown away and the whole recording is heard
+    // once more with the language forced, where the longer context usually
+    // settles it: a Greek sentence that comes out in Czech is worse than none.
     let joined_so_far = {
         let mut v = head_parts.clone();
         v.push(result.text.clone());
@@ -1171,6 +1228,64 @@ async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &m
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::asr::{AsrError, TranscriptionResult};
+    use crate::settings::{LanguageMode, LanguageModeSetting};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// A stand-in engine that behaves like the real one did on 17 September
+    /// 2026 for the Greek word "Χαρά" said on its own.
+    fn fake(calls: &AtomicUsize, req: TranscriptionRequest) -> Result<TranscriptionResult, AsrError> {
+        calls.fetch_add(1, Ordering::SeqCst);
+        let (text, lang) = match req.language.as_str() {
+            "auto" if req.prompt.as_deref() == Some("english") => ("Thanks.", "english"),
+            "auto" => ("Хара.", "russian"),
+            "el" => ("Χαρά.", "greek"),
+            other => panic!("unexpected language {other}"),
+        };
+        Ok(TranscriptionResult { text: text.into(), detected_language: Some(crate::languages::code_from_name(lang)), language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 })
+    }
+
+    #[tokio::test]
+    async fn a_piece_in_a_third_language_is_heard_again_in_the_users_own() {
+        let multi = LanguageModeSetting { mode: LanguageMode::Multi, primary: "el".into() };
+        let calls = AtomicUsize::new(0);
+        let req = TranscriptionRequest { wav: vec![1, 2, 3], language: "auto".into(), prompt: None, beam_size: 5, vad: true };
+        let r = transcribe_in_chosen_languages(&multi, req, "segment 0", |q| std::future::ready(fake(&calls, q))).await.unwrap();
+        assert_eq!(r.text, "Χαρά.");
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+
+        // English is one of the two chosen languages: one pass, nothing forced
+        let calls = AtomicUsize::new(0);
+        let req = TranscriptionRequest { wav: vec![1], language: "auto".into(), prompt: Some("english".into()), beam_size: 5, vad: true };
+        let r = transcribe_in_chosen_languages(&multi, req, "tail", |q| std::future::ready(fake(&calls, q))).await.unwrap();
+        assert_eq!(r.text, "Thanks.");
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    /// Manual check: every WAV in FYF_SHORT_CLIPS through the real engine on
+    /// port 47555, the way a segment goes in the mixed mode with Greek chosen.
+    /// Run: cargo test live_short_pieces -- --ignored --nocapture
+    #[tokio::test]
+    #[ignore]
+    async fn live_short_pieces() {
+        use crate::asr::whisper_server::{WhisperServer, WhisperServerConfig};
+        use crate::asr::TranscriptionProvider;
+        let dir = std::env::var("FYF_SHORT_CLIPS").expect("FYF_SHORT_CLIPS");
+        let s = WhisperServer::new(WhisperServerConfig {
+            exe: "x".into(), model_path: "x".into(), model_id: "manual".into(), vad_model: None,
+            backend: "vulkan".into(), use_gpu: true, threads: 8, port: 47555,
+        });
+        let multi = LanguageModeSetting { mode: LanguageMode::Multi, primary: "el".into() };
+        let mut paths: Vec<_> = std::fs::read_dir(dir).unwrap().filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "wav")).collect();
+        paths.sort();
+        for p in paths {
+            let wav = std::fs::read(&p).unwrap();
+            let plain = s.transcribe(TranscriptionRequest { wav: wav.clone(), language: "auto".into(), prompt: None, beam_size: 5, vad: true }).await.unwrap();
+            let req = TranscriptionRequest { wav, language: "auto".into(), prompt: None, beam_size: 5, vad: true };
+            let locked = transcribe_in_chosen_languages(&multi, req, "clip", |q| s.transcribe(q)).await.unwrap();
+            println!("{:10} auto [{:?}] {:32} -> kept [{:?}] {}", p.file_name().unwrap().to_string_lossy(), plain.detected_language, format!("{:?}", plain.text), locked.detected_language, locked.text);
+        }
+    }
 
     #[test]
     fn intonation_skips_list_items_and_marked_sentences() {

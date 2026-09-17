@@ -138,15 +138,39 @@ fn script_of_char(c: char) -> Option<Script> {
     })
 }
 
+/// For a language with its own alphabet, whether that alphabet outnumbers the
+/// Latin letters in the text. None for languages written in Latin letters,
+/// where the letters cannot tell them from English.
+pub fn writes_mostly_in(primary: &str, text: &str) -> Option<bool> {
+    let own = script_of_language(primary);
+    if matches!(own, Script::Latin | Script::Other) {
+        return None;
+    }
+    let (mut mine, mut latin) = (0usize, 0usize);
+    for s in text.chars().filter_map(script_of_char) {
+        if s == own {
+            mine += 1;
+        } else if s == Script::Latin {
+            latin += 1;
+        }
+    }
+    Some(mine > latin)
+}
+
 /// Whether a transcript that was meant to be `primary` or English must be
 /// redone with `primary` forced.
 ///
 /// Two tests, either one is enough. The engine's own verdict: a detected
-/// language that is neither the user's nor English. And the alphabet: letters
-/// from a writing system that neither of the two languages uses, which catches
-/// the cases where the engine's verdict is missing or wrong about itself.
+/// language that is neither the user's nor English. And the alphabet: a word
+/// written in a system that neither of the two languages uses, which catches
+/// the cases where the verdict is missing or wrong about itself.
 /// Latin letters are never a reason on their own, because an English word in
-/// a Greek sentence is the whole point of the mixed mode.
+/// a Greek sentence is the whole point of the mixed mode; a Latin word in a
+/// third language is left to the verdict.
+///
+/// One word is enough. The first version asked for a quarter of all letters,
+/// and on 17 September 2026 a 72-second Greek dictation carried "Епитопол."
+/// straight through it: eight Cyrillic letters against four hundred Greek ones.
 pub fn needs_lock(primary: &str, detected: Option<&str>, text: &str) -> bool {
     if let Some(d) = detected {
         let d = code_from_name(d);
@@ -155,18 +179,19 @@ pub fn needs_lock(primary: &str, detected: Option<&str>, text: &str) -> bool {
         }
     }
     let allowed = [script_of_language(primary), Script::Latin];
-    let mut foreign = 0usize;
-    let mut letters = 0usize;
-    for c in text.chars() {
-        if let Some(s) = script_of_char(c) {
-            letters += 1;
+    text.split(|c: char| !c.is_alphabetic()).any(|word| {
+        let mut foreign = 0usize;
+        let mut whole_word_scripts = false;
+        for s in word.chars().filter_map(script_of_char) {
             if s != Script::Other && !allowed.contains(&s) {
                 foreign += 1;
+                whole_word_scripts |= matches!(s, Script::Cjk | Script::Hangul);
             }
         }
-    }
-    // One stray letter is noise; a run of them is another language.
-    letters > 0 && foreign >= 3 && foreign * 4 >= letters
+        // A lone letter from another alphabet is noise, two make a word. One
+        // Chinese, Japanese or Korean character is already a word.
+        foreign >= 2 || (foreign == 1 && whole_word_scripts)
+    })
 }
 
 #[cfg(test)]
@@ -195,6 +220,30 @@ mod tests {
         assert!(needs_lock("en", None, "Καλημέρα σε όλους."));
         // one stray letter is not a language
         assert!(!needs_lock("el", None, "Καλημέρα я"));
+    }
+
+    #[test]
+    fn one_foreign_word_in_a_long_sentence_locks() {
+        // 17 September 2026: a 72-second Greek dictation with one Cyrillic word
+        // in it, eight letters against more than four hundred Greek ones.
+        let long = "Λοιπόν, θέλω να δεις το history στο dictation και να μου πεις τι έγινε με τις γλώσσες, \
+                    γιατί πάλι βγήκαν μπερδεμένες. Епитопол. Και μετά πάμε στο επόμενο κομμάτι της δουλειάς.";
+        assert!(needs_lock("el", None, long));
+        assert!(needs_lock("el", Some("greek"), long), "a Greek verdict does not excuse Cyrillic letters");
+        // a single Hangul syllable is a whole word
+        assert!(needs_lock("el", None, "Καλά. 연"));
+    }
+
+    #[test]
+    fn verdicts_heard_on_short_greek_words() {
+        // what the engine answered on 17 September 2026 for single Greek words
+        // said on their own, in auto mode
+        assert!(needs_lock("el", Some("indonesian"), "Terima kasih."));
+        assert!(needs_lock("el", Some("spanish"), "Endaxi."));
+        assert!(needs_lock("el", Some("polish"), "Wromia."));
+        assert!(needs_lock("el", Some("korean"), "연"));
+        // silence with VAD comes back empty and labelled English
+        assert!(!needs_lock("el", Some("english"), ""));
     }
 
     #[test]

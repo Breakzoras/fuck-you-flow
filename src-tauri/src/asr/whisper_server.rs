@@ -284,9 +284,15 @@ impl TranscriptionProvider for WhisperServer {
             .map_err(|e| AsrError::Request(e.to_string()))?;
         let mut form = reqwest::multipart::Form::new()
             .part("file", file)
-            // "json" and not "verbose_json": the verbose variant makes the server
-            // resolve a language id even when VAD removed all audio, which crashes it.
-            .text("response_format", "json")
+            // "verbose_json" carries the language the engine decided it heard,
+            // which the language lock needs and plain "json" leaves out. The
+            // language probabilities stay off: they are an extra detection pass,
+            // and on audio that VAD emptied that pass looks up language id -2 and
+            // kills the server. Without them the reply costs the same as "json"
+            // and silence comes back as empty text labelled English (both
+            // measured on 17 September 2026 against a second server).
+            .text("response_format", "verbose_json")
+            .text("no_language_probabilities", "true")
             .text("temperature", "0.0")
             .text("temperature_inc", "0.2")
             .text("no_timestamps", "true")
@@ -438,8 +444,13 @@ mod live_tests {
         };
         let s = WhisperServer::new(cfg);
         let silence = crate::audio::encode_wav(&vec![0.0f32; 8000]);
-        let r = s.transcribe(TranscriptionRequest { wav: silence, language: "en".into(), prompt: None, beam_size: 1, vad: false }).await;
+        let r = s.transcribe(TranscriptionRequest { wav: silence.clone(), language: "en".into(), prompt: None, beam_size: 1, vad: false }).await;
         println!("silence -> {r:?}");
+        // Silence that VAD empties, in auto: the request that used to kill the
+        // server when the reply carried language probabilities.
+        let r = s.transcribe(TranscriptionRequest { wav: silence, language: "auto".into(), prompt: None, beam_size: 5, vad: true }).await;
+        println!("silence, vad, auto -> {r:?}");
+        assert!(r.is_ok(), "the server must survive audio that VAD empties");
         let wav = std::fs::read("C:/Claude Projects/lalia/eval/corpus/el-01.wav").unwrap();
         let r = s.transcribe(TranscriptionRequest { wav, language: "el".into(), prompt: None, beam_size: 5, vad: true }).await;
         println!("el-01 -> {r:?}");
