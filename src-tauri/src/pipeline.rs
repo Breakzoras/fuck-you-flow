@@ -756,10 +756,6 @@ async fn process(
     } else {
         None
     };
-    // Kept for the one case where the whole recording has to be heard again
-    // with the language forced; a few hundred kilobytes for a normal sentence.
-    let wav_whole = wav.clone();
-    let prompt_whole = prompt.clone();
     // Segments finished while the user was speaking: collect them in order and
     // transcribe only what came after the last cut. Any failure falls back to
     // one pass over the whole recording.
@@ -872,35 +868,12 @@ async fn process(
             crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
         }
     };
-    // The last resort. Every piece was already checked on its own and heard
-    // again in the user's language when it strayed, so reaching here means a
-    // forced pass still wrote a word in a third alphabet or failed outright.
-    // Everything heard so far is thrown away and the whole recording is heard
-    // once more with the language forced, where the longer context usually
-    // settles it: a Greek sentence that comes out in Czech is worse than none.
-    let joined_so_far = {
-        let mut v = head_parts.clone();
-        v.push(result.text.clone());
-        v.join(" ")
-    };
-    let (result, head_parts) = if settings.language.needs_lock(result.detected_language.as_deref(), &joined_so_far) {
-        let forced = settings.language.primary().to_string();
-        tracing::info!("the engine heard {:?}; hearing the whole recording again as {forced}", result.detected_language);
-        crate::journal::info("language.locked", serde_json::json!({ "heard": result.detected_language, "forced": forced, "source": "dictation" }));
-        overlay::emit_state(app, OverlayPayload { state: OverlayState::Processing, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
-        let again = TranscriptionRequest { wav: wav_whole, language: forced, prompt: prompt_whole, beam_size: settings.asr.beam_size, vad: settings.asr.vad };
-        match tokio::time::timeout(transcribe_limit, shared.engine.transcribe(again)).await {
-            Ok(Ok(r)) => (r, Vec::new()),
-            // The second pass failed: the first one is still a transcript, and
-            // a transcript in the wrong language beats a blank pill.
-            _ => {
-                tracing::warn!("the forced pass failed; keeping the first result");
-                (result, head_parts)
-            }
-        }
-    } else {
-        (result, head_parts)
-    };
+    // There is no second look at the whole recording here. Until 17 September
+    // 2026 there was one, and it could never run because the engine sent no
+    // verdict. Every piece is now checked and heard again on its own, so
+    // reaching this point with a stray word means a pass already forced into
+    // the user's language wrote it; hearing 70 seconds again in that same
+    // language would cost seconds on release and change little.
     let tail_pitch = crate::audio::tail_pitch_features(&speech);
     if let Some((peak, end)) = tail_pitch {
         tracing::info!("prosody: final tail peak {peak:+.1} st, end {end:+.1} st | {}", crate::logging::redact(result.text.trim()));
