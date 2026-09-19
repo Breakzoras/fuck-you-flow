@@ -11,12 +11,102 @@ no comma before the word "και".
 
 # The three kinds of line, and how each is titled in each language.
 KINDS = {
+    "known": ("Known issues", "Γνωστά προβλήματα"),
     "added": ("New", "Νέα"),
     "fixed": ("Fixed", "Διορθώθηκαν"),
     "changed": ("Changed", "Άλλαξαν"),
 }
 
 RELEASES = [
+{'version': '0.9.9',
+ 'date': '2026-09-19',
+ 'summary': ('Better recovery when recognition leaves your chosen languages, plus fixes for startup, '
+             'shortcuts and pasting.',
+             'Καλύτερη ανάκτηση όταν η αναγνώριση ξεφεύγει από τις γλώσσες σου και διορθώσεις στην εκκίνηση, '
+             'στις συντομεύσεις και στην επικόλληση.'),
+ 'lines': [('fixed',
+            'Both recognition attempts are checked. If the retry fails or still returns a third language, '
+            'the recording stays available to retry. The same check covers imported audio.',
+            'Ελέγχονται και οι δύο προσπάθειες αναγνώρισης. Αν η επανάληψη αποτύχει ή επιστρέψει ξανά τρίτη '
+            'γλώσσα, η ηχογράφηση κρατιέται για νέα προσπάθεια. Ο ίδιος έλεγχος καλύπτει τα εισαγόμενα '
+            'ηχητικά.'),
+           ('fixed',
+            'Startup offers a retry button after about 15 seconds when settings cannot load.',
+            'Η εκκίνηση εμφανίζει κουμπί επανάληψης μετά από περίπου 15 δευτερόλεπτα όταν καθυστερεί η '
+            'φόρτωση των ρυθμίσεων.'),
+           ('fixed',
+            'Changing the cloud recognition address or model now updates the active connection.',
+            'Η αλλαγή διεύθυνσης ή μοντέλου της εξωτερικής υπηρεσίας αναγνώρισης ενημερώνει πλέον την ενεργή '
+            'σύνδεση.'),
+           ('changed',
+            'Imported source recordings are excluded from saved-audio cleanup lists, adding another layer of '
+            'file protection.',
+            'Τα αρχικά αρχεία που εισάγεις εξαιρούνται από τις λίστες καθαρισμού αποθηκευμένων ηχητικών, '
+            'προσθέτοντας ακόμη ένα επίπεδο προστασίας.'),
+           ('fixed',
+            'The Alt key that stops recording keeps its release handling. The floating bar also ends a drag '
+            'when a quick mouse release was missed.',
+            'Το Alt που σταματά την εγγραφή διατηρεί τον σωστό χειρισμό κατά την απελευθέρωσή του. Η μπάρα '
+            'σταματά επίσης να ακολουθεί το ποντίκι όταν χαθεί μια γρήγορη απελευθέρωση του κουμπιού.'),
+           ('fixed',
+            'Shortcut fields keep focus while typing. Snippets preserve literal dollar signs. Clipboard '
+            'recovery sends its request before waiting for the result.',
+            'Τα πεδία συντομεύσεων κρατούν την εστίαση όσο γράφεις. Τα αποσπάσματα διατηρούν το σύμβολο του '
+            'δολαρίου. Η ανάκτηση του προχείρου στέλνει πρώτα το αίτημα και μετά περιμένει το αποτέλεσμα.'),
+           ('fixed',
+            'English statements such as “You are right.” retain their punctuation. Diagnostics selects the '
+            'newest log and screen readers follow the interface language.',
+            'Αγγλικές δηλώσεις όπως το «You are right.» διατηρούν τη στίξη τους. Τα διαγνωστικά επιλέγουν το '
+            'νεότερο αρχείο καταγραφής και οι αναγνώστες οθόνης ακολουθούν τη γλώσσα της εφαρμογής.'),
+           ('known',
+            'The intermittent white Windows window above the listening indicator remains under '
+            'investigation.',
+            'Το περιστασιακό λευκό παράθυρο των Windows πάνω από την ένδειξη ακρόασης παραμένει υπό '
+            'διερεύνηση.'),
+           ('known',
+            'Third-language text written in Latin letters may still pass if the engine labels it as English '
+            'or omits its language. Everyday dictation accuracy still varies.',
+            'Κείμενο τρίτης γλώσσας με λατινικά γράμματα μπορεί ακόμη να περάσει αν η μηχανή το χαρακτηρίσει '
+            'αγγλικό ή παραλείψει τη γλώσσα. Η ακρίβεια της καθημερινής υπαγόρευσης εξακολουθεί να '
+            'ποικίλλει.')]},
+    {
+        "version": "0.9.8",
+        "date": "2026-09-17",
+        "summary": (
+            "The language lock from 0.9.7 now works. Every short piece of a dictation is "
+            "checked on its own, and a piece that comes out in a third language is heard "
+            "again in yours.",
+            "Το κλείδωμα γλώσσας της 0.9.7 δουλεύει πλέον. Κάθε μικρό κομμάτι της υπαγόρευσης "
+            "ελέγχεται χωριστά και όποιο βγει σε τρίτη γλώσσα ακούγεται ξανά στη δική σας.",
+        ),
+        "lines": [
+            ("fixed",
+             "The language lock added in 0.9.7 never fired. It waited for the engine to name "
+             "the language it heard, and the app never asked the engine for that. The engine "
+             "now names it for every piece.",
+             "Το κλείδωμα γλώσσας της 0.9.7 δεν ενεργοποιούνταν ποτέ. Περίμενε από τη μηχανή να "
+             "πει ποια γλώσσα άκουσε, αλλά η εφαρμογή δεν της το ζητούσε. Τώρα η μηχανή το λέει "
+             "για κάθε κομμάτι."),
+            ("fixed",
+             "Stray words in another language inside a correct sentence, such as one Russian or "
+             "Polish word in a Greek paragraph. While you speak, the app cuts the recording at "
+             "every pause, and on a piece one second long the engine guesses the language badly. "
+             "Each piece is now checked on its own and heard again in your language when it "
+             "strays. One word in a foreign alphabet is enough.",
+             "Σκόρπιες λέξεις σε άλλη γλώσσα μέσα σε σωστή πρόταση, για παράδειγμα μία ρωσική ή "
+             "πολωνική λέξη σε ελληνική παράγραφο. Όσο μιλάτε, η εφαρμογή κόβει την ηχογράφηση σε "
+             "κάθε παύση και σε κομμάτι ενός δευτερολέπτου η μηχανή μαντεύει άσχημα τη γλώσσα. "
+             "Κάθε κομμάτι ελέγχεται πλέον χωριστά και ακούγεται ξανά στη γλώσσα σας όταν ξεφύγει. "
+             "Μία λέξη σε ξένο αλφάβητο αρκεί."),
+            ("changed",
+             "When the last piece of a dictation has to be heard again, the text arrives half a "
+             "second to a second and a half later. A single English word said on its own can "
+             "come out in the letters of your language.",
+             "Όταν το τελευταίο κομμάτι μιας υπαγόρευσης χρειάζεται δεύτερο άκουσμα, το κείμενο "
+             "φτάνει μισό ως ενάμισι δευτερόλεπτο αργότερα. Μια αγγλική λέξη ειπωμένη μόνη της "
+             "μπορεί να βγει με τα γράμματα της γλώσσας σας."),
+        ],
+    },
     {
         "version": "0.9.7",
         "date": "2026-09-16",

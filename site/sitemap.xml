@@ -2,34 +2,164 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://fuckyouflow.app/</loc>
-    <lastmod>2026-09-08</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/"/>
     <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/"/>
   </url>
   <url>
     <loc>https://fuckyouflow.app/el/</loc>
-    <lastmod>2026-09-08</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/"/>
     <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/"/>
   </url>
   <url>
-    <loc>https://fuckyouflow.app/wispr-flow-alternative/</loc>
-    <lastmod>2026-09-08</lastmod>
-  </url>
-  <url>
     <loc>https://fuckyouflow.app/changelog/</loc>
-    <lastmod>2026-09-08</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/changelog/"/>
     <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/changelog/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/changelog/"/>
   </url>
   <url>
     <loc>https://fuckyouflow.app/el/changelog/</loc>
-    <lastmod>2026-09-08</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/changelog/"/>
     <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/changelog/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/changelog/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/openwhispr-alternative/</loc>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/free-offline-dictation-alternatives/</loc>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/wispr-flow-alternative/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/wispr-flow-alternative/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/wispr-flow-alternative/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/wispr-flow-alternative/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/wispr-flow-alternative/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/wispr-flow-alternative/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/wispr-flow-alternative/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/wispr-flow-alternative/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/guides/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/privacy/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/privacy/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/privacy/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/privacy/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/guides/voice-to-text-pc/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/voice-to-text-pc/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/voice-to-text-pc/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/voice-to-text-pc/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/voice-to-text-pc/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/voice-to-text-pc/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/voice-to-text-pc/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/voice-to-text-pc/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/guides/card-memory/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/card-memory/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/card-memory/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/card-memory/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/card-memory/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/card-memory/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/card-memory/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/card-memory/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/guides/the-key/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/the-key/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/the-key/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/the-key/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/the-key/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/the-key/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/the-key/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/the-key/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/guides/words-it-gets-wrong/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/words-it-gets-wrong/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/words-it-gets-wrong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/words-it-gets-wrong/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/words-it-gets-wrong/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/words-it-gets-wrong/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/words-it-gets-wrong/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/words-it-gets-wrong/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/guides/when-the-paste-refuses/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/when-the-paste-refuses/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/when-the-paste-refuses/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/when-the-paste-refuses/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/when-the-paste-refuses/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/when-the-paste-refuses/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/when-the-paste-refuses/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/when-the-paste-refuses/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/guides/greek-and-english/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/greek-and-english/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/greek-and-english/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/greek-and-english/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/greek-and-english/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/greek-and-english/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/greek-and-english/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/greek-and-english/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/guides/word-dictation/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/word-dictation/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/word-dictation/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/word-dictation/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/word-dictation/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/word-dictation/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/word-dictation/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/word-dictation/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/guides/ai-prompts/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/ai-prompts/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/ai-prompts/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/ai-prompts/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/ai-prompts/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/ai-prompts/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/ai-prompts/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/ai-prompts/"/>
   </url>
 </urlset>

@@ -27,9 +27,13 @@ SHIP=(
   BingSiteAuth.xml              # Bing Webmaster Tools ownership. Same.
   el
   wispr-flow-alternative
+  openwhispr-alternative
+  free-offline-dictation-alternatives
   assets
   updates                       # latest.json: how an installed app learns a new version is out.
   changelog                     # what changed in every version, the English page. The Greek one rides along inside el/.
+  guides
+  privacy
 )
 # Served from one level above the web root.
 CONFIG=site.caddy
@@ -37,11 +41,14 @@ CONFIG=site.caddy
 cd "$HERE"
 echo "== build =="
 PYTHONIOENCODING=utf-8 "$PY" build_site.py
+PYTHONIOENCODING=utf-8 "$PY" audit_site.py
+INDEXNOW_FILE=$("$PY" notify_indexnow.py --ship-filename)
+if [ -n "$INDEXNOW_FILE" ]; then SHIP+=("$INDEXNOW_FILE"); fi
 
 echo "== what ships =="
 for f in "${SHIP[@]}"; do
   [ -e "$f" ] || { echo "MISSING: $f"; exit 1; }
-  echo "   $f"
+  if [ "$f" = "$INDEXNOW_FILE" ]; then echo "   IndexNow ownership file"; else echo "   $f"; fi
 done
 echo "   $CONFIG  (goes to /srv/fuckyouflow/, not into the web root)"
 
@@ -69,13 +76,18 @@ ssh "${SSH_OPTS[@]}" "$HOST" 'set -e
   echo "   reloaded"'
 
 echo "== verify on the live site =="
-chk(){ printf "   %-42s %s\n" "$1" "$(curl -s -o /dev/null -w '%{http_code}' "${@:2}")"; }
-chk "Greek browser at /   want 302" -H "Accept-Language: el-GR,el;q=0.9" https://fuckyouflow.app/
-chk "English at /         want 200" -H "Accept-Language: en-US" https://fuckyouflow.app/
-chk "/el/                 want 200" https://fuckyouflow.app/el/
-chk "/wispr-flow-alternative/ want 200" https://fuckyouflow.app/wispr-flow-alternative/
-chk "/en/                 want 301" https://fuckyouflow.app/en/
-chk "Google ownership     want 200" https://fuckyouflow.app/googlefde419ece67880c4.html
-chk "Bing ownership       want 200" https://fuckyouflow.app/BingSiteAuth.xml
-chk "build script         want 404" https://fuckyouflow.app/build_site.py
+chk(){ local want="$1"; shift; local label="$1"; shift; local got; got=$(curl -s -o /dev/null -w '%{http_code}' "$@"); printf "   %-42s %s\n" "$label" "$got"; [ "$got" = "$want" ] || { echo "unexpected status: wanted $want"; exit 1; }; }
+chk 200 "Greek browser at /" -H "Accept-Language: el-GR,el;q=0.9" https://fuckyouflow.app/
+chk 200 "English at /" -H "Accept-Language: en-US" https://fuckyouflow.app/
+chk 200 "/el/" https://fuckyouflow.app/el/
+chk 200 "/wispr-flow-alternative/" https://fuckyouflow.app/wispr-flow-alternative/
+chk 301 "/en/" https://fuckyouflow.app/en/
+chk 200 "Google ownership" https://fuckyouflow.app/googlefde419ece67880c4.html
+chk 200 "Bing ownership" https://fuckyouflow.app/BingSiteAuth.xml
+chk 404 "build script" https://fuckyouflow.app/build_site.py
+PYTHONIOENCODING=utf-8 "$PY" audit_site.py --live
+if [ -n "$INDEXNOW_FILE" ]; then
+  echo "== notify changed URLs through IndexNow =="
+  PYTHONIOENCODING=utf-8 "$PY" notify_indexnow.py --submit --output .indexnow/last-submission.json
+fi
 echo "done"

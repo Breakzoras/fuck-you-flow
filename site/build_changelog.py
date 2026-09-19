@@ -19,6 +19,8 @@ import re
 import sys
 
 import changelog_source
+import site_nav
+from site_data import DL
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "variants", "v4-coral.html")
@@ -101,6 +103,7 @@ def head_bits():
     if not script or not style:
         raise SystemExit("could not lift the theme script or the style block from %s" % SRC)
     css = style.group(0).replace("</style>", EXTRA_CSS + "</style>")
+    css += "<script>" + site_nav.JS + "</script>"
     return script.group(0), css
 
 
@@ -112,7 +115,7 @@ def page(lang, script, css):
     w = WORDS[lang]
     canon = BASE + ("/changelog/" if lang == "en" else "/el/changelog/")
     latest = changelog_source.RELEASES[0]
-    dl = "%s/releases/download/v%s/Fuck.You.Flow.Setup.%s.exe" % (REPO, latest["version"], latest["version"])
+    dl = DL
     home = "/" if lang == "en" else "/el/"
 
     out = []
@@ -169,11 +172,7 @@ def page(lang, script, css):
 <header class="top">
   <div class="wrap top-in">
     <a class="brand" href="%(home)s"><img src="/assets/icon-64.png" alt="" width="32" height="32">Fuck You Flow</a>
-    <nav class="nav" aria-label="Sections">
-      <a href="%(home)s">%(home_word)s</a>
-      <a href="%(dl)s">%(download)s</a>
-      <a href="%(repo)s">%(code)s</a>
-    </nav>
+    %(menu)s
     <div class="tools">
       <a href="%(other_href)s" hreflang="%(other_lang)s" lang="%(other_lang)s">%(other)s</a>
       <button id="theme-toggle" type="button">%(toggle)s</button>
@@ -215,6 +214,7 @@ def page(lang, script, css):
         "skip": esc(w["skip"]),
         "home": home,
         "home_word": esc(w["home"]),
+        "menu": site_nav.nav_html(lang, ("/el" if lang == "el" else "") + "/changelog/"),
         "dl": dl,
         "download": esc(w["download"]),
         "repo": REPO,

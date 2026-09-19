@@ -7,18 +7,21 @@ fuckyouflow.app {
 	root * /srv/fuckyouflow/site
 	encode gzip
 
-	# Greek speakers who arrive at the English root are sent to /el/ once, with a
-	# temporary 302, and only for the path "/". Search engine crawlers send no
-	# Accept-Language header, so they keep receiving the English root.
-	# The "lang=en" query is the escape hatch: the EN link on the Greek page carries
-	# it, so a Greek browser can still reach the English page. Without it that link
-	# bounces straight back here and the English page is unreachable for them.
-	@greek {
-		path /
-		header Accept-Language *el*
-		not query lang=en
+	# Access log, added 10 September 2026: the site had no way at all to answer
+	# "how many people came". It writes into the Caddy data volume, which is the
+	# only writable path the container has and survives a container recreate;
+	# /srv/fuckyouflow is mounted read only. Thirty days, capped at 50 MB.
+	log {
+		output file /data/logs/fuckyouflow.log {
+			roll_size 10MiB
+			roll_keep 5
+			roll_keep_for 720h
+		}
+		format json
 	}
-	redir @greek /el/ 302
+
+	# Every language URL remains accessible. Visitors choose with the language
+	# links; hreflang describes the paired pages to search engines.
 
 	# English moved from /en/ to the root on 6 September 2026.
 	# /en, /en/ and everything below them land on / permanently.
@@ -26,6 +29,8 @@ fuckyouflow.app {
 	redir @oldenglish / permanent
 
 	file_server
+	@static path /assets/* /style.css /theme.js
+	header @static Cache-Control "public, max-age=86400"
 	header X-Content-Type-Options "nosniff"
 	header Referrer-Policy "strict-origin-when-cross-origin"
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"

@@ -16,19 +16,14 @@ import re
 import sys
 
 import llms_source
+import site_nav
+from site_data import BASE, VERSION, DL, SIZE, SIZE_BYTES, RELEASE_DATE, CONTENT_DATE, release_tokens
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "variants", "v4-coral.html")
 OUT_EN = os.path.join(HERE, "index.html")
 OUT_EL = os.path.join(HERE, "el", "index.html")
 
-BASE = "https://fuckyouflow.app"
-VERSION = "0.9.3"
-DL = ("https://github.com/Breakzoras/fuck-you-flow/releases/download/"
-      "v0.9.3/Fuck.You.Flow.Setup.0.9.3.exe")
-SIZE = "1.7 GB"        # 1,729,386,366 bytes, built on 8 September 2026. Larger than 0.9.1
-                       # on purpose: the payload is no longer compressed, so the install
-                       # writes the files straight out instead of unpacking them.
 OUT_LLMS = os.path.join(HERE, "llms.txt")
 OUT_LLMS_FULL = os.path.join(HERE, "llms-full.txt")
 OUT_SITEMAP = os.path.join(HERE, "sitemap.xml")
@@ -43,7 +38,6 @@ COMMON_LINKS = """<link rel="icon" href="/assets/favicon.ico" sizes="48x48">
 <link rel="alternate" hreflang="x-default" href="{base}/">
 <meta name="theme-color" content="#000000">
 <meta name="msvalidate.01" content="A79AFD627767F90B3097E8DF8FE5CAD5">
-<meta name="google-site-verification" content="googlefde419ece67880c4.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Fuck You Flow">
 <meta property="og:image" content="{base}/assets/og.png">
@@ -52,22 +46,22 @@ COMMON_LINKS = """<link rel="icon" href="/assets/favicon.ico" sizes="48x48">
 <meta property="og:image:alt" content="A matte black sculptural hand lit with acid green, beside the words Fuck You Flow, free dictation for Windows.">
 <meta name="twitter:card" content="summary_large_image">""".format(base=BASE)
 
-HEAD_EN = """<title>Fuck You Flow: the free Wispr Flow alternative for Windows</title>
-<meta name="description" content="A free Wispr Flow alternative for Windows. Press one key, speak, press it again, and the text lands in any program. Greek and English, running on your own PC, with no word limit, no subscription and no account. Open source, MIT.">
+HEAD_EN = """<title>Free Voice to Text for Windows: Offline Dictation | FU Flow</title>
+<meta name="description" content="Free voice to text for Windows 10 and 11. Talk and it types in any app: offline speech to text and voice typing with local Whisper. No subscription or word limit.">
 <link rel="canonical" href="{base}/">
 {common}
 <meta property="og:title" content="Fuck You Flow: free dictation for Windows">
-<meta property="og:description" content="The free Wispr Flow alternative. One key, any program, Greek and English, all of it on your own PC. No word limit, no subscription, no account.">
+<meta property="og:description" content="Free Windows dictation in English, Greek and 97 more languages. Local speech processing by default, with no subscription, account or word limit for the local engine.">
 <meta property="og:url" content="{base}/">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="el_GR">""".format(base=BASE, common=COMMON_LINKS)
 
-HEAD_EL = """<title>Fuck You Flow: δωρεάν υπαγόρευση για Windows, η εναλλακτική του Wispr Flow</title>
-<meta name="description" content="Δωρεάν εναλλακτική του Wispr Flow για Windows. Πατάτε ένα πλήκτρο, μιλάτε, το ξαναπατάτε και το κείμενο προσγειώνεται σε όποιο πρόγραμμα θέλετε. Ελληνικά και αγγλικά, όλα στον δικό σας υπολογιστή, χωρίς όριο λέξεων, χωρίς συνδρομή, χωρίς λογαριασμό. Ανοιχτός κώδικας, MIT.">
+HEAD_EL = """<title>Δωρεάν υπαγόρευση κειμένου στα ελληνικά για Windows | FU Flow</title>
+<meta name="description" content="Φωνητική πληκτρολόγηση στα ελληνικά και αγγλικά για Windows 10 και 11. Μιλάτε και γράφει σε κάθε πρόγραμμα, χωρίς ίντερνετ, συνδρομή ή όριο λέξεων.">
 <link rel="canonical" href="{base}/el/">
 {common}
 <meta property="og:title" content="Fuck You Flow: δωρεάν υπαγόρευση για Windows">
-<meta property="og:description" content="Η δωρεάν εναλλακτική του Wispr Flow. Ένα πλήκτρο, κάθε πρόγραμμα, ελληνικά και αγγλικά, όλα στον υπολογιστή σας. Χωρίς όριο λέξεων, χωρίς συνδρομή, χωρίς λογαριασμό.">
+<meta property="og:description" content="Δωρεάν υπαγόρευση στα ελληνικά και αγγλικά για Windows. Τοπική αναγνώριση ομιλίας από προεπιλογή, χωρίς συνδρομή, λογαριασμό ή όριο λέξεων για την τοπική μηχανή.">
 <meta property="og:url" content="{base}/el/">
 <meta property="og:locale" content="el_GR">
 <meta property="og:locale:alternate" content="en_US">""".format(base=BASE, common=COMMON_LINKS)
@@ -77,14 +71,14 @@ HEAD_EL = """<title>Fuck You Flow: δωρεάν υπαγόρευση για Wind
 def jsonld(lang):
     url = BASE + ("/el/" if lang == "el" else "/")
     if lang == "el":
-        desc = ("Δωρεάν υπαγόρευση για Windows με ελληνικά και αγγλικά. Τρέχει εξ ολοκλήρου "
-                "στον υπολογιστή του χρήστη. Εναλλακτική του Wispr Flow χωρίς συνδρομή "
-                "και χωρίς όριο λέξεων.")
+        desc = ("Δωρεάν υπαγόρευση για Windows με ελληνικά και αγγλικά. Η αναγνώριση ομιλίας "
+                "γίνεται τοπικά από προεπιλογή. Εναλλακτική του Wispr Flow χωρίς συνδρομή "
+                "ή όριο λέξεων για την τοπική μηχανή.")
         faq = FAQ_EL
         pub = "Luram AI Agency"
     else:
-        desc = ("Free dictation for Windows in Greek and English. Runs entirely on the user's "
-                "own PC. A Wispr Flow alternative with no subscription and no word limit.")
+        desc = ("Free dictation for Windows in English, Greek and 97 more languages. Speech recognition runs locally "
+                "by default. A Wispr Flow alternative with no subscription or word limit for the local engine.")
         faq = FAQ_EN
         pub = "Luram AI Agency"
     q = []
@@ -113,23 +107,22 @@ def jsonld(lang):
       "url": "%(url)s",
       "downloadUrl": "%(dl)s",
       "installUrl": "https://github.com/Breakzoras/fuck-you-flow/releases",
-      "fileSize": "1464MB",
+      "fileSize": "%(bytes)s B",
+      "image": "%(base)s/assets/og.png",
       "license": "https://opensource.org/licenses/MIT",
       "isAccessibleForFree": true,
       "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR",
                  "availability": "https://schema.org/InStock"},
       "softwareRequirements": "Windows 10 or 11, 64-bit. A graphics card from NVIDIA, AMD or Intel makes it faster; without one it runs on the processor.",
-      "memoryRequirements": "8 GB RAM",
-      "storageRequirements": "3 GB",
       "featureList": [
-        "One hotkey dictation into any Windows program, using the right Alt key",
-        "Speech recognition on the user's own machine, with no server and no account",
+        "Hotkey dictation into compatible Windows text fields, using the right Alt key",
+        "Local speech recognition by default, without an account",
         "English and Greek, mixed inside a single sentence",
-        "No word limit and no subscription",
+        "No word limit or subscription for local dictation",
         "A personal dictionary that learns from corrections",
         "Snippets: one spoken phrase expands into a block of text",
         "Local history and statistics, kept in SQLite on the user's disk",
-        "Works offline after installation",
+        "Local speech recognition works offline after installation",
         "Password fields are detected and left empty",
         "Open source under the MIT license"
       ],
@@ -139,8 +132,6 @@ def jsonld(lang):
       "author": {"@id": "https://luram.gr/#org"},
       "publisher": {"@id": "https://luram.gr/#org"},
       "maintainer": {"@id": "https://luram.gr/#org"},
-      "codeRepository": "https://github.com/Breakzoras/fuck-you-flow",
-      "programmingLanguage": ["Rust", "TypeScript", "C++"],
       "isBasedOn": {
         "@type": "SoftwareApplication",
         "name": "Whisper",
@@ -186,7 +177,7 @@ def jsonld(lang):
 }
 </script>""" % {"base": BASE, "ver": VERSION, "desc": jstr(desc), "url": url, "dl": DL,
                 "pub": pub, "lang": lang, "q": ",".join(q),
-                "today": datetime.date.today().isoformat(),
+                "today": RELEASE_DATE, "bytes": SIZE_BYTES,
                 "howto_name": jstr(howto_name), "steps": steps}
 
 
@@ -195,7 +186,7 @@ def jstr(s):
 
 
 HOWTO = {
-    "en": ("How to dictate text into any Windows program with Fuck You Flow", [
+    "en": ("How to dictate text into compatible Windows apps with Fuck You Flow", [
         ("Press the right Alt key",
          "A small window with a waveform appears and the app starts listening."),
         ("Speak",
@@ -204,7 +195,7 @@ HOWTO = {
         ("Press the right Alt key again",
          "The text lands where your cursor was, with punctuation. Escape cancels instead."),
     ]),
-    "el": ("Πώς να υπαγορεύσετε κείμενο σε κάθε πρόγραμμα των Windows με το Fuck You Flow", [
+    "el": ("Πώς να υπαγορεύσετε κείμενο σε συμβατές εφαρμογές Windows με το Fuck You Flow", [
         ("Πατήστε το δεξί Alt",
          "Εμφανίζεται ένα μικρό παράθυρο με κυματομορφή και η εφαρμογή αρχίζει να ακούει."),
         ("Μιλήστε",
@@ -217,364 +208,376 @@ HOWTO = {
 }
 
 
-FAQ_EN = [
-    ("Is it a free alternative to Wispr Flow?",
-     "Yes. Same job, one-key dictation into any Windows program, no subscription, no account, "
-     "and no weekly word limit. Open source under MIT on GitHub."),
-    ("Where does my voice go?",
-     "Nowhere. Recognition runs on your own machine with the Whisper model. After setup no "
-     "internet connection is needed. Password fields are detected and left empty."),
-    ("Does it need an NVIDIA card?",
-     "No. NVIDIA, AMD and Intel through Vulkan. Without a graphics card it runs on the "
-     "processor, more slowly."),
-    ("Why does Windows show a blue warning during install?",
-     "The installer carries no purchased code-signing certificate. Click More info, then Run "
-     "anyway. The SHA256 checksum is on GitHub."),
-    ("What does beta mean?",
-     "It runs daily on our machines and is now going out to yours. Some programs may refuse "
-     "the paste, some cards are untested. Whatever breaks, we want it written down."),
-    ("Why the name?",
-     "A dictation company was valued at 2 billion dollars for something open models have done "
-     "for free since September 2022. The name is the reply. On social media we write FU Flow."),
-]
+FAQ_EN = [('Is there free voice to text for Windows?',
+  'Yes. FU Flow is free voice to text for Windows 10 and 11: press a key, talk, and your words are typed '
+  'into any app. The speech models run on your PC, so it works offline after setup, with no subscription '
+  'or word limit.'),
+ ('How do I talk to text on a PC?',
+  'Install FU Flow, click into any text box, press right Alt and speak, then press right Alt again. The text '
+  'appears at the cursor in Word, Gmail, Slack, a browser or an AI chat.'),
+ ('How is this different from Windows voice typing (Win+H)?',
+  'Microsoft says Windows voice typing uses online speech recognition and needs an internet connection, and '
+  'its Windows 11 language list does not include Greek. FU Flow runs speech to text on your PC by default and '
+  'dictates Greek and English.'),
+ ('Which languages can I dictate in?',
+  'Pick your own language from thirty-three in Settings. The default mode accepts English words inside your '
+  'sentences, and Greek and English are the most tested.'),
+ ('Is it a free alternative to Wispr Flow?',
+  'Yes, for local dictation on Windows 10 and 11. FU Flow is free under MIT, with no subscription, account '
+  'or weekly word cap for the local engine. It is a beta and does not offer every Wispr Flow feature.'),
+ ('Where does my voice go?',
+  'The default Whisper engine processes speech on your PC and works offline after setup. The app checks '
+  'online for updates. If you choose an OpenAI-compatible remote speech provider in Settings, audio goes to '
+  'that provider and its fees and privacy terms apply.'),
+ ('Does it need an NVIDIA card?',
+  'No. Supported NVIDIA, AMD and Intel cards can use Vulkan. The CPU fallback also works. Speed depends on '
+  'the model, hardware, drivers and available memory.'),
+ ('Why does Windows show a warning during install?',
+  'The beta installer has no purchased code-signing certificate. Download only from the linked project '
+  'release and compare the published SHA256 checksum. Source code is available for inspection.'),
+ ('What does beta mean?',
+  'Some applications may refuse automatic paste and some graphics cards remain untested. Check your first '
+  'dictation in a plain text editor. You can copy transcripts from History if insertion fails.'),
+ ('Why the name FU Flow?',
+  'The name expresses our preference for free local dictation without a recurring software subscription. FU '
+  'Flow is the short name used on social media. The project is independent of Wispr Flow.')]
 
-FAQ_EL = [
-    ("Είναι δωρεάν εναλλακτική του Wispr Flow;",
-     "Ναι. Ίδια δουλειά, υπαγόρευση με ένα πλήκτρο σε κάθε πρόγραμμα των Windows, χωρίς "
-     "συνδρομή, χωρίς λογαριασμό, χωρίς εβδομαδιαίο όριο λέξεων. Ανοιχτός κώδικας με άδεια "
-     "MIT στο GitHub."),
-    ("Πού πάει η φωνή μου;",
-     "Πουθενά. Η αναγνώριση τρέχει στο δικό σας μηχάνημα με το μοντέλο Whisper. Μετά την "
-     "εγκατάσταση καμία σύνδεση στο ίντερνετ δεν χρειάζεται. Τα πεδία κωδικών αναγνωρίζονται "
-     "και μένουν άδεια."),
-    ("Χρειάζεται κάρτα NVIDIA;",
-     "Όχι. NVIDIA, AMD και Intel μέσα από το Vulkan. Χωρίς κάρτα γραφικών τρέχει στον "
-     "επεξεργαστή, πιο αργά."),
-    ("Γιατί βγάζουν τα Windows μπλε προειδοποίηση στην εγκατάσταση;",
-     "Ο εγκαταστάτης δεν έχει αγορασμένο πιστοποιητικό υπογραφής κώδικα. Πατήστε Περισσότερες "
-     "πληροφορίες, μετά Εκτέλεση ούτως ή άλλως. Το άθροισμα ελέγχου SHA256 βρίσκεται στο GitHub."),
-    ("Τι σημαίνει beta;",
-     "Τρέχει καθημερινά στα δικά μας μηχανήματα και τώρα βγαίνει και στα δικά σας. Κάποια "
-     "προγράμματα μπορεί να αρνηθούν την επικόλληση, κάποιες κάρτες μένουν αδοκίμαστες. Ό,τι "
-     "χαλάσει, θέλουμε να το μάθουμε."),
-    ("Γιατί αυτό το όνομα;",
-     "Μια εταιρεία υπαγόρευσης αποτιμήθηκε στα 2 δισεκατομμύρια δολάρια για κάτι που τα "
-     "ανοιχτά μοντέλα κάνουν δωρεάν από τον Σεπτέμβριο του 2022. Το όνομα είναι η απάντηση. "
-     "Στα κοινωνικά δίκτυα γράφουμε FU Flow."),
-]
+FAQ_EL = [('Υπάρχει δωρεάν φωνητική πληκτρολόγηση στα ελληνικά για Windows;',
+  'Ναι. Το FU Flow γράφει ελληνικά με τη φωνή σας σε Windows 10 και 11: πατάτε ένα πλήκτρο, μιλάτε και οι '
+  'λέξεις μπαίνουν σε κάθε πρόγραμμα. Τα μοντέλα τρέχουν στον υπολογιστή σας, άρα λειτουργεί χωρίς ίντερνετ '
+  'μετά την εγκατάσταση, χωρίς συνδρομή ή όριο λέξεων.'),
+ ('Πώς γράφω με τη φωνή μου στον υπολογιστή;',
+  'Εγκαταστήστε το FU Flow, πατήστε μέσα σε ένα πεδίο κειμένου, πατήστε το δεξί Alt και μιλήστε, μετά '
+  'πατήστε ξανά το δεξί Alt. Το κείμενο εμφανίζεται στη θέση του κέρσορα, στο Word, στο Gmail ή σε μια '
+  'συνομιλία με βοηθό AI.'),
+ ('Η φωνητική πληκτρολόγηση των Windows γράφει ελληνικά;',
+  'Η Microsoft αναφέρει ότι η φωνητική πληκτρολόγηση των Windows χρησιμοποιεί online αναγνώριση ομιλίας '
+  'και θέλει σύνδεση στο ίντερνετ. Στη λίστα γλωσσών της για Windows 11 τα ελληνικά λείπουν. Το FU Flow '
+  'γράφει ελληνικά και αγγλικά στον υπολογιστή σας.'),
+ ('Σε ποιες γλώσσες γράφει;',
+  'Διαλέγετε τη γλώσσα σας ανάμεσα σε τριάντα τρεις στις Ρυθμίσεις. Η προεπιλογή δέχεται αγγλικές λέξεις '
+  'μέσα στις προτάσεις σας. Τα ελληνικά και τα αγγλικά είναι τα πιο δοκιμασμένα.'),
+ ('Είναι δωρεάν εναλλακτική του Wispr Flow;',
+  'Ναι, για τοπική υπαγόρευση σε Windows 10 και 11. Το FU Flow είναι δωρεάν με άδεια MIT, χωρίς συνδρομή, '
+  'λογαριασμό ή εβδομαδιαίο όριο λέξεων για την τοπική μηχανή. Είναι beta και δεν προσφέρει όλα τα '
+  'χαρακτηριστικά του Wispr Flow.'),
+ ('Πού πάει η φωνή μου;',
+  'Η προεπιλεγμένη μηχανή Whisper επεξεργάζεται την ομιλία στον υπολογιστή σας και λειτουργεί χωρίς σύνδεση '
+  'μετά την εγκατάσταση. Η εφαρμογή ελέγχει online για ενημερώσεις. Αν επιλέξετε απομακρυσμένο πάροχο '
+  'συμβατό με OpenAI στις Ρυθμίσεις, ο ήχος αποστέλλεται εκεί και ισχύουν οι χρεώσεις και οι όροι '
+  'ιδιωτικότητάς του.'),
+ ('Χρειάζεται κάρτα NVIDIA;',
+  'Όχι. Υποστηριζόμενες κάρτες NVIDIA, AMD και Intel μπορούν να χρησιμοποιήσουν Vulkan. Υπάρχει και '
+  'λειτουργία στον επεξεργαστή. Η ταχύτητα εξαρτάται από το μοντέλο, τον υπολογιστή, τους οδηγούς και τη '
+  'διαθέσιμη μνήμη.'),
+ ('Γιατί εμφανίζεται προειδοποίηση των Windows στην εγκατάσταση;',
+  'Ο εγκαταστάτης beta δεν έχει αγορασμένο πιστοποιητικό υπογραφής κώδικα. Κατεβάστε τον μόνο από τη '
+  'συνδεδεμένη σελίδα έκδοσης του έργου και συγκρίνετε το δημοσιευμένο άθροισμα SHA256. Ο πηγαίος κώδικας '
+  'είναι διαθέσιμος για έλεγχο.'),
+ ('Τι σημαίνει beta;',
+  'Κάποιες εφαρμογές μπορεί να απορρίψουν την αυτόματη επικόλληση και κάποιες κάρτες παραμένουν αδοκίμαστες. '
+  'Ελέγξτε την πρώτη υπαγόρευση σε έναν απλό επεξεργαστή κειμένου. Μπορείτε να αντιγράψετε το κείμενο από το '
+  'Ιστορικό αν αποτύχει η εισαγωγή.'),
+ ('Γιατί το όνομα FU Flow;',
+  'Το όνομα εκφράζει την προτίμησή μας για δωρεάν τοπική υπαγόρευση χωρίς μηνιαία συνδρομή λογισμικού. Το FU '
+  'Flow είναι η σύντομη ονομασία στα κοινωνικά δίκτυα. Το έργο είναι ανεξάρτητο από το Wispr Flow.')]
 
 # ---------------------------------------------------------------- translations
 # Ordered. Longer strings first where one contains another.
-TR = [
-    # header and navigation
-    ("Skip to content", "Στο περιεχόμενο"),
-    (">Features<", ">Τι κάνει<"),
-    (">Speed</a>", ">Ταχύτητα</a>"),
-    (">The bill</a>", ">Ο λογαριασμός</a>"),
-    (">Questions</a>", ">Ερωτήσεις</a>"),
-    (">Thanks</a>", ">Ευχαριστίες</a>"),
+TR = [('Skip to content', 'Στο περιεχόμενο'),
+ ('>Feature<', '>Χαρακτηριστικό<'),
+ ('Windows 10 and 11', 'Windows 10 και 11'),
+ ('Free voice to text for Windows.', 'Δωρεάν υπαγόρευση στα ελληνικά για Windows.'),
+ ('Speak, and it types. FU Flow turns your speech into text in any Windows app with local Whisper: '
+  'English, Greek and 97 more languages, auto-detected. No subscription, no weekly word cap and no account '
+  'for local dictation. Built by Luram AI Agency in Thessaloniki.',
+  'Γράψτε με τη φωνή σας. Το FU Flow μετατρέπει ελληνική και αγγλική ομιλία σε κείμενο στις εφαρμογές των '
+  'Windows με τοπικό Whisper. Χωρίς συνδρομή, εβδομαδιαίο όριο λέξεων ή λογαριασμό για τοπική υπαγόρευση. '
+  'Από τη Luram AI Agency στη Θεσσαλονίκη.'),
+ ('Download for Windows', 'Κατεβάστε το για Windows'),
+ ('<small class="btn-v">Version {{VERSION}}</small>', '<small class="btn-v">Έκδοση {{VERSION}}</small>'),
+ ('>Read the code</a>', '>Δείτε τον κώδικα</a>'),
+ ('Version {{VERSION}} beta. {{SIZE}} with the speech models included. Local dictation works offline after '
+  'setup. MIT license. The SHA256 checksum is on the ',
+  'Έκδοση {{VERSION}} beta. {{SIZE}} με τα μοντέλα ομιλίας μέσα. Η τοπική υπαγόρευση λειτουργεί χωρίς '
+  'ίντερνετ μετά την εγκατάσταση. Άδεια MIT. Το άθροισμα ελέγχου SHA256 βρίσκεται στη '),
+ ('. What changed in each version is on the <a href="/changelog/">changelog</a>.',
+  '. Τι άλλαξε σε κάθε έκδοση βρίσκεται στο <a href="/el/changelog/">ιστορικό αλλαγών</a>.'),
+ ('>release page</a>', '>σελίδα της έκδοσης</a>'),
+ ('The listening window: a coral dot, Listening 4.2 s, and a green waveform.',
+  'Το παράθυρο ακρόασης: μια κοραλί τελεία, Ακούει 4,2 δ και μια πράσινη κυματομορφή.'),
+ ('Listening 4.2 s', 'Ακούει 4,2 δ'),
+ ('Your voice. Your computer. No subscription.', 'Η φωνή σας. Ο υπολογιστής σας. Χωρίς συνδρομή.'),
+ ('>Why this is free</h2>', '>Γιατί είναι δωρεάν</h2>'),
+ ('The speech model was already open.', 'Το μοντέλο ομιλίας ήταν ήδη ανοιχτό.'),
+ ('OpenAI published Whisper on 21 September 2022. Its own repository says it in one line: ',
+  'Η OpenAI δημοσίευσε το Whisper στις 21 Σεπτεμβρίου 2022. Το ίδιο της το αποθετήριο το γράφει σε μία '
+  'γραμμή: '),
+ (' Public weights, public code, local speech recognition on hardware you already own.',
+  ' Δημόσια βάρη, δημόσιος κώδικας, τοπική αναγνώριση ομιλίας στον υπολογιστή που ήδη έχετε.'),
+ ('We use Whisper through whisper.cpp to offer local voice typing without a recurring fee. FU Flow is an '
+  'independent app, built from scratch. We do not claim the two products use the same '
+  'recognition system or offer identical features.',
+  'Χρησιμοποιούμε το Whisper μέσα από το whisper.cpp για τοπική υπαγόρευση χωρίς μηνιαία χρέωση. Το FU Flow '
+  'είναι ανεξάρτητη εφαρμογή, φτιαγμένη από την αρχή. Δεν ισχυριζόμαστε ότι τα '
+  'δύο προϊόντα έχουν την ίδια μηχανή αναγνώρισης ή τα ίδια χαρακτηριστικά.'),
+ ('We built the hotkey, the local workflow and the Greek text handling around that open engine. Luram funds '
+  'the project and releases the code under MIT. Local processing uses hardware you already own.',
+  'Πάνω σε αυτή την ανοιχτή μηχανή φτιάξαμε το πλήκτρο, την τοπική ροή και την επεξεργασία ελληνικού '
+  'κειμένου. Η Luram χρηματοδοτεί το έργο και διαθέτει τον κώδικα με άδεια MIT. Η τοπική επεξεργασία '
+  'χρησιμοποιεί τον υπολογιστή που ήδη έχετε.'),
+ ('Take it. Read the code. Fork it. The MIT licence even lets you sell it.',
+  'Πάρτε το. Διαβάστε τον κώδικα. Κάντε το δικό σας. Η άδεια MIT σας επιτρέπει ακόμα και να το πουλήσετε.'),
+ ('What is inside', 'Τι έχει μέσα'),
+ ('Six things the app does on its own, on your machine, without asking anyone.',
+  'Έξι πράγματα που κάνει μόνη της η εφαρμογή, στο μηχάνημά σας, χωρίς να ρωτήσει κανέναν.'),
+ ('Greek that holds up', 'Ελληνικά που στέκουν'),
+ ('Question marks come from grammar rules or from the rise of your voice. Spoken self-corrections are '
+  'applied before the text lands.',
+  'Τα ερωτηματικά βγαίνουν από κανόνες γραμματικής ή από το ανέβασμα της φωνής σας. Οι προφορικές '
+  'αυτοδιορθώσεις εφαρμόζονται πριν προσγειωθεί το κείμενο.'),
+ ('>Snippets<', '>Έτοιμα κομμάτια<'),
+ ('Say a phrase, get a whole block of text. Signatures, addresses, the replies you send every day.',
+  'Πείτε μια φράση, πάρτε ολόκληρο κομμάτι κειμένου. Υπογραφές, διευθύνσεις, οι απαντήσεις που στέλνετε κάθε '
+  'μέρα.'),
+ ('Local by default', 'Τοπικά από προεπιλογή'),
+ ('The default local engine keeps speech on your PC. Update checks use the internet. Choosing a remote '
+  'speech provider sends audio to that provider.',
+  'Η προεπιλεγμένη τοπική μηχανή κρατά την ομιλία στον υπολογιστή σας. Ο έλεγχος ενημερώσεων χρησιμοποιεί το '
+  'ίντερνετ. Αν επιλέξετε απομακρυσμένο πάροχο ομιλίας, ο ήχος αποστέλλεται σε εκείνον.'),
+ ('Correct it once. It learns.', 'Διορθώστε το μία φορά. Το μαθαίνει.'),
+ ('Every dictation is kept in History, one file on your disk. Fix a word there and the fix becomes a '
+  'dictionary rule. The next time you say it, it lands the way you wrote it.',
+  'Κάθε υπαγόρευση φυλάγεται στο Ιστορικό, ένα αρχείο στον δίσκο σας. Διορθώστε εκεί μια λέξη και η διόρθωση '
+  'γίνεται κανόνας λεξικού. Την επόμενη φορά που θα την πείτε, προσγειώνεται όπως τη γράψατε.'),
+ ('>History<', '>Ιστορικό<'),
+ ('Your words, your rules.', 'Οι λέξεις σας, οι κανόνες σας.'),
+ ('Names, brands, the terms of your trade. Add them to the dictionary and the engine spells them your way, '
+  'every time. Rules made in History show up here too, ready to edit.',
+  'Ονόματα, μάρκες, οι όροι της δουλειάς σας. Βάλτε τα στο λεξικό και η μηχανή τα γράφει με τον δικό σας '
+  'τρόπο, κάθε φορά. Οι κανόνες που φτιάχνονται στο Ιστορικό εμφανίζονται κι εδώ, έτοιμοι για αλλαγή.'),
+ ('>Dictionary<', '>Λεξικό<'),
+ ('How much you said, how much you saved.', 'Πόσα είπατε, πόσα κερδίσατε.'),
+ ('Words per day, median wait, minutes saved against typing. What you said yesterday is one click away. All '
+  'of it stays in one file on your disk and goes nowhere else.',
+  'Λέξεις τη μέρα, μέση αναμονή, λεπτά που γλιτώσατε από την πληκτρολόγηση. Ό,τι είπατε χθες απέχει ένα '
+  'κλικ. Όλα μένουν σε ένα αρχείο στον δίσκο σας και δεν πάνε πουθενά αλλού.'),
+ ('>Statistics<', '>Στατιστικά<'),
+ ('GPU acceleration, with a CPU fallback.', 'Επιτάχυνση στην κάρτα, εναλλακτικά στον επεξεργαστή.'),
+ ('NVIDIA, AMD and Intel all run through Vulkan. The first start reads your machine and picks the model that '
+  'fits it. Change the key, the microphone or the model here whenever you like.',
+  'NVIDIA, AMD και Intel περνούν όλες από το Vulkan. Το πρώτο ξεκίνημα διαβάζει το μηχάνημά σας και διαλέγει '
+  'το μοντέλο που του ταιριάζει. Αλλάξτε εδώ το πλήκτρο, το μικρόφωνο ή το μοντέλο όποτε θέλετε.'),
+ ('>Settings<', '>Ρυθμίσεις<'),
+ ('>the right one<', '>το δεξί<'),
+ ('One key.', 'Ένα πλήκτρο.'),
+ ('Press right Alt.</h3><p>A small window with a waveform appears. It listens.',
+  'Πατήστε δεξί Alt.</h3><p>Εμφανίζεται ένα μικρό παράθυρο με κυματομορφή. Ακούει.'),
+ ('Speak.</h3><p>Greek, English or both. Each finished phrase is transcribed while you keep talking.',
+  'Μιλήστε.</h3><p>Ελληνικά, αγγλικά ή και τα δύο. Κάθε φράση που τελειώνει μεταγράφεται όσο εσείς '
+  'συνεχίζετε να μιλάτε.'),
+ ('Press right Alt again.</h3><p>The text lands where your cursor was. With periods, commas and question '
+  'marks.',
+  'Πατήστε ξανά δεξί Alt.</h3><p>Το κείμενο προσγειώνεται εκεί που ήταν ο δρομέας σας. Με τελείες, κόμματα '
+  'και ερωτηματικά.'),
+ ('Dictate into compatible text fields in Word, Chrome, Slack, Outlook and other Windows apps. '
+  '<a href="/guides/when-the-paste-refuses/">If automatic paste fails</a>, copy the text from History.',
+  'Υπαγορεύστε σε συμβατά πεδία κειμένου στο Word, το Chrome, το Slack, το Outlook και άλλες εφαρμογές '
+  'Windows. <a href="/el/guides/when-the-paste-refuses/">Αν αποτύχει η αυτόματη επικόλληση</a>, '
+  'αντιγράψτε το κείμενο από το Ιστορικό.'),
+ ('>Speed</h2>', '>Ταχύτητα</h2>'),
+ ('Four real dictations on an RTX 3070 with the large model. The coral bar is how long the person talked. '
+  'The green bar is how long they then waited for the text. Both bars are drawn on the same scale.',
+  'Τέσσερις πραγματικές υπαγορεύσεις σε RTX 3070 με το μεγάλο μοντέλο. Η κοραλί μπάρα είναι πόση ώρα μίλησε '
+  'ο άνθρωπος. Η πράσινη είναι πόση ώρα περίμενε μετά για το κείμενο. Οι δύο μπάρες είναι στην ίδια '
+  'κλίμακα.'),
+ ('<span class="m-u">words</span>', '<span class="m-u">λέξεις</span>'),
+ ('<span class="m-k">You spoke for</span>', '<span class="m-k">Μιλήσατε</span>'),
+ ('<span class="m-k">You waited</span>', '<span class="m-k">Περιμένατε</span>'),
+ ('>17.5 s<', '>17,5 δ<'),
+ ('>0.59 s<', '>0,59 δ<'),
+ ('>82 s<', '>82 δ<'),
+ ('>0.17 s<', '>0,17 δ<'),
+ ('>77 s<', '>77 δ<'),
+ ('>0.53 s<', '>0,53 δ<'),
+ ('>152 s<', '>152 δ<'),
+ ('>0.88 s<', '>0,88 δ<'),
+ ('Finished phrases are transcribed while you speak, reducing the work left at the end. These four '
+  'observations are from our own RTX 3070. Any comparison with Wispr Flow falls outside them. Results vary with the model, '
+  'recording length, drivers and free GPU memory. AMD, Intel and CPU performance can differ.',
+  'Οι ολοκληρωμένες φράσεις μεταγράφονται όσο μιλάτε, μειώνοντας τη δουλειά που μένει στο τέλος. Οι τέσσερις '
+  'μετρήσεις έγιναν στη δική μας RTX 3070. Κάθε σύγκριση με το Wispr Flow μένει έξω από αυτές. Ο χρόνος αλλάζει ανάλογα '
+  'με το μοντέλο, τη διάρκεια, τους οδηγούς και την ελεύθερη μνήμη της κάρτας. Η απόδοση σε AMD, Intel ή '
+  'επεξεργαστή μπορεί να διαφέρει.'),
+ ('>The bill</h2>', '>Ο λογαριασμός</h2>'),
+ ('<span class="price-tag">Pro: 12 to 15 dollars a month</span>',
+  '<span class="price-tag">Pro: 12 ως 15 δολάρια τον μήνα</span>'),
+ ('<span class="price-tag">Free local dictation</span>', '<span class="price-tag">Δωρεάν τοπική υπαγόρευση</span>'),
+ ('alt="Wispr Flow icon"', 'alt="Εικονίδιο Wispr Flow"'),
+ ('alt="Fuck You Flow icon"', 'alt="Εικονίδιο Fuck You Flow"'),
+ ('<td>Free desktop plan; paid Pro for unlimited dictation</td>',
+  '<td>Δωρεάν πακέτο υπολογιστή, Pro για απεριόριστη υπαγόρευση</td>'),
+ ('<td>Current local app: free under MIT</td>', '<td>Τρέχουσα τοπική εφαρμογή: δωρεάν με MIT</td>'),
+ ('Desktop dictation pricing checked on 8 September 2026. Wispr Flow has a free desktop plan with 2,000 '
+  'words per week. Pro is US$15 monthly or US$12 per month billed annually. Plans and regional prices can '
+  'change.',
+  'Οι τιμές υπαγόρευσης σε υπολογιστή ελέγχθηκαν στις 8 Σεπτεμβρίου 2026. Το Wispr Flow έχει δωρεάν πακέτο '
+  'υπολογιστή με 2.000 λέξεις την εβδομάδα. Το Pro κοστίζει 15 δολάρια τον μήνα ή 12 με ετήσια χρέωση. '
+  'Πακέτα και τοπικές τιμές μπορεί να αλλάξουν.'),
+ ('<td>Price</td>', '<td>Τιμή</td>'),
+ ('<td>Words per week</td>', '<td>Λέξεις την εβδομάδα</td>'),
+ ('<td>2,000 on the free desktop plan</td>', '<td>2.000 στο δωρεάν πακέτο υπολογιστή</td>'),
+ ('<td>As many as you can say</td>', '<td>Όσες προλαβαίνετε να πείτε</td>'),
+ ('<td>Where your voice goes</td>', '<td>Πού πάει η φωνή σας</td>'),
+ ('<td>Their servers</td>', '<td>Στους διακομιστές τους</td>'),
+ ('<td>On your PC with the local engine</td>', '<td>Στον υπολογιστή σας με την τοπική μηχανή</td>'),
+ ('<td>Account</td>', '<td>Λογαριασμός</td>'),
+ ('<td>Required</td>', '<td>Απαιτείται</td>'),
+ ('<td>None</td>', '<td>Κανένας</td>'),
+ ('<td>Internet</td>', '<td>Ίντερνετ</td>'),
+ ('<td>Always</td>', '<td>Πάντα</td>'),
+ ('<td>Downloads and updates; local dictation works offline</td>',
+  '<td>Λήψεις και ενημερώσεις, η τοπική υπαγόρευση λειτουργεί χωρίς σύνδεση</td>'),
+ ('<td>Greek</td>', '<td>Ελληνικά</td>'),
+ ('<td>One of 100+ languages</td>', '<td>Μία από 100+ γλώσσες</td>'),
+ ('<td>First language, mixed with English in the same sentence</td>',
+  '<td>Πρώτη γλώσσα, ανακατεμένη με αγγλικά στην ίδια πρόταση</td>'),
+ ('<td>Source code</td>', '<td>Πηγαίος κώδικας</td>'),
+ ('<td>Proprietary</td>', '<td>Ιδιόκτητος</td>'),
+ ('<td>Open, MIT, on GitHub</td>', '<td>Ανοιχτός, MIT, στο GitHub</td>'),
+ ('Open speech models. Greek and English behind one key. We built a Windows app around them and released it under MIT.',
+  'Ανοιχτά μοντέλα ομιλίας. Ελληνικά και αγγλικά πίσω από ένα πλήκτρο. Χτίσαμε γύρω τους μία εφαρμογή '
+  'Windows και τη διαθέσαμε με άδεια MIT.'),
+ ('Luram AI Agency, Thessaloniki', 'Luram AI Agency, Θεσσαλονίκη'),
+ ('The whole comparison, row by row, with the sources: ',
+  'Ολόκληρη η σύγκριση, γραμμή γραμμή, με τις πηγές: '),
+ ('>the free Wispr Flow alternative for Windows</a>.',
+  '>η δωρεάν εναλλακτική του Wispr Flow για Windows</a>.'),
+ ('Also compare: <a href="/guides/voice-to-text-pc/">Voice to text on PC</a> · <a href="/openwhispr-alternative/">OpenWhispr alternative</a> · '
+  '<a href="/free-offline-dictation-alternatives/">Free offline dictation alternatives</a>.',
+  'Δείτε επίσης: <a href="/el/guides/voice-to-text-pc/">Φωνητική πληκτρολόγηση στον υπολογιστή</a> · <a href="/openwhispr-alternative/">Εναλλακτική του OpenWhispr (στα αγγλικά)</a> · '
+  '<a href="/free-offline-dictation-alternatives/">Δωρεάν εναλλακτικές για τοπική υπαγόρευση (στα αγγλικά)</a>.'),
+ ('Illustrative receipt: 180 US dollars is twelve monthly Wispr Pro payments of 15 dollars. Annual '
+  'billing costs less, and a free desktop plan exists. FU Flow\'s current local app is free under MIT; '
+  'the products have different features.',
+  'Ενδεικτική απόδειξη: τα 180 δολάρια είναι δώδεκα μηνιαίες πληρωμές Wispr Pro των 15 δολαρίων. '
+  'Η ετήσια χρέωση κοστίζει λιγότερο και υπάρχει δωρεάν πακέτο υπολογιστή. Η τρέχουσα τοπική εφαρμογή '
+  'FU Flow διατίθεται δωρεάν με MIT. Τα προϊόντα έχουν διαφορετικά χαρακτηριστικά.'),
+ ('>Questions</h2>', '>Ερωτήσεις</h2>'),
+ ('Tell us the program, the graphics card and what you saw. The Diagnostics tab has Recent problems ready to '
+  'copy.',
+  'Πείτε μας το πρόγραμμα, την κάρτα γραφικών και τι είδατε. Η καρτέλα Διαγνωστικά έχει τα Πρόσφατα '
+  'προβλήματα έτοιμα για αντιγραφή.'),
+ ('>Tell us</h2>', '>Πείτε μας</h2>'),
+ ('Three doors. Whatever broke, whatever you want, whoever you are.',
+  'Τρεις πόρτες. Ό,τι χάλασε, ό,τι θέλετε, όποιος κι αν είστε.'),
+ ('Something broke', 'Κάτι χάλασε'),
+ ('Report a bug on GitHub', 'Αναφέρετε σφάλμα στο GitHub'),
+ ('Something you want', 'Κάτι που θέλετε'),
+ ('A feature, a language quirk, a program it should paste into. Say how you would use it and we read it.',
+  'Μια δυνατότητα, μια ιδιοτροπία της γλώσσας, ένα πρόγραμμα όπου πρέπει να επικολλά. Πείτε πώς θα το '
+  'χρησιμοποιούσατε και το διαβάζουμε.'),
+ ('Open an idea on GitHub', 'Ανοίξτε μια ιδέα στο GitHub'),
+ ('No GitHub account', 'Χωρίς λογαριασμό GitHub'),
+ ('An email is enough. Humans answer.', 'Ένα email αρκεί. Απαντούν άνθρωποι.'),
+ ('Write to info@luram.gr', 'Γράψτε στο info@luram.gr'),
+ ('>Honourable mentions</h2>', '>Ευχαριστίες</h2>'),
+ ('People who put their own machine and their own hours into this, for nothing.',
+  'Άνθρωποι που έβαλαν το δικό τους μηχάνημα και τις δικές τους ώρες σε αυτό, χωρίς αντάλλαγμα.'),
+ ('>AMD graphics cards<', '>Κάρτες γραφικών AMD<'),
+ ('>Tasos Minas<', '>Τάσος Μηνάς<'),
+ ('Ran the app on AMD hardware and reported back what happened, which is how the Vulkan path stopped being a '
+  'guess.',
+  'Έτρεξε την εφαρμογή σε μηχάνημα με AMD και μας είπε τι έγινε και έτσι ο δρόμος του Vulkan έπαψε να είναι '
+  'εικασία.'),
+ ('>A gift from</div>', '>Ευγενική χορηγία από</div>'),
+ ('Luram AI Agency, AI transformation partner',
+  'Luram AI Agency, συνεργάτης μετασχηματισμού με τεχνητή νοημοσύνη'),
+ ('Fuck You Flow is paid for and given away by ', 'Το Fuck You Flow το πληρώνει και το χαρίζει η '),
+ (' in Thessaloniki. We build tools and automations for Greek businesses. This one we built for everybody.',
+  ' στη Θεσσαλονίκη. Φτιάχνουμε εργαλεία και αυτοματισμούς για ελληνικές επιχειρήσεις. Αυτό εδώ το φτιάξαμε '
+  'για όλους.'),
+ ('Fuck You Flow, version {{VERSION}} beta. Free local dictation under MIT.',
+  'Fuck You Flow, έκδοση {{VERSION}} beta. Δωρεάν τοπική υπαγόρευση με MIT.'),
+ ('Code on GitHub', 'Κώδικας στο GitHub'),
+ ('All releases', 'Όλες οι εκδόσεις'),
+ ('Known limits', 'Γνωστά όρια'),
+ ('MIT license. The whisper.cpp engine and the models carry their own licenses. Wispr Flow is a trademark of '
+  'Wispr AI, Inc. We have no relationship with them. The key is yours.',
+  'Άδεια MIT. Η μηχανή whisper.cpp και τα μοντέλα έχουν τις δικές τους άδειες. Το Wispr Flow είναι σήμα '
+  'κατατεθέν της Wispr AI, Inc. Δεν έχουμε καμία σχέση μαζί τους. Το πλήκτρο είναι δικό σας.'),
+ ('The Fuck You Flow home screen: the large-v3 engine on the GPU, the right Alt key for start and stop, '
+  'words dictated today and the last five transcripts.',
+  'Η αρχική οθόνη του Fuck You Flow: η μηχανή large-v3 στην κάρτα γραφικών, το δεξί Alt για ξεκίνημα και '
+  'σταμάτημα, οι λέξεις που υπαγορεύτηκαν σήμερα και οι πέντε τελευταίες μεταγραφές σε ελληνικά και '
+  'αγγλικά.'),
+ ('The History screen: a list of past dictations with the time, word count and wait, and an edit field for '
+  'corrections.',
+  'Η οθόνη Ιστορικό: μια λίστα με παλιές υπαγορεύσεις, την ώρα, τον αριθμό λέξεων και την αναμονή και ένα '
+  'πεδίο για διορθώσεις.'),
+ ('The Dictionary screen: a table of spoken forms and the written forms they should become.',
+  'Η οθόνη Λεξικό: ένας πίνακας με τις προφορικές μορφές και τις γραπτές μορφές που πρέπει να γίνουν.'),
+ ('The Statistics screen: words dictated per day, median wait and time saved, shown as numbers and bars.',
+  'Η οθόνη Στατιστικά: λέξεις που υπαγορεύτηκαν ανά μέρα, μέση αναμονή και χρόνος που γλιτώθηκε, σε νούμερα '
+  'και μπάρες.'),
+ ('The Settings screen: the speech model, the graphics card in use, the microphone and the hotkeys.',
+  'Η οθόνη Ρυθμίσεις: το μοντέλο ομιλίας, η κάρτα γραφικών που χρησιμοποιείται, το μικρόφωνο και τα πλήκτρα '
+  'συντόμευσης.'),
+ ('A black keyboard in the dark. The Alt key immediately to the right of the spacebar is lit from inside in '
+  'acid green.',
+  'Ένα μαύρο πληκτρολόγιο στο σκοτάδι. Το πλήκτρο Alt αμέσως δεξιά από το πλήκτρο διαστήματος είναι '
+  'φωτισμένο από μέσα σε έντονο πράσινο.'),
+ ('A green sound wave on the left breaks into drifting particles that settle into rows of writing on the '
+  'right.',
+  'Ένα πράσινο ηχητικό κύμα στα αριστερά διαλύεται σε σωματίδια που κατακάθονται σε σειρές γραφής στα '
+  'δεξιά.'),
+ ('Campaign receipt on black showing 180 dollars for Wispr Flow and zero dollars for FU Flow.',
+  'Απόδειξη της καμπάνιας σε μαύρο φόντο που δείχνει 180 δολάρια για το Wispr Flow και μηδέν για το FU Flow.'),
+ ('?"Dark":"Light"', '?"Σκοτεινό":"Φωτεινό"'),
+ ('<a href="/el/" hreflang="el" lang="el">ΕΛ</a>', '<a href="/?lang=en" hreflang="en" lang="en">EN</a>'),
+ ('<a href="/el/" lang="el" hreflang="el">Ελληνικά</a>',
+  '<a href="/?lang=en" lang="en" hreflang="en">English</a>'),
+ ('Make voice typing part of your work', 'Βάλτε την υπαγόρευση στην καθημερινή σας δουλειά'),
+ ('Practical guides for writing, prompting and fixing dictation problems.',
+  'Πρακτικοί οδηγοί για κείμενα, εντολές προς AI και προβλήματα υπαγόρευσης.'),
+ ('Write documents by voice', 'Γράψτε έγγραφα με τη φωνή'),
+ ('Set up Greek and English dictation in Word, then check names and punctuation before sharing.',
+  'Ρυθμίστε ελληνική και αγγλική υπαγόρευση στο Word και ελέγξτε ονόματα και στίξη πριν μοιραστείτε το '
+  'κείμενο.'),
+ ('>Dictation in Word<', '>Υπαγόρευση στο Word<'),
+ ('Speak your AI prompts', 'Πείτε τις εντολές σας προς το AI'),
+ ('Dictate a brief into ChatGPT or Claude, review the text, then send it yourself.',
+  'Υπαγορεύστε το αίτημά σας στο ChatGPT ή στο Claude, ελέγξτε το κείμενο και στείλτε το εσείς.'),
+ ('Voice typing for AI prompts', 'Φωνητική πληκτρολόγηση για εντολές προς AI'),
+ ('Keep dictation local', 'Κρατήστε την υπαγόρευση τοπική'),
+ ('Understand speech processing, saved history and update checks.',
+  'Δείτε πώς λειτουργούν η επεξεργασία ομιλίας, το αποθηκευμένο ιστορικό και ο έλεγχος ενημερώσεων.'),
+ ('Privacy and offline operation', 'Ιδιωτικότητα και λειτουργία χωρίς σύνδεση'),
+ ('All dictation guides', 'Όλοι οι οδηγοί υπαγόρευσης'),
+ ('href="/guides/', 'href="/el/guides/'),
+ ('href="/wispr-flow-alternative/"', 'href="/el/wispr-flow-alternative/"'),
+ ('href="/privacy/"', 'href="/el/privacy/"')]
 
-    # hero
-    ("Windows 10 and 11", "Windows 10 και 11"),
-    ("Free dictation that lives on your PC.",
-     "Δωρεάν υπαγόρευση που ζει στον υπολογιστή σας."),
-    ("Wispr Flow raised 361 million dollars and hands you 2,000 words a week before the meter "
-     "starts at 15 dollars a month. We put the same thing behind one key and left the meter "
-     "off. Greek and English, everything on your PC, nothing in the cloud.",
-     "Το Wispr Flow σήκωσε 361 εκατομμύρια δολάρια και σας δίνει 2.000 λέξεις την εβδομάδα "
-     "πριν αρχίσει ο μετρητής στα 15 δολάρια τον μήνα. Εμείς βάλαμε το ίδιο πράγμα πίσω από "
-     "ένα πλήκτρο και αφήσαμε τον μετρητή κλειστό. Ελληνικά και αγγλικά, όλα στον υπολογιστή "
-     "σας, τίποτα στο σύννεφο."),
-    ("Download for Windows", "Κατεβάστε το για Windows"),
-    (">Read the code</a>", ">Δείτε τον κώδικα</a>"),
-    ("Version 0.9.3 beta. 1.7 GB with every model inside. No internet connection after setup. "
-     "MIT license. The SHA256 checksum is on the ",
-     "Έκδοση 0.9.3 beta. 1,7 GB με όλα τα μοντέλα μέσα. Καμία σύνδεση στο ίντερνετ μετά την "
-     "εγκατάσταση. Άδεια MIT. Το άθροισμα ελέγχου SHA256 βρίσκεται στη "),
-    # The changelog sits under the download on both pages, each in its own language.
-    (". What changed in each version is on the <a href=\"/changelog/\">changelog</a>.",
-     ". Τι άλλαξε σε κάθε έκδοση βρίσκεται στο <a href=\"/el/changelog/\">ιστορικό αλλαγών</a>."),
-    (">release page</a>", ">σελίδα της έκδοσης</a>"),
-    ("The listening window: a coral dot, Listening 4.2 s, and a green waveform.",
-     "Το παράθυρο ακρόασης: μια κοραλί τελεία, Ακούει 4,2 δ και μια πράσινη κυματομορφή."),
-    ("Listening 4.2 s", "Ακούει 4,2 δ"),
 
-    # the reason the thing exists
-    ("Open model. Public code. Somebody charged you for it anyway.",
-     "Ανοιχτό μοντέλο. Δημόσιος κώδικας. Κάποιος σας χρέωσε ούτως ή άλλως."),
-    (">Why free</a>", ">Γιατί δωρεάν</a>"),
-    (">Why this is free</h2>", ">Γιατί είναι δωρεάν</h2>"),
-    ("The speech model was already open.", "Το μοντέλο ομιλίας ήταν ήδη ανοιχτό."),
-    ("OpenAI published Whisper on 21 September 2022. Its own repository says it in one line: ",
-     "Η OpenAI δημοσίευσε το Whisper στις 21 Σεπτεμβρίου 2022. Το ίδιο της το αποθετήριο "
-     "το γράφει σε μία γραμμή: "),
-    (" Public weights, public code, running on a graphics card you already paid for. That has "
-     "been true for four years.",
-     " Δημόσια βάρη, δημόσιος κώδικας, μια κάρτα γραφικών που έχετε ήδη πληρώσει. Αυτό ισχύει "
-     "εδώ και τέσσερα χρόνια."),
-    ("What the companies added on top was a login, a monthly fee and a counter that stops at "
-     "2,000 words a week. Wispr Flow raised 361 million dollars doing it and reached a valuation "
-     "of 2 billion. The recognition underneath is the same open model, and it was already yours.",
-     "Αυτό που πρόσθεσαν από πάνω οι εταιρείες ήταν ένας λογαριασμός, μια μηνιαία συνδρομή και "
-     "ένας μετρητής που σταματάει στις 2.000 λέξεις την εβδομάδα. Το Wispr Flow σήκωσε 361 "
-     "εκατομμύρια δολάρια κάνοντάς το και έφτασε σε αποτίμηση 2 δισεκατομμυρίων. Η αναγνώριση "
-     "από κάτω είναι το ίδιο ανοιχτό μοντέλο. Ήταν ήδη δικό σας."),
-    ("So we wrapped it in one key and handed it back. It costs zero because it cost us close to "
-     "zero. It runs on your machine because that is where it could always run. It asks for no "
-     "account because we want to know nothing about you.",
-     "Εμείς το τυλίξαμε σε ένα πλήκτρο και σας το δώσαμε πίσω. Κοστίζει μηδέν επειδή μας κόστισε "
-     "σχεδόν μηδέν. Τρέχει στο μηχάνημά σας επειδή εκεί μπορούσε πάντα να τρέξει. Δεν ζητάει "
-     "λογαριασμό επειδή δεν θέλουμε να ξέρουμε τίποτα για εσάς."),
-    ("Take it. Read the code. Fork it. The MIT licence even lets you sell it.",
-     "Πάρτε το. Διαβάστε τον κώδικα. Κάντε το δικό σας. Η άδεια MIT σας επιτρέπει ακόμα και να "
-     "το πουλήσετε."),
+def put_nav(html, lang):
+    """Swap the template's menu for the one this language should carry.
 
-    # what is inside
-    ("What is inside", "Τι έχει μέσα"),
-    ("Six things the app does on its own, on your machine, without asking anyone.",
-     "Έξι πράγματα που κάνει μόνη της η εφαρμογή, στο μηχάνημά σας, χωρίς να ρωτήσει κανέναν."),
-    ("Greek that holds up", "Ελληνικά που στέκουν"),
-    ("Question marks come from grammar rules or from the rise of your voice. Spoken "
-     "self-corrections are applied before the text lands.",
-     "Τα ερωτηματικά βγαίνουν από κανόνες γραμματικής ή από το ανέβασμα της φωνής σας. Οι "
-     "προφορικές αυτοδιορθώσεις εφαρμόζονται πριν προσγειωθεί το κείμενο."),
-    (">Snippets<", ">Έτοιμα κομμάτια<"),
-    ("Say a phrase, get a whole block of text. Signatures, addresses, the replies you send "
-     "every day.",
-     "Πείτε μια φράση, πάρτε ολόκληρο κομμάτι κειμένου. Υπογραφές, διευθύνσεις, οι απαντήσεις "
-     "που στέλνετε κάθε μέρα."),
-    ("Nothing leaves", "Τίποτα δεν φεύγει"),
-    ("No server, no analytics, no account. Password fields are detected and stay empty.",
-     "Κανένας διακομιστής, καμία μέτρηση, κανένας λογαριασμός. Τα πεδία κωδικών αναγνωρίζονται "
-     "και μένουν άδεια."),
-
-    ("Correct it once. It learns.", "Διορθώστε το μία φορά. Το μαθαίνει."),
-    ("Every dictation is kept in History, one file on your disk. Fix a word there and the fix "
-     "becomes a dictionary rule. The next time you say it, it lands the way you wrote it.",
-     "Κάθε υπαγόρευση φυλάγεται στο Ιστορικό, ένα αρχείο στον δίσκο σας. Διορθώστε εκεί μια "
-     "λέξη και η διόρθωση γίνεται κανόνας λεξικού. Την επόμενη φορά που θα την πείτε, "
-     "προσγειώνεται όπως τη γράψατε."),
-    (">History<", ">Ιστορικό<"),
-    ("Your words, your rules.", "Οι λέξεις σας, οι κανόνες σας."),
-    ("Names, brands, the terms of your trade. Add them to the dictionary and the engine spells "
-     "them your way, every time. Rules made in History show up here too, ready to edit.",
-     "Ονόματα, μάρκες, οι όροι της δουλειάς σας. Βάλτε τα στο λεξικό και η μηχανή τα γράφει με "
-     "τον δικό σας τρόπο, κάθε φορά. Οι κανόνες που φτιάχνονται στο Ιστορικό εμφανίζονται κι "
-     "εδώ, έτοιμοι για αλλαγή."),
-    (">Dictionary<", ">Λεξικό<"),
-    ("How much you said, how much you saved.", "Πόσα είπατε, πόσα κερδίσατε."),
-    ("Words per day, median wait, minutes saved against typing. What you said yesterday is one "
-     "click away. All of it stays in one file on your disk and goes nowhere else.",
-     "Λέξεις τη μέρα, μέση αναμονή, λεπτά που γλιτώσατε από την πληκτρολόγηση. Ό,τι είπατε χθες "
-     "απέχει ένα κλικ. Όλα μένουν σε ένα αρχείο στον δίσκο σας και δεν πάνε πουθενά αλλού."),
-    (">Statistics<", ">Στατιστικά<"),
-    ("Every graphics card. It picks the model itself.",
-     "Κάθε κάρτα γραφικών. Διαλέγει μόνη της το μοντέλο."),
-    ("NVIDIA, AMD and Intel all run through Vulkan. The first start reads your machine and "
-     "picks the model that fits it. Change the key, the microphone or the model here whenever "
-     "you like.",
-     "NVIDIA, AMD και Intel περνούν όλες από το Vulkan. Το πρώτο ξεκίνημα διαβάζει το μηχάνημά "
-     "σας και διαλέγει το μοντέλο που του ταιριάζει. Αλλάξτε εδώ το πλήκτρο, το μικρόφωνο ή το "
-     "μοντέλο όποτε θέλετε."),
-    (">Settings<", ">Ρυθμίσεις<"),
-
-    # one key
-    (">the right one<", ">το δεξί<"),
-    ("One key.", "Ένα πλήκτρο."),
-    ("Press right Alt.</h3><p>A small window with a waveform appears. It listens.",
-     "Πατήστε δεξί Alt.</h3><p>Εμφανίζεται ένα μικρό παράθυρο με κυματομορφή. Ακούει."),
-    ("Speak.</h3><p>Greek, English or both. Each finished phrase is transcribed while you keep "
-     "talking.",
-     "Μιλήστε.</h3><p>Ελληνικά, αγγλικά ή και τα δύο. Κάθε φράση που τελειώνει μεταγράφεται "
-     "όσο εσείς συνεχίζετε να μιλάτε."),
-    ("Press right Alt again.</h3><p>The text lands where your cursor was. With periods, commas "
-     "and question marks.",
-     "Πατήστε ξανά δεξί Alt.</h3><p>Το κείμενο προσγειώνεται εκεί που ήταν ο δρομέας σας. Με "
-     "τελείες, κόμματα και ερωτηματικά."),
-    ("Works in any program: Word, Chrome, Slack, Outlook, even a terminal.",
-     "Δουλεύει σε κάθε πρόγραμμα: Word, Chrome, Slack, Outlook, ακόμα και σε τερματικό."),
-
-    # speed
-    (">Speed</h2>", ">Ταχύτητα</h2>"),
-    ("Four real dictations on an RTX 3070 with the large model. The coral bar is how long the "
-     "person talked. The green bar is how long they then waited for the text. Both bars are "
-     "drawn on the same scale.",
-     "Τέσσερις πραγματικές υπαγορεύσεις σε RTX 3070 με το μεγάλο μοντέλο. Η κοραλί μπάρα είναι "
-     "πόση ώρα μίλησε ο άνθρωπος. Η πράσινη είναι πόση ώρα περίμενε μετά για το κείμενο. Οι "
-     "δύο μπάρες είναι στην ίδια κλίμακα."),
-    ('<span class="m-u">words</span>', '<span class="m-u">λέξεις</span>'),
-    ('<span class="m-k">You spoke for</span>', '<span class="m-k">Μιλήσατε</span>'),
-    ('<span class="m-k">You waited</span>', '<span class="m-k">Περιμένατε</span>'),
-    ('>17.5 s<', '>17,5 δ<'),
-    ('>0.59 s<', '>0,59 δ<'),
-    ('>82 s<', '>82 δ<'),
-    ('>0.17 s<', '>0,17 δ<'),
-    ('>77 s<', '>77 δ<'),
-    ('>0.53 s<', '>0,53 δ<'),
-    ('>152 s<', '>152 δ<'),
-    ('>0.88 s<', '>0,88 δ<'),
-    ("The wait depends only on the last phrase, because everything before it was transcribed "
-     "while you were still speaking. AMD and Intel cards run through Vulkan at the same speed. "
-     "Without a graphics card it runs on the processor, with a wait of a few seconds.",
-     "Η αναμονή εξαρτάται μόνο από την τελευταία φράση, γιατί ό,τι προηγήθηκε μεταγράφηκε όσο "
-     "ακόμα μιλούσατε. Οι κάρτες AMD και Intel περνούν από το Vulkan με την ίδια ταχύτητα. "
-     "Χωρίς κάρτα γραφικών τρέχει στον επεξεργαστή, με αναμονή λίγων δευτερολέπτων."),
-
-    # the bill
-    (">The bill</h2>", ">Ο λογαριασμός</h2>"),
-    ('<span class="price-tag">12 to 15 dollars a month</span>',
-     '<span class="price-tag">12 ως 15 δολάρια τον μήνα</span>'),
-    ('<span class="price-tag">0 dollars, forever</span>',
-     '<span class="price-tag">0 δολάρια, για πάντα</span>'),
-    ("<td>Free to 2,000 words a week, then the meter starts</td>",
-     "<td>Δωρεάν ως 2.000 λέξεις την εβδομάδα, μετά ξεκινά ο μετρητής</td>"),
-    ("<td>Zero, and it stays zero</td>", "<td>Μηδέν, και μηδέν μένει</td>"),
-    ("Every row verified. The valuation and the funding are from TechCrunch, 17 August 2026. "
-     "The prices and the weekly word count are from the Wispr Flow pricing page, read on "
-     "6 September 2026.",
-     "Κάθε γραμμή επαληθευμένη. Η αποτίμηση και η χρηματοδότηση είναι από το TechCrunch, "
-     "17 Αυγούστου 2026. Οι τιμές και οι εβδομαδιαίες λέξεις είναι από τη σελίδα τιμών του "
-     "Wispr Flow, όπως διαβάστηκε στις 6 Σεπτεμβρίου 2026."),
-    ("<td>Price</td>", "<td>Τιμή</td>"),
-    ("<td>Words per week</td>", "<td>Λέξεις την εβδομάδα</td>"),
-    ("<td>2,000 on the free plan</td>", "<td>2.000 στο δωρεάν πακέτο</td>"),
-    ("<td>As many as you can say</td>", "<td>Όσες προλαβαίνετε να πείτε</td>"),
-    ("<td>Company valuation</td>", "<td>Αποτίμηση εταιρείας</td>"),
-    ("<td>2 billion dollars (August 2026)</td>",
-     "<td>2 δισεκατομμύρια δολάρια (Αύγουστος 2026)</td>"),
-    ("<td>One domain name</td>", "<td>Ένα όνομα χώρου</td>"),
-    ("<td>Investor money</td>", "<td>Χρήματα επενδυτών</td>"),
-    ("<td>361 million dollars</td>", "<td>361 εκατομμύρια δολάρια</td>"),
-    ("<td>One weekend</td>", "<td>Ένα σαββατοκύριακο</td>"),
-    ("<td>Where your voice goes</td>", "<td>Πού πάει η φωνή σας</td>"),
-    ("<td>Their servers</td>", "<td>Στους διακομιστές τους</td>"),
-    ("<td>Into the text. Then nowhere.</td>", "<td>Στο κείμενο. Μετά πουθενά.</td>"),
-    ("<td>Account</td>", "<td>Λογαριασμός</td>"),
-    ("<td>Required</td>", "<td>Απαιτείται</td>"),
-    ("<td>None</td>", "<td>Κανένας</td>"),
-    ("<td>Internet</td>", "<td>Ίντερνετ</td>"),
-    ("<td>Always</td>", "<td>Πάντα</td>"),
-    ("<td>Only to download it</td>", "<td>Μόνο για να το κατεβάσετε</td>"),
-    ("<td>Greek</td>", "<td>Ελληνικά</td>"),
-    ("<td>One of 100+ languages</td>", "<td>Μία από 100+ γλώσσες</td>"),
-    ("<td>First language, mixed with English in the same sentence</td>",
-     "<td>Πρώτη γλώσσα, ανακατεμένη με αγγλικά στην ίδια πρόταση</td>"),
-    ("<td>Source code</td>", "<td>Πηγαίος κώδικας</td>"),
-    ("<td>Secret</td>", "<td>Μυστικός</td>"),
-    ("<td>Open, MIT, on GitHub</td>", "<td>Ανοιχτός, MIT, στο GitHub</td>"),
-    ("The models that do Greek well have been open and free for four years. Someone had to put "
-     "them behind a key. We did.",
-     "Τα μοντέλα που τα πάνε καλά με τα ελληνικά είναι ανοιχτά και δωρεάν εδώ και δύο χρόνια. "
-     "Κάποιος έπρεπε να τα βάλει πίσω από ένα πλήκτρο. Το κάναμε."),
-    ("Luram AI Agency, Thessaloniki", "Luram AI Agency, Θεσσαλονίκη"),
-
-    # questions
-    ("The whole comparison, row by row, with the sources: ",
-     "Ολόκληρη η σύγκριση, γραμμή γραμμή, με τις πηγές: "),
-    (">the free Wispr Flow alternative for Windows</a>.",
-     '>η δωρεάν εναλλακτική του Wispr Flow για Windows</a>, στα αγγλικά.'),
-    (">Questions</h2>", ">Ερωτήσεις</h2>"),
-    ("Tell us the program, the graphics card and what you saw. The Diagnostics tab has Recent "
-     "problems ready to copy.",
-     "Πείτε μας το πρόγραμμα, την κάρτα γραφικών και τι είδατε. Η καρτέλα Διαγνωστικά έχει τα "
-     "Πρόσφατα προβλήματα έτοιμα για αντιγραφή."),
-    (">Tell us</h2>", ">Πείτε μας</h2>"),
-    ("Three doors. Whatever broke, whatever you want, whoever you are.",
-     "Τρεις πόρτες. Ό,τι χάλασε, ό,τι θέλετε, όποιος κι αν είστε."),
-    ("Something broke", "Κάτι χάλασε"),
-    ("Report a bug on GitHub", "Αναφέρετε σφάλμα στο GitHub"),
-    ("Something you want", "Κάτι που θέλετε"),
-    ("A feature, a language quirk, a program it should paste into. Say how you would use it "
-     "and we read it.",
-     "Μια δυνατότητα, μια ιδιοτροπία της γλώσσας, ένα πρόγραμμα όπου πρέπει να επικολλά. Πείτε "
-     "πώς θα το χρησιμοποιούσατε και το διαβάζουμε."),
-    ("Open an idea on GitHub", "Ανοίξτε μια ιδέα στο GitHub"),
-    ("No GitHub account", "Χωρίς λογαριασμό GitHub"),
-    ("An email is enough. Humans answer.", "Ένα email αρκεί. Απαντούν άνθρωποι."),
-    ("Write to info@luram.gr", "Γράψτε στο info@luram.gr"),
-
-    # honourable mentions
-    (">Honourable mentions</h2>", ">Ευχαριστίες</h2>"),
-    ("People who put their own machine and their own hours into this, for nothing.",
-     "Άνθρωποι που έβαλαν το δικό τους μηχάνημα και τις δικές τους ώρες σε αυτό, χωρίς αντάλλαγμα."),
-    (">AMD graphics cards<", ">Κάρτες γραφικών AMD<"),
-    (">Tasos Minas<", ">Τάσος Μηνάς<"),
-    ("Ran the app on AMD hardware and reported back what happened, which is how the Vulkan path "
-     "stopped being a guess.",
-     "Έτρεξε την εφαρμογή σε μηχάνημα με AMD και μας είπε τι έγινε, και έτσι ο δρόμος του "
-     "Vulkan έπαψε να είναι εικασία."),
-
-    # the agency block in the footer
-    (">A gift from</div>", ">Ευγενική χορηγία από</div>"),
-    ("Luram AI Agency, AI transformation partner",
-     "Luram AI Agency, συνεργάτης μετασχηματισμού με τεχνητή νοημοσύνη"),
-    ("Fuck You Flow is paid for and given away by ",
-     "Το Fuck You Flow το πληρώνει και το χαρίζει η "),
-    (" in Thessaloniki. We build tools and automations for Greek businesses. This one we built "
-     "for everybody.",
-     " στη Θεσσαλονίκη. Φτιάχνουμε εργαλεία και αυτοματισμούς για ελληνικές επιχειρήσεις. "
-     "Αυτό εδώ το φτιάξαμε για όλους."),
-    ("Fuck You Flow, version 0.9.3 beta. Free for everybody, and it stays free.",
-     "Fuck You Flow, έκδοση 0.9.3 beta. Δωρεάν για όλους, και δωρεάν μένει."),
-
-    # footer
-    ("Code on GitHub", "Κώδικας στο GitHub"),
-    ("All releases", "Όλες οι εκδόσεις"),
-    ("Known limits", "Γνωστά όρια"),
-    ("MIT license. The whisper.cpp engine and the models carry their own licenses. Wispr Flow "
-     "is a trademark of Wispr AI, Inc. We have no relationship with them. The key is yours.",
-     "Άδεια MIT. Η μηχανή whisper.cpp και τα μοντέλα έχουν τις δικές τους άδειες. Το Wispr "
-     "Flow είναι σήμα κατατεθέν της Wispr AI, Inc. Δεν έχουμε καμία σχέση μαζί τους. Το "
-     "πλήκτρο είναι δικό σας."),
-
-    # alt text
-    ("The Fuck You Flow home screen: the large-v3 engine on the GPU, the right Alt key for "
-     "start and stop, words dictated today and the last five transcripts.",
-     "Η αρχική οθόνη του Fuck You Flow: η μηχανή large-v3 στην κάρτα γραφικών, το δεξί Alt για "
-     "ξεκίνημα και σταμάτημα, οι λέξεις που υπαγορεύτηκαν σήμερα και οι πέντε τελευταίες "
-     "μεταγραφές σε ελληνικά και αγγλικά."),
-    ("The History screen: a list of past dictations with the time, word count and wait, and an "
-     "edit field for corrections.",
-     "Η οθόνη Ιστορικό: μια λίστα με παλιές υπαγορεύσεις, την ώρα, τον αριθμό λέξεων και την "
-     "αναμονή και ένα πεδίο για διορθώσεις."),
-    ("The Dictionary screen: a table of spoken forms and the written forms they should become.",
-     "Η οθόνη Λεξικό: ένας πίνακας με τις προφορικές μορφές και τις γραπτές μορφές που πρέπει "
-     "να γίνουν."),
-    ("The Statistics screen: words dictated per day, median wait and time saved, shown as "
-     "numbers and bars.",
-     "Η οθόνη Στατιστικά: λέξεις που υπαγορεύτηκαν ανά μέρα, μέση αναμονή και χρόνος που "
-     "γλιτώθηκε, σε νούμερα και μπάρες."),
-    ("The Settings screen: the speech model, the graphics card in use, the microphone and the "
-     "hotkeys.",
-     "Η οθόνη Ρυθμίσεις: το μοντέλο ομιλίας, η κάρτα γραφικών που χρησιμοποιείται, το "
-     "μικρόφωνο και τα πλήκτρα συντόμευσης."),
-    ("A black keyboard in the dark. The Alt key immediately to the right of the spacebar is "
-     "lit from inside in acid green.",
-     "Ένα μαύρο πληκτρολόγιο στο σκοτάδι. Το πλήκτρο Alt αμέσως δεξιά από το πλήκτρο διαστήματος "
-     "είναι φωτισμένο από μέσα σε έντονο πράσινο."),
-    ("A green sound wave on the left breaks into drifting particles that settle into rows of "
-     "writing on the right.",
-     "Ένα πράσινο ηχητικό κύμα στα αριστερά διαλύεται σε σωματίδια που κατακάθονται σε σειρές "
-     "γραφής στα δεξιά."),
-    ("A printed receipt on black: a year of Wispr Flow adding up to 180 dollars, the same job "
-     "on Fuck You Flow at zero, stamped paid, zero dollars.",
-     "Μια τυπωμένη απόδειξη σε μαύρο φόντο: ένας χρόνος Wispr Flow που βγάζει 180 δολάρια, η "
-     "ίδια δουλειά με το Fuck You Flow στο μηδέν, με σφραγίδα πληρωμένο, μηδέν δολάρια."),
-
-    # the theme button and the language switch
-    ('?"Dark":"Light"', '?"Σκοτεινό":"Φωτεινό"'),
-    ('<a href="/el/" hreflang="el" lang="el">ΕΛ</a>',
-     '<a href="/?lang=en" hreflang="en" lang="en">EN</a>'),
-    ('<a href="/el/" lang="el" hreflang="el">Ελληνικά</a>',
-     '<a href="/?lang=en" lang="en" hreflang="en">English</a>'),
-]
+    The whole block is replaced rather than translated word by word, so the
+    menu has a single source (site_nav.py) and cannot drift between the two
+    languages or between the home page and the rest of the site.
+    """
+    m = re.search(r'<button class="nav-btn".*?</nav>', html, re.S)
+    if not m:
+        print("MENU: the nav block was not found in the template")
+        sys.exit(1)
+    return html[:m.start()] + site_nav.nav_html(lang) + html[m.end():]
 
 
 def rebuild_faq(html, faq):
     """Rewrite the visible questions from the same list the structured data uses.
 
-    Google drops FAQ rich results when the JSON-LD and the visible text differ, and by
-    hand they always drift. Here one list feeds both, so they cannot.
+    Keep visible answers and machine-readable answers consistent. This does not
+    promise FAQ rich results or a ranking benefit.
     """
     items = []
     for i, (q, a) in enumerate(faq):
@@ -625,6 +628,8 @@ history.replaceState(null,"",location.pathname+location.hash)}}catch(e){}})();
     # ---- English
     en = before + HEAD_EN + "\n" + jsonld("en") + after
     en = rebuild_faq(en, FAQ_EN)
+    en = put_nav(en, "en")
+    en = release_tokens(en)
     write(OUT_EN, en)
 
     # ---- Greek
@@ -648,9 +653,15 @@ history.replaceState(null,"",location.pathname+location.hash)}}catch(e){}})();
         for m in missing:
             print("   ", m)
         sys.exit(1)
+    el = put_nav(el, "el")
+    el = release_tokens(el, "el")
     write(OUT_EL, el)
 
     check_greek(el)
+    import build_content
+    import build_changelog
+    build_content.build()
+    build_changelog.main()
     write_llms()
 
 
@@ -665,9 +676,10 @@ def write_llms():
         "dl": DL,
         "base": BASE,
         "size": SIZE,
-        "today": datetime.date.today().strftime("%-d %B %Y")
-        if os.name != "nt" else datetime.date.today().strftime("%d %B %Y").lstrip("0"),
+        "today": CONTENT_DATE,
     }
+    import build_content
+    fields["guides"] = '\n'.join('- [%s](%s/guides/%s/)' % (g['en']['title'], BASE, g['slug']) for g in build_content.ALL_GUIDES)
     write(OUT_LLMS, llms_source.LLMS.format(**fields))
     write(OUT_LLMS_FULL, llms_source.LLMS_FULL.format(**fields))
     write_sitemap()
@@ -720,16 +732,21 @@ ALT = ('    <xhtml:link rel="alternate" hreflang="en" href="{b}/"/>\n'
 
 
 def write_sitemap():
-    """The sitemap is generated too, so lastmod cannot be left behind by an edit."""
-    today = datetime.date.today().isoformat()
+    """Publish canonical URLs. Omit lastmod rather than invent a date on every build."""
     log_alt = ('    <xhtml:link rel="alternate" hreflang="en" href="{b}/changelog/"/>\n'
                '    <xhtml:link rel="alternate" hreflang="el" href="{b}/el/changelog/"/>\n'
                '    <xhtml:link rel="alternate" hreflang="x-default" href="{b}/changelog/"/>\n').format(b=BASE)
     urls = [(BASE + "/", ALT), (BASE + "/el/", ALT),
-            (BASE + "/wispr-flow-alternative/", ""),
             (BASE + "/changelog/", log_alt), (BASE + "/el/changelog/", log_alt)]
+    import build_content
+    urls.extend((BASE + path, "") for path in build_content.comparison_paths() if path not in build_content.paired_paths())
+    for path in build_content.paired_paths():
+        en, el = BASE + path, BASE + "/el" + path
+        alternate = ''.join('    <xhtml:link rel="alternate" hreflang="%s" href="%s"/>\n' % (lang, u)
+                            for lang, u in (("en", en), ("el", el), ("x-default", en)))
+        urls.extend(((en, alternate), (el, alternate)))
     body = "".join(
-        "  <url>\n    <loc>%s</loc>\n    <lastmod>%s</lastmod>\n%s  </url>\n" % (u, today, a)
+        "  <url>\n    <loc>%s</loc>\n%s  </url>\n" % (u, a)
         for u, a in urls)
     write(OUT_SITEMAP,
           '<?xml version="1.0" encoding="UTF-8"?>\n'

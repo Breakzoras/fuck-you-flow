@@ -1,6 +1,6 @@
 [package]
 name = "fuckyouflow"
-version = "0.9.8"
+version = "0.9.9"
 description = "Fuck You Flow: local-first voice keyboard for Windows (Greek + English)"
 authors = ["Luram AI Agency"]
 edition = "2021"

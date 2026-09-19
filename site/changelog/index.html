@@ -123,6 +123,9 @@ background:transparent}
 .btn-acid:hover{background:var(--acid-deep);border-color:var(--acid-deep)}
 .btn-coral{border-color:var(--coral);color:var(--coral-text)}
 .btn-coral:hover{background:var(--coral);color:var(--coral-fg);border-color:var(--coral)}
+/* the download button carries the version under its label, from the same release facts as the page */
+.btn-l{display:flex;flex-direction:column;align-items:center;line-height:1.15;padding:8px 0}
+.btn-v{font-size:15px;font-weight:600;opacity:.82;margin-top:3px;letter-spacing:.01em}
 /* the four panes of the Windows mark, in the button's own ink */
 .winmark{margin-right:11px;flex:none}
 /* the reason the thing exists, said out loud */
@@ -160,6 +163,16 @@ transform:scaleY(var(--h));--h:.35}
 .bars b:nth-child(5n){animation-delay:-.7s}.bars b:nth-child(7n){animation-delay:-.9s}
 }
 @keyframes wave{from{transform:scaleY(.2)}to{transform:scaleY(1)}}
+/* The screenshots turn toward the mouse and float when left alone (Lu,
+   11 September 2026). The script at the end of the page sets the numbers. */
+@media (prefers-reduced-motion:no-preference){
+.frame{transform:perspective(1100px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateZ(var(--lift,0px));
+animation:frame-float 7s ease-in-out infinite}
+.rows .row:nth-child(2n) .frame{animation-delay:-3.5s}
+.frame::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;opacity:var(--glare,0);
+background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.16),rgba(255,255,255,0) 58%)}
+}
+@keyframes frame-float{0%,100%{translate:0 0}50%{translate:0 -8px}}
 
 /* sections */
 section{padding:88px 0;border-top:1px solid var(--line)}
@@ -204,6 +217,9 @@ background:var(--bg2);overflow:hidden;width:100%;height:clamp(180px,21vw,300px)}
    across the photograph. */
 .band::after{content:"";position:absolute;inset:0;pointer-events:none;
 background:linear-gradient(90deg,#000 0%,transparent 14%,transparent 86%,#000 100%)}
+/* the live drawing sits on the still picture and fades in once its first frame is up */
+.band canvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .8s}
+.band.live canvas{opacity:1}
 /* the quote and the receipt sit side by side under the table */
 .close{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:44px;
 align-items:center;margin-top:44px}
@@ -275,6 +291,10 @@ background:transparent;width:23%}
 table.bill td:nth-child(2){color:var(--muted)}
 table.bill td:last-child{color:var(--fg);font-weight:700}
 .price-tag{display:block;font-size:15px;font-weight:400;color:var(--muted);margin-top:4px}
+/* each product wears its own square icon beside its name (Lu, 11 September 2026) */
+.th-name{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.th-txt{display:block;min-width:0}
+.th-ico{width:96px;height:96px;flex:none;display:block;border-radius:18px;border:1px solid var(--line);margin:4px 14px 4px 0}
 
 /* honourable mentions */
 .thanks{list-style:none;display:grid;gap:20px;
@@ -327,8 +347,22 @@ html[data-theme="light"] .spon-btn .dk{display:none}
 .foot-links a:hover{color:var(--coral-text);text-decoration:underline}
 .legal{margin-top:34px;font-size:15px;max-width:100%}
 
-/* the section links need room. Below this the brand and the buttons keep the bar. */
+/* the section links need room. Below this the button takes over. */
 @media (max-width:1240px){.nav{display:none}}
+.nav-btn{display:none}
+.nav a[aria-current="page"]{color:var(--fg)}
+@media (max-width:1240px){
+.top{position:sticky}
+.top-in{position:relative}
+.nav-btn{display:inline-block;font:inherit;font-size:16px;line-height:1;color:var(--fg);
+background:none;border:1px solid var(--line);padding:9px 12px;cursor:pointer}
+.nav-btn:hover{border-color:var(--coral);color:var(--coral-text)}
+.nav{display:none}
+.nav.open{display:flex;flex-direction:column;gap:18px;position:absolute;left:0;right:0;top:calc(100% + 10px);
+background:var(--bg);border:1px solid var(--line);padding:18px 20px;z-index:60}
+.nav.open a{font-size:17px}
+}
+
 @media (max-width:900px){
 .top-in{grid-template-columns:auto auto;gap:14px;padding:10px 0}
 .nav{display:none}
@@ -340,6 +374,7 @@ section{padding:64px 0}
 .meters{grid-template-columns:1fr}
 table.bill td:first-child{width:auto}
 .band{height:150px}
+.th-ico{width:56px;height:56px;border-radius:12px;margin-right:4px}
 .row.flip .txt{order:0}
 .rows{gap:64px;margin-top:64px}
 .listen{right:0;bottom:-20px;transform:scale(.92);transform-origin:bottom right}
@@ -368,7 +403,7 @@ table.bill td:first-child{width:auto}
 .log-top+section{padding-top:8px}
 .log-back{margin:34px 0 60px}
 @media (max-width:640px){.kind li,.rel-sum{font-size:17px}}
-</style>
+</style><script>(function(){function go(){var b=document.getElementById('nav-btn'),n=document.getElementById('site-nav');if(!b||!n)return;b.addEventListener('click',function(){var o=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!o));n.classList.toggle('open',!o);});n.addEventListener('click',function(e){if(e.target.tagName==='A'){b.setAttribute('aria-expanded','false');n.classList.remove('open');}});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',go);}else{go();}})();</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -376,11 +411,7 @@ table.bill td:first-child{width:auto}
 <header class="top">
   <div class="wrap top-in">
     <a class="brand" href="/"><img src="/assets/icon-64.png" alt="" width="32" height="32">Fuck You Flow</a>
-    <nav class="nav" aria-label="Sections">
-      <a href="/">Home</a>
-      <a href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.3/Fuck.You.Flow.Setup.0.9.3.exe">Download</a>
-      <a href="https://github.com/Breakzoras/fuck-you-flow">GitHub</a>
-    </nav>
+    <button class="nav-btn" id="nav-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button><nav class="nav" id="site-nav" aria-label="Navigation"><a href="/#features">Features</a><a href="/#why">Why free</a><a href="/#speed">Speed</a><a href="/guides/">Guides</a><a href="/wispr-flow-alternative/">vs Wispr Flow</a><a href="/changelog/" aria-current="page">Changelog</a><a href="/#faq">Questions</a></nav>
     <div class="tools">
       <a href="/el/changelog/" hreflang="el" lang="el">ΕΛ</a>
       <button id="theme-toggle" type="button">Light</button>
@@ -398,6 +429,135 @@ table.bill td:first-child{width:auto}
 
   <section>
     <div class="wrap">
+      <article class="rel" id="v0.9.9">
+        <div class="rel-head"><h2>0.9.9</h2><span class="rel-date"><time datetime="2026-09-19">2026-09-19</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.9">Release page</a></div>
+        <p class="rel-sum">Better recovery when recognition leaves your chosen languages, plus fixes for startup, shortcuts and pasting.</p>
+        <div class="kind">
+          <h3>Known issues</h3>
+          <ul>
+            <li>The intermittent white Windows window above the listening indicator remains under investigation.</li>
+            <li>Third-language text written in Latin letters may still pass if the engine labels it as English or omits its language. Everyday dictation accuracy still varies.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Fixed</h3>
+          <ul>
+            <li>Both recognition attempts are checked. If the retry fails or still returns a third language, the recording stays available to retry. The same check covers imported audio.</li>
+            <li>Startup offers a retry button after about 15 seconds when settings cannot load.</li>
+            <li>Changing the cloud recognition address or model now updates the active connection.</li>
+            <li>The Alt key that stops recording keeps its release handling. The floating bar also ends a drag when a quick mouse release was missed.</li>
+            <li>Shortcut fields keep focus while typing. Snippets preserve literal dollar signs. Clipboard recovery sends its request before waiting for the result.</li>
+            <li>English statements such as “You are right.” retain their punctuation. Diagnostics selects the newest log and screen readers follow the interface language.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Changed</h3>
+          <ul>
+            <li>Imported source recordings are excluded from saved-audio cleanup lists, adding another layer of file protection.</li>
+          </ul>
+        </div>
+      </article>
+      <article class="rel" id="v0.9.8">
+        <div class="rel-head"><h2>0.9.8</h2><span class="rel-date"><time datetime="2026-09-17">2026-09-17</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.8">Release page</a></div>
+        <p class="rel-sum">The language lock from 0.9.7 now works. Every short piece of a dictation is checked on its own, and a piece that comes out in a third language is heard again in yours.</p>
+        <div class="kind">
+          <h3>Fixed</h3>
+          <ul>
+            <li>The language lock added in 0.9.7 never fired. It waited for the engine to name the language it heard, and the app never asked the engine for that. The engine now names it for every piece.</li>
+            <li>Stray words in another language inside a correct sentence, such as one Russian or Polish word in a Greek paragraph. While you speak, the app cuts the recording at every pause, and on a piece one second long the engine guesses the language badly. Each piece is now checked on its own and heard again in your language when it strays. One word in a foreign alphabet is enough.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Changed</h3>
+          <ul>
+            <li>When the last piece of a dictation has to be heard again, the text arrives half a second to a second and a half later. A single English word said on its own can come out in the letters of your language.</li>
+          </ul>
+        </div>
+      </article>
+      <article class="rel" id="v0.9.7">
+        <div class="rel-head"><h2>0.9.7</h2><span class="rel-date"><time datetime="2026-09-16">2026-09-16</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.7">Release page</a></div>
+        <p class="rel-sum">The dictation language stays yours: when the engine guesses a third language, the recording is heard again in the one you chose. Any of thirty-three languages can be that one now. The bar can be dragged to any edge of the screen, the discreet style is a single dot, and a crash that killed the app in the first hour after every boot is gone.</p>
+        <div class="kind">
+          <h3>New</h3>
+          <ul>
+            <li>Your language is a choice in Settings, Language, with thirty-three to pick from. The modes are named after it: your language and English mixed, your language only, English only, or auto-detect among everything. A fresh install picks the language of your Windows.</li>
+            <li>The bar can be dragged with the mouse while it is on screen. It sticks to the nearest edge, top, bottom, left or right, at the spot where you let go, and remembers the place. Settings, Overlay has a button that shows the bar for fifteen seconds so you can move it without dictating.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Fixed</h3>
+          <ul>
+            <li>In the mixed mode (your language and English) the engine was free to guess among all ninety-nine languages it knows, and a short Greek phrase could come out in Czech or Turkish. Now anything that is neither your language nor English is heard again with your language forced. It costs about a second, only on those occasions.</li>
+            <li>For the first hour after Windows started, the app could close without a word the moment the microphone stumbled. A clock that counts from boot was asked for a time before boot. Both the cause and a test that forbids it are in.</li>
+            <li>The Windows clipboard history (Win+V) could grab the text before the window you were dictating into, and the paste came out empty. The history is kept out of the way until the paste is over.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Changed</h3>
+          <ul>
+            <li>The discreet style is now a single dot and nothing else: red while listening, green when done, amber when the words landed in the clipboard and wait for you to paste them.</li>
+          </ul>
+        </div>
+      </article>
+      <article class="rel" id="v0.9.6">
+        <div class="rel-head"><h2>0.9.6</h2><span class="rel-date"><time datetime="2026-09-11">2026-09-11</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.6">Release page</a></div>
+        <p class="rel-sum">Versions 0.9.4 and 0.9.5 were never published, so this release carries both: the right Alt key that stopped working and the twenty-three faults found while proving it was never the key, a rebuilt paste, shortcuts on the mouse, the program's own name, an update that now announces itself, and eleven fixes from a full audit.</p>
+        <div class="kind">
+          <h3>New</h3>
+          <ul>
+            <li>The app looks for a new version a few seconds after it opens. When there is one, its window comes to the front with a large Update now card in the middle, and if you are dictating at that moment it waits until you finish. When there is nothing newer, nothing appears. Check for updates is also in the tray menu.</li>
+            <li>The side buttons of a mouse can hold a shortcut. They are called Mouse4 and Mouse5 and combine with Ctrl, Shift and Alt like any key.</li>
+            <li>Diagnostics has a Key check: press your hotkey and see live what Windows delivered. When the left Alt arrives while hands-free sits on the right one, it says so.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Fixed</h3>
+          <ul>
+            <li>Deleting a History entry that came from an audio file you transcribed also deleted your original audio file, wherever it was on the disk. Only the copies the app made itself are deleted now.</li>
+            <li>Two rare faults could close the app in the middle of a dictation without a word: unusual content on the clipboard, and a cleanup rule that ran too long on a long transcript. In both cases the text is now kept as it is and the dictation carries on.</li>
+            <li>Installing over an older version could leave the old program running. The new one then closed at once, and you stayed on the old version without being told. The installer now closes the old one, and when Windows will not let it, it asks you to quit it from the tray and try again.</li>
+            <li>An old copy started after the new version had moved your data saw an empty history and began a second one of its own. The two are now joined the next time the app starts, and nothing is deleted.</li>
+            <li>During the move to the new folder names, a folder that held only recordings or logs could be deleted. It is now kept under another name.</li>
+            <li>If the settings file could not be read for a moment, your choices were replaced by the defaults. They are now kept, and a file that cannot be read is saved aside.</li>
+            <li>Delete all data left full copies of the history in the backup folder. They are deleted too now.</li>
+            <li>After an update the Windows startup entry could keep naming the old program file, which the installer had just removed. It now names the new one.</li>
+            <li>Pressing the update button twice could start two downloads at once. A second press is now turned down while the first download runs.</li>
+            <li>A damaged speech model of the right size could make the app throw away the good copy that came with the installer. The two files are now compared before either is removed.</li>
+            <li>The hotkey went dead for up to half a minute at a time. Windows removes the part of the app that listens for keys when one busy moment takes too long, and tells nobody. The app now puts it back every second, where it used to be every thirty. On a machine at full load, eleven key presses in a row reached Windows and none of them reached the app.</li>
+            <li>Everything on the clipboard that was not plain text was destroyed by every dictation. A copied picture, a copied file or copied formatted text is now put back exactly as it was.</li>
+            <li>Recording a new shortcut read one press of the right Alt as two keys, because that is how Windows delivers it on a Greek keyboard, and the shortcut it saved never matched afterwards.</li>
+            <li>If the speech model file disappeared while the app was running, the app tried to restart it every five seconds for as long as it stayed open. It now stops and says what is missing.</li>
+            <li>After the app had crashed once, the Recent problems list showed only old crash lines and hid every warning of the current run.</li>
+            <li>A very short word said between two long pauses could disappear from the finished text.</li>
+            <li>The paste was built the wrong way round. The app used to put a note on the clipboard saying the words could be had on request, then wait to be asked. Anything else on the machine that watches the clipboard, a remote desktop session for one, could ask first and take the answer, leaving the window that mattered with nothing and the app with a question it could no longer answer. The words now go on the clipboard as they are, before the key is pressed, so there is nothing left to ask for and nothing to go wrong in between. The wait that used to cost most of a second is gone with it.</li>
+            <li>On a German, French or Polish keyboard the right Alt is also the key that types the at sign, the euro sign and every accented letter, so every one of those started a dictation. A letter typed within the first moments of holding the key now means writing, and the recording is dropped without a word.</li>
+            <li>The small window's message was cut off at 12 pixels on one line, so the half that said what to do was the half you could not see. It is now 16 pixels and wraps.</li>
+            <li>Every message in that window was in English. They now follow the language of the app.</li>
+            <li>If the last piece of a long dictation failed to transcribe, the whole dictation was thrown away. What was already transcribed while you spoke is now kept.</li>
+            <li>Saving an empty correction in History made the entry look blank for good, and Copy copied nothing. The original stays visible until a real correction replaces it.</li>
+            <li>Paste last and the Paste button in History ignored your correction and used the original words.</li>
+            <li>The Paste button in History pasted into the app's own window. It now puts the text on the clipboard and asks you to click the window you want.</li>
+            <li>A retention of 0 days was accepted and would erase the whole history with its recordings on the next start. The smallest value is one day.</li>
+            <li>One invalid shortcut discarded every change on every settings tab. An empty shortcut now means off, and a bad one is named.</li>
+            <li>The Start with Windows switch could stay on when nothing had been registered. It now turns itself back off and says so.</li>
+            <li>The Save button in Settings could stay lit after a successful save.</li>
+            <li>The small window could stay on Failed, or keep spinning, after pasting with nothing to paste or when the microphone would not open.</li>
+            <li>When a paste was refused and the clipboard refused it too, the app still said the text was on the clipboard. It now says to open History.</li>
+            <li>A dictation that ended with the tray icon in front is now refused out loud, the way the desktop and the taskbar already were.</li>
+            <li>A copy run from the build folder no longer takes over the Windows startup entry. Only the installed copy does.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Changed</h3>
+          <ul>
+            <li>The part of the app that listens for keys now runs ahead of ordinary work, so a busy machine is less likely to make Windows drop it.</li>
+            <li>The dictated words stay in the Windows clipboard history on purpose, so Win+V brings them back if a window ever swallows a paste. They are still refused to the cloud clipboard, so nothing leaves the machine.</li>
+            <li>The program, its folders and its files carry the product name now. The old name showed up in Windows dialogs and on disk, where it had no business being. Your settings, your history and your models move themselves the first time the new version starts.</li>
+            <li>The dashboard no longer stutters while it is open, and the wait after the stop key no longer includes writing to disk. Saving the history and the recovery recording happen out of the way.</li>
+            <li>One repeated harmless warning made up two fifths of the diagnostic log. It is now counted and reported once a minute.</li>
+          </ul>
+        </div>
+      </article>
       <article class="rel" id="v0.9.3">
         <div class="rel-head"><h2>0.9.3</h2><span class="rel-date"><time datetime="2026-09-08">2026-09-08</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.3">Release page</a></div>
         <p class="rel-sum">Two small repairs on the update itself, found the same night 0.9.2 went out.</p>
@@ -471,7 +631,7 @@ table.bill td:first-child{width:auto}
           </ul>
         </div>
       </article>
-      <p class="log-back"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.3/Fuck.You.Flow.Setup.0.9.3.exe">Back to the download</a></p>
+      <p class="log-back"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.9/Fuck.You.Flow.Setup.0.9.9.exe">Back to the download</a></p>
     </div>
   </section>
 </main>
