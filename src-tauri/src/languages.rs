@@ -111,9 +111,7 @@ fn script_of_language(code: &str) -> Script {
         "th" => Script::Thai,
         "ja" | "zh" | "yue" => Script::Cjk,
         "ko" => Script::Hangul,
-        // Everything on the Settings list not named above writes in Latin
-        // letters. Languages off the list get "Other", which switches the
-        // alphabet check off rather than guessing.
+        // The remaining supported primary languages use Latin letters.
         c if is_choice(c) => Script::Latin,
         _ => Script::Other,
     }
@@ -124,8 +122,12 @@ fn script_of_char(c: char) -> Option<Script> {
         return None;
     }
     let u = c as u32;
+    // Shared accent marks and mathematical notation can accompany either language.
+    if matches!(u, 0x0300..=0x036F | 0x2100..=0x214F | 0x1D400..=0x1D7FF) {
+        return None;
+    }
     Some(match u {
-        0x0000..=0x024F | 0x1E00..=0x1EFF => Script::Latin,
+        0x0000..=0x02FF | 0x1E00..=0x1EFF | 0xA720..=0xA7FF | 0xAB30..=0xAB6F | 0xFF21..=0xFF3A | 0xFF41..=0xFF5A => Script::Latin,
         0x0370..=0x03FF | 0x1F00..=0x1FFF => Script::Greek,
         0x0400..=0x052F => Script::Cyrillic,
         0x0600..=0x06FF | 0x0750..=0x077F => Script::Arabic,
@@ -179,19 +181,7 @@ pub fn needs_lock(primary: &str, detected: Option<&str>, text: &str) -> bool {
         }
     }
     let allowed = [script_of_language(primary), Script::Latin];
-    text.split(|c: char| !c.is_alphabetic()).any(|word| {
-        let mut foreign = 0usize;
-        let mut whole_word_scripts = false;
-        for s in word.chars().filter_map(script_of_char) {
-            if s != Script::Other && !allowed.contains(&s) {
-                foreign += 1;
-                whole_word_scripts |= matches!(s, Script::Cjk | Script::Hangul);
-            }
-        }
-        // A lone letter from another alphabet is noise, two make a word. One
-        // Chinese, Japanese or Korean character is already a word.
-        foreign >= 2 || (foreign == 1 && whole_word_scripts)
-    })
+    text.chars().filter_map(script_of_char).any(|script| !allowed.contains(&script))
 }
 
 #[cfg(test)]
@@ -218,8 +208,15 @@ mod tests {
         assert!(needs_lock("el", None, "สวัสดีครับ ทุกคน"));
         assert!(needs_lock("el", None, "Привет, как дела?"));
         assert!(needs_lock("en", None, "Καλημέρα σε όλους."));
-        // one stray letter is not a language
-        assert!(!needs_lock("el", None, "Καλημέρα я"));
+        assert!(needs_lock("el", None, "Καλημέρα я"));
+    }
+
+    #[test]
+    fn language_guard_catches_scripts_outside_the_settings_list() {
+        assert!(needs_lock("el", Some("el"), "Καλημέρα բարեւ"));
+        assert!(needs_lock("el", None, "გამარჯობა"));
+        assert!(needs_lock("el", None, "বাংলা"));
+        assert!(!needs_lock("el", None, "Καλημε\u{301}ρα, cafe\u{301}, Ｈｅｌｌｏ, x ∈ ℝ"));
     }
 
     #[test]

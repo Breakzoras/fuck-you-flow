@@ -885,21 +885,10 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
         // is while dictating: names and endings carry across a cut that way.
         let tail: String = raw.chars().rev().take(200).collect::<Vec<_>>().into_iter().rev().collect();
         let prompt = if tail.trim().is_empty() { None } else { Some(tail.trim().to_string()) };
-        let req = crate::asr::TranscriptionRequest { wav: wav.clone(), language: lang.clone(), prompt: prompt.clone(), beam_size: settings.asr.beam_size, vad: settings.asr.vad };
-        let mut result = engine.transcribe(req).await;
-        // The engine guessed a language the user never chose: the same piece
-        // again, with their own language forced this time.
-        if let Ok(t) = &result {
-            if settings.language.needs_lock(t.detected_language.as_deref(), &t.text) {
-                let forced = settings.language.primary().to_string();
-                crate::journal::info("language.locked", serde_json::json!({ "heard": t.detected_language, "forced": forced, "source": "file" }));
-                tracing::info!("piece {} came back as {:?}; transcribing it again as {forced}", i + 1, t.detected_language);
-                let again = crate::asr::TranscriptionRequest { wav, language: forced, prompt, beam_size: settings.asr.beam_size, vad: settings.asr.vad };
-                if let Ok(t2) = engine.transcribe(again).await {
-                    result = Ok(t2);
-                }
-            }
-        }
+        let req = crate::asr::TranscriptionRequest { wav, language: lang.clone(), prompt, beam_size: settings.asr.beam_size, vad: settings.asr.vad };
+        let result = crate::asr::transcribe_in_chosen_languages(
+            &settings.language, req, &format!("file piece {}", i + 1), |q| engine.transcribe(q),
+        ).await;
         match result {
             Ok(t) => {
                 if heard.is_none() {

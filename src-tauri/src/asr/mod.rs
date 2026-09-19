@@ -3,6 +3,8 @@
 
 pub mod openai_compat;
 pub mod whisper_server;
+mod language_guard;
+pub use language_guard::transcribe_in_chosen_languages;
 
 use serde::{Deserialize, Serialize};
 
@@ -58,6 +60,8 @@ pub struct EngineInfo {
 
 #[derive(Debug, thiserror::Error)]
 pub enum AsrError {
+    #[error("Speech recognition left the chosen languages. The recording is available to retry.")]
+    LanguageMismatch,
     #[error("engine not ready: {0}")]
     NotReady(String),
     #[error("engine request failed: {0}")]

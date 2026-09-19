@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tokio::sync::mpsc;
 
-use crate::asr::TranscriptionRequest;
+use crate::asr::{transcribe_in_chosen_languages, TranscriptionRequest};
 use crate::audio::AudioCapture;
 use crate::cleanup::dictionary::{build_hint_prompt, DictionaryEngine};
 use crate::cleanup::snippets::SnippetEngine;
@@ -206,51 +206,6 @@ fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: 
     });
     seg.lock().jobs.push(handle);
     true
-}
-
-/// One transcription that stays inside the two languages the user chose.
-///
-/// In the mixed mode the engine picks the language itself, and on a short piece
-/// it picks badly. On 17 September 2026 single Greek words said on their own
-/// came back as Russian, Spanish, Polish, Indonesian and Korean ("Χαρά" as
-/// "Хара", "Εντάξει" as "Endaxi", "Ναι" as "Нэй"), and the same audio sent
-/// again as Greek came back right every time. The pieces cut at each pause while
-/// the user speaks are exactly that short, so each one is checked on its own:
-/// a verdict or a word outside the two languages sends that piece, and only
-/// that piece, through once more with the user's own language forced.
-///
-/// Forcing the language on every piece was measured as well and is worse:
-/// English said on its own came back translated ("Thanks" as "Ευχαριστώ").
-async fn transcribe_in_chosen_languages<F, Fut>(
-    language: &LanguageModeSetting,
-    req: TranscriptionRequest,
-    what: &str,
-    run: F,
-) -> Result<crate::asr::TranscriptionResult, crate::asr::AsrError>
-where
-    F: Fn(TranscriptionRequest) -> Fut,
-    Fut: std::future::Future<Output = Result<crate::asr::TranscriptionResult, crate::asr::AsrError>>,
-{
-    if language.mode != LanguageMode::Multi {
-        return run(req).await;
-    }
-    let (wav, prompt, beam_size, vad) = (req.wav.clone(), req.prompt.clone(), req.beam_size, req.vad);
-    let first = run(req).await?;
-    if !language.needs_lock(first.detected_language.as_deref(), &first.text) {
-        return Ok(first);
-    }
-    let forced = language.primary().to_string();
-    tracing::info!("{what} came back as {:?}; hearing it again as {forced}", first.detected_language);
-    crate::journal::info("language.locked", serde_json::json!({ "heard": first.detected_language, "forced": forced, "source": "dictation", "piece": what }));
-    match run(TranscriptionRequest { wav, language: forced, prompt, beam_size, vad }).await {
-        Ok(again) => Ok(again),
-        // The second pass failed: the first one is still a transcript, and a
-        // word in the wrong language beats a hole in the sentence.
-        Err(e) => {
-            tracing::warn!("{what}: the forced pass failed, keeping the first result: {e}");
-            Ok(first)
-        }
-    }
 }
 
 /// Whisper hallucinations on silence, seen in the wild. If the whole transcript
@@ -840,6 +795,16 @@ async fn process(
         // the end. Keep what exists and carry on with it.
         Ok(Err(e)) => {
             tracing::error!("transcription failed: {e}");
+            // A rejected tail needs a retry of the preserved recording. Pasting
+            // just the successful prefix would silently omit the last words.
+            if matches!(e, crate::asr::AsrError::LanguageMismatch) {
+                overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("msg_language_mismatch".into()), preview: None, can_retry: true, seconds: 0.0, movable: false });
+                shared.snapshot.lock().last_error = Some(e.to_string());
+                CAPTURE_ESCAPE.store(false, std::sync::atomic::Ordering::Relaxed);
+                if let Some(timer) = idle_timer.take() { timer.abort(); }
+                set_phase(shared, Phase::Idle, false);
+                return;
+            }
             if head_parts.is_empty() {
                 let state = match e {
                     crate::asr::AsrError::Offline(_) => OverlayState::Offline,
@@ -868,12 +833,7 @@ async fn process(
             crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
         }
     };
-    // There is no second look at the whole recording here. Until 17 September
-    // 2026 there was one, and it could never run because the engine sent no
-    // verdict. Every piece is now checked and heard again on its own, so
-    // reaching this point with a stray word means a pass already forced into
-    // the user's language wrote it; hearing 70 seconds again in that same
-    // language would cost seconds on release and change little.
+    // The shared language guard validates each accepted piece and its retry.
     let tail_pitch = crate::audio::tail_pitch_features(&speech);
     if let Some((peak, end)) = tail_pitch {
         tracing::info!("prosody: final tail peak {peak:+.1} st, end {end:+.1} st | {}", crate::logging::redact(result.text.trim()));
@@ -1219,6 +1179,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn language_guard_rejects_a_failed_retry() {
+        let multi = LanguageModeSetting { mode: LanguageMode::Multi, primary: "el".into() };
+        let req = TranscriptionRequest { language: "auto".into(), ..Default::default() };
+        let result = transcribe_in_chosen_languages(&multi, req, "test", |q| std::future::ready(
+            if q.language == "auto" {
+                Ok(TranscriptionResult { text: "Хара".into(), detected_language: Some("ru".into()), ..Default::default() })
+            } else {
+                Err(AsrError::Request("retry failed".into()))
+            }
+        )).await;
+        assert!(result.is_err(), "a failed retry must keep the recording available for recovery");
+    }
+
+    #[tokio::test]
+    async fn language_guard_checks_the_retry_text_and_verdict() {
+        let multi = LanguageModeSetting { mode: LanguageMode::Multi, primary: "el".into() };
+        for (text, verdict) in [("Καλημέρα Привет", "el"), ("Endaxi", "es")] {
+            let req = TranscriptionRequest { language: "auto".into(), ..Default::default() };
+            let result = transcribe_in_chosen_languages(&multi, req, "test", |q| std::future::ready(Ok(
+                if q.language == "auto" {
+                    TranscriptionResult { text: "Хара".into(), detected_language: Some("ru".into()), ..Default::default() }
+                } else {
+                    TranscriptionResult { text: text.into(), detected_language: Some(verdict.into()), ..Default::default() }
+                }
+            ))).await;
+            assert!(result.is_err(), "the forced pass must also respect the chosen languages");
+        }
+    }
+
+    #[tokio::test]
     async fn a_piece_in_a_third_language_is_heard_again_in_the_users_own() {
         let multi = LanguageModeSetting { mode: LanguageMode::Multi, primary: "el".into() };
         let calls = AtomicUsize::new(0);
@@ -1249,14 +1239,23 @@ mod tests {
             backend: "vulkan".into(), use_gpu: true, threads: 8, port: 47555,
         });
         let multi = LanguageModeSetting { mode: LanguageMode::Multi, primary: "el".into() };
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(std::path::Path::new(&dir).join("manifest.json")).expect("clip manifest.json with id, text, language"),
+        ).unwrap();
         let mut paths: Vec<_> = std::fs::read_dir(dir).unwrap().filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "wav")).collect();
         paths.sort();
+        assert!(!paths.is_empty(), "at least one speech clip is required");
         for p in paths {
             let wav = std::fs::read(&p).unwrap();
-            let plain = s.transcribe(TranscriptionRequest { wav: wav.clone(), language: "auto".into(), prompt: None, beam_size: 5, vad: true }).await.unwrap();
             let req = TranscriptionRequest { wav, language: "auto".into(), prompt: None, beam_size: 5, vad: true };
             let locked = transcribe_in_chosen_languages(&multi, req, "clip", |q| s.transcribe(q)).await.unwrap();
-            println!("{:10} auto [{:?}] {:32} -> kept [{:?}] {}", p.file_name().unwrap().to_string_lossy(), plain.detected_language, format!("{:?}", plain.text), locked.detected_language, locked.text);
+            let id = p.file_stem().unwrap().to_str().unwrap();
+            let expected = manifest.as_array().unwrap().iter().find(|item| item["id"].as_str() == Some(id)).expect("clip has an expected transcript");
+            let letters = |s: &str| s.chars().filter(|c| c.is_alphabetic()).flat_map(char::to_lowercase).collect::<String>();
+            println!("{id}: [{:?}] {}", locked.detected_language, locked.text);
+            assert!(!multi.needs_lock(locked.detected_language.as_deref(), &locked.text), "{id}: chosen languages");
+            assert_eq!(locked.detected_language.as_deref(), expected["language"].as_str(), "{id}: language");
+            assert_eq!(letters(&locked.text), letters(expected["text"].as_str().unwrap()), "{id}: spoken words");
         }
     }
 
