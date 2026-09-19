@@ -13,6 +13,7 @@ import Stats from "./pages/Stats";
 import SettingsPage from "./pages/SettingsPage";
 import Diagnostics from "./pages/Diagnostics";
 import GpuGauge from "./GpuGauge";
+import { withTimeout } from "./async";
 
 type Page = "home" | "history" | "dictionary" | "snippets" | "learning" | "stats" | "settings" | "diagnostics";
 
@@ -23,6 +24,7 @@ export default function App() {
   const [snap, setSnap] = useState<PipelineSnapshot | null>(null);
   const [toastMsg, setToastMsg] = useState<{ msg: string; kind: "ok" | "err" } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   // The big card in the middle. "Not now" closes it and leaves the bar on top.
   const [prompt, setPrompt] = useState(false);
@@ -30,13 +32,13 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    // The page loads before the backend has registered its state, so the first
-    // calls can be rejected. Keep asking for a few seconds instead of staying on
-    // the placeholder forever.
+    setLoadFailed(false);
+    // Bound startup recovery even when a backend call stalls.
     const load = async () => {
-      for (let attempt = 0; attempt < 60 && !cancelled; attempt++) {
+      const deadline = Date.now() + 15000;
+      while (!cancelled && Date.now() < deadline) {
         try {
-          const s = await api.getSettings();
+          const s = await withTimeout(api.getSettings(), deadline - Date.now());
           if (cancelled) return;
           setSettingsState(s);
           api.engineInfo().then(setEngine).catch(() => {});
@@ -62,7 +64,7 @@ export default function App() {
       un3.then((f) => f());
       clearInterval(iv);
     };
-  }, []);
+  }, [loadAttempt]);
 
   useEffect(() => {
     if (!settings) return;
@@ -194,9 +196,10 @@ export default function App() {
       <div className="main">
         <p className="muted">
           {loadFailed
-            ? "The app did not respond. Close this window and open it again from the tray icon."
+            ? "Η εφαρμογή άργησε να απαντήσει. Δοκίμασε ξανά. / The app took too long to respond. Try again."
             : "Loading…"}
         </p>
+        {loadFailed && <button onClick={() => setLoadAttempt((n) => n + 1)}>Δοκιμή ξανά / Try again</button>}
       </div>
     );
   }

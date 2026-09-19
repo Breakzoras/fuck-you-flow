@@ -58,13 +58,7 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
     let _ = state.shared.tx.send(PipelineMsg::SettingsChanged);
     // `backend` belongs in this list: changing the acceleration on its own used
     // to leave the old engine running, so the setting looked ignored.
-    if old.asr.model_id != settings.asr.model_id
-        || old.asr.provider != settings.asr.provider
-        || old.asr.use_gpu != settings.asr.use_gpu
-        || old.asr.backend != settings.asr.backend
-        || old.asr.vad != settings.asr.vad
-        || old.asr.threads != settings.asr.threads
-    {
+    if settings.engine_changed_from(&old) {
         let engine = state.shared.engine.clone();
         let s2 = settings.clone();
         let app2 = app.clone();
@@ -977,7 +971,8 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
             model: Some(model_name),
             insertion_method: Some("file".into()),
             status: "success".into(),
-            audio_path: Some(path.clone()),
+            // History owns the text. The selected recording stays with its owner.
+            audio_path: None,
             context_used: false,
             retried: false,
             undone: false,

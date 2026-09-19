@@ -458,14 +458,15 @@ impl Db {
 
     pub fn delete_history(&self, id: &str) -> anyhow::Result<Option<String>> {
         let conn = self.conn.lock();
-        let audio: Option<String> = conn.query_row("SELECT audio_path FROM history WHERE id = ?1", params![id], |r| r.get(0)).optional()?.flatten();
+        // Imported recordings remain owned by the user, including older rows.
+        let audio: Option<String> = conn.query_row("SELECT audio_path FROM history WHERE id = ?1 AND COALESCE(app_category, '') != 'file' AND COALESCE(insertion_method, '') != 'file'", params![id], |r| r.get(0)).optional()?.flatten();
         conn.execute("DELETE FROM history WHERE id = ?1", params![id])?;
         Ok(audio)
     }
 
     pub fn delete_all_history(&self) -> anyhow::Result<Vec<String>> {
         let conn = self.conn.lock();
-        let mut st = conn.prepare("SELECT audio_path FROM history WHERE audio_path IS NOT NULL")?;
+        let mut st = conn.prepare("SELECT audio_path FROM history WHERE audio_path IS NOT NULL AND COALESCE(app_category, '') != 'file' AND COALESCE(insertion_method, '') != 'file'")?;
         let paths: Vec<String> = st.query_map([], |r| r.get::<_, String>(0))?.filter_map(|r| r.ok()).collect();
         conn.execute("DELETE FROM history", [])?;
         Ok(paths)
@@ -474,7 +475,7 @@ impl Db {
     pub fn delete_history_older_than(&self, days: u32) -> anyhow::Result<Vec<String>> {
         let cutoff = (Utc::now() - chrono::Duration::days(days as i64)).to_rfc3339();
         let conn = self.conn.lock();
-        let mut st = conn.prepare("SELECT audio_path FROM history WHERE created_at < ?1 AND audio_path IS NOT NULL")?;
+        let mut st = conn.prepare("SELECT audio_path FROM history WHERE created_at < ?1 AND audio_path IS NOT NULL AND COALESCE(app_category, '') != 'file' AND COALESCE(insertion_method, '') != 'file'")?;
         let paths: Vec<String> = st.query_map(params![cutoff], |r| r.get::<_, String>(0))?.filter_map(|r| r.ok()).collect();
         conn.execute("DELETE FROM history WHERE created_at < ?1", params![cutoff])?;
         Ok(paths)
@@ -981,6 +982,41 @@ mod tests {
         assert_eq!(s.p50_latency_ms, 900);
         let last = db.last_successful_history().unwrap().unwrap();
         assert_eq!(last.final_text, "γεια σου κόσμε");
+    }
+
+    #[test]
+    fn history_deletion_preserves_imported_audio() {
+        for mode in ["single", "all", "retention"] {
+            let db = Db::open_in_memory().unwrap();
+            let dir = std::env::temp_dir().join(format!("lalia-history-{}", new_id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let source = dir.join("original.wav");
+            let recorded = dir.join("recorded.wav");
+            std::fs::write(&source, b"user recording").unwrap();
+            std::fs::write(&recorded, b"app recording").unwrap();
+            let mut imported = entry("imported speech");
+            imported.audio_path = Some(source.to_string_lossy().into_owned());
+            imported.app_category = Some("file".into());
+            imported.insertion_method = Some("file".into());
+            imported.created_at = "2020-01-01T00:00:00+00:00".into();
+            let mut owned = entry("dictated speech");
+            owned.audio_path = Some(recorded.to_string_lossy().into_owned());
+            owned.created_at = imported.created_at.clone();
+            db.insert_history(&imported).unwrap();
+            db.insert_history(&owned).unwrap();
+            let paths = match mode {
+                "single" => [db.delete_history(&imported.id).unwrap(), db.delete_history(&owned.id).unwrap()].into_iter().flatten().collect(),
+                "all" => db.delete_all_history().unwrap(),
+                _ => db.delete_history_older_than(30).unwrap(),
+            };
+            for path in paths {
+                std::fs::remove_file(path).unwrap();
+            }
+            assert!(source.exists(), "{mode} must preserve the source recording");
+            assert!(!recorded.exists(), "{mode} must clean up app recordings");
+            assert!(db.list_history(None, 10, 0).unwrap().is_empty());
+            std::fs::remove_dir_all(&dir).unwrap();
+        }
     }
 
     #[test]

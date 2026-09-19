@@ -416,6 +416,18 @@ pub fn read_failed() -> bool {
 }
 
 impl Settings {
+    /// Settings captured when the speech provider is constructed.
+    pub fn engine_changed_from(&self, old: &Self) -> bool {
+        self.asr.model_id != old.asr.model_id
+            || self.asr.provider != old.asr.provider
+            || self.asr.use_gpu != old.asr.use_gpu
+            || self.asr.backend != old.asr.backend
+            || self.asr.vad != old.asr.vad
+            || self.asr.threads != old.asr.threads
+            || self.asr.openai_base_url != old.asr.openai_base_url
+            || self.asr.openai_model != old.asr.openai_model
+    }
+
     pub fn load(path: &Path) -> Self {
         // Another program holding the file for a moment (antivirus, a backup or
         // sync tool) fails the read with a sharing error. Any error used to
@@ -578,6 +590,22 @@ mod tests {
         let de = LanguageModeSetting { mode: LanguageMode::Multi, primary: "de".into() };
         assert_eq!(de.effective(Some("en"), "Okay, thanks."), "en");
         assert_eq!(de.effective(Some("de"), "Schick es an Hans."), "de");
+    }
+
+    #[test]
+    fn cloud_connection_changes_reconfigure_the_engine() {
+        let mut old = Settings::default();
+        old.asr.provider = "openai_compatible".into();
+        let mut next = old.clone();
+        next.asr.openai_base_url = "http://localhost:8080/v1".into();
+        assert!(next.engine_changed_from(&old));
+        next = old.clone();
+        next.asr.openai_model = "new-transcription-model".into();
+        assert!(next.engine_changed_from(&old));
+        assert!(!old.engine_changed_from(&old));
+        next = old.clone();
+        next.general.theme = "light".into();
+        assert!(!next.engine_changed_from(&old));
     }
 
     #[test]
