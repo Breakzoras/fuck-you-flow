@@ -4,6 +4,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, languageName, LANGUAGE_CHOICES, ModelStatus, RuntimeStatus, Settings, LanguageMode, UpdateInfo } from "../api";
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
+import ModelGuide from "../ModelGuide";
+import { BACKEND_EXPLAIN, MODEL_EXPLAIN, Pick } from "../modelChoice";
 
 type Tab = "general" | "mic" | "language" | "models" | "shortcuts" | "cleanup" | "insertion" | "overlay" | "privacy" | "styles" | "cloud";
 
@@ -40,6 +42,15 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
     }
   };
   const dirty = JSON.stringify(draft) !== JSON.stringify(settings);
+  // The guide's "Use it" is a decision, so it is stored at once; waiting for
+  // the Save button would leave the engine on the old model.
+  const applyModel = async (modelId: string, backend: string) => {
+    const next = structuredClone(draft);
+    next.asr.model_id = modelId;
+    next.asr.backend = backend;
+    const saved = await setSettings(next);
+    setDraft(structuredClone(saved));
+  };
 
   const tabs: [Tab, string][] = [
     ["general", t("s_general")], ["mic", t("s_mic")], ["language", t("s_language")], ["models", t("s_models")], ["shortcuts", t("s_shortcuts")],
@@ -81,7 +92,7 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
         </Card>
       )}
 
-      {tab === "models" && <ModelsTab draft={draft} patch={patch} engine={engine} />}
+      {tab === "models" && <ModelsTab draft={draft} patch={patch} engine={engine} onApply={applyModel} />}
 
       {tab === "shortcuts" && <ShortcutsTab draft={draft} patch={patch} />}
 
@@ -241,7 +252,8 @@ function UpdatesCard() {
   );
 }
 
-function ModelsTab({ draft, patch, engine }: { draft: Settings; patch: (p: (s: Settings) => Settings) => void; engine: EngineInfo | null }) {
+function ModelsTab({ draft, patch, engine, onApply }: { draft: Settings; patch: (p: (s: Settings) => Settings) => void; engine: EngineInfo | null; onApply: (modelId: string, backend: string) => Promise<void> }) {
+  const [pick, setPick] = useState<Pick | null>(null);
   const { t, tk, toast } = useApp();
   const [models, setModels] = useState<ModelStatus[]>([]);
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
@@ -268,6 +280,10 @@ function ModelsTab({ draft, patch, engine }: { draft: Settings; patch: (p: (s: S
 
   return (
     <>
+      <Card title={t("guide_title")}>
+        <ModelGuide models={models} profile={machine} currentModelId={draft.asr.model_id} currentBackend={draft.asr.backend} onApply={async (m, b) => { await onApply(m, b); refresh(); }} onPick={setPick} />
+      </Card>
+
       <Card
         title={t("setup_runtime")}
         actions={<Button onClick={() => api.engineRestart().then(() => toast(t("saved")))}>{t("restart_engine")}</Button>}
@@ -292,6 +308,15 @@ function ModelsTab({ draft, patch, engine }: { draft: Settings; patch: (p: (s: S
             { value: "auto", label: t("backend_auto") }, { value: "vulkan", label: t("backend_vulkan") }, { value: "cuda", label: t("backend_cuda") }, { value: "cpu", label: t("backend_cpu") },
           ]} />
         </Field>
+        <div className="hint" style={{ margin: "6px 0 12px" }}>
+          <strong>{t("bx_title")}</strong>
+          {(["auto", "vulkan", "cuda", "cpu"] as const).map((b) => (
+            <div key={b} style={{ marginTop: 4 }}>
+              {t(BACKEND_EXPLAIN[b] as never)}
+              {pick && (pick.backend === "cpu" ? b === "cpu" : b === "auto") && <> <Badge tone="ok">★ {t("bx_best")}</Badge></>}
+            </div>
+          ))}
+        </div>
         <Toggle label={t("use_gpu")} checked={draft.asr.use_gpu} onChange={(v) => patch((s) => { s.asr.use_gpu = v; return s; })} />
 
         <h3 style={{ margin: "18px 0 6px", fontSize: 15, opacity: 0.75 }}>{t("engine_cpu_heavy")}</h3>
@@ -317,7 +342,17 @@ function ModelsTab({ draft, patch, engine }: { draft: Settings; patch: (p: (s: S
           <tbody>
             {models.map((m) => (
               <tr key={m.id}>
-                <td><strong>{m.display_name}</strong>{m.recommended && <> <Badge tone="ok">{t("recommended")}</Badge></>}<br /><span className="hint">{tk(m.languages_key)} · {tk(m.notes_key)}</span>{pr(m.id)}</td>
+                <td>
+                  <strong>{m.display_name}</strong>{pick?.modelId === m.id && <> <Badge tone="ok">★ {t("guide_result")}</Badge></>}
+                  {MODEL_EXPLAIN[m.id] ? (
+                    <div className="hint" style={{ marginTop: 4 }}>
+                      <div><b>{t("mx_label_who")}:</b> {tk(MODEL_EXPLAIN[m.id].who)}</div>
+                      <div><b>{t("mx_label_gain")}:</b> {tk(MODEL_EXPLAIN[m.id].gain)}</div>
+                      <div><b>{t("mx_label_cost")}:</b> {tk(MODEL_EXPLAIN[m.id].cost)}</div>
+                    </div>
+                  ) : <><br /><span className="hint">{tk(m.languages_key)} · {tk(m.notes_key)}</span></>}
+                  {pr(m.id)}
+                </td>
                 <td>{fmtBytes(m.size_bytes)}</td>
                 <td>~{m.vram_mb} MB</td>
                 <td>{m.installed ? <Badge tone={m.verified ? "ok" : "warn"}>{t("installed")}{m.verified ? " ✓" : ""}</Badge> : <Badge>-</Badge>}</td>

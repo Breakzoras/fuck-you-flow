@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, ModelStatus, PipelineSnapshot, RuntimeStatus, StatsSummary } from "../api";
 import { useApp } from "../hooks";
 import { Badge, Button, Card } from "../ui";
+import ModelGuide, { MachineProfile } from "../ModelGuide";
 
 // Home in the Mono style: a state word, a few lines of facts, the last
 // transcripts as a log. Setup only appears while something is missing.
@@ -112,6 +113,22 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
   return (
     <>
       <h1>{state.toLowerCase()}</h1>
+      {!settings.general.first_run_done && (
+        // The first thing a new user decides is which model is theirs, before
+        // a gigabyte is downloaded for the wrong one.
+        <Card title={t("guide_title")}>
+          <ModelGuide
+            models={models}
+            profile={(runtime as unknown as { machine?: MachineProfile } | null)?.machine}
+            currentModelId={settings.asr.model_id}
+            currentBackend={settings.asr.backend}
+            onApply={async (modelId, backend) => {
+              await setSettings({ ...settings, asr: { ...settings.asr, model_id: modelId, backend } });
+              refresh();
+            }}
+          />
+        </Card>
+      )}
       {showSetup && (
         <Card title={t("setup_title")}>
           <div className="setup-item">
