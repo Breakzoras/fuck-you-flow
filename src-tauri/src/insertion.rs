@@ -1237,8 +1237,9 @@ pub mod win {
     /// release is also the menu key: Chrome, Firefox and Electron programs move
     /// the focus to their menu, and the Ctrl+V that follows lands there. The
     /// neutral mask key earns the same right and means nothing to any program
-    /// (measured 23 September 2026: it brought Notepad, Edge and Claude to the
-    /// front every time).
+    /// (23 September 2026: a test script that pressed it before
+    /// SetForegroundWindow brought Notepad, Edge and Claude to the front every
+    /// time; this function itself has not been measured yet).
     pub fn restore_focus(target: &Target) -> bool {
         unsafe {
             let h = HWND(target.hwnd as *mut core::ffi::c_void);
