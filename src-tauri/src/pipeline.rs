@@ -95,6 +95,19 @@ const SEGMENT_MIN_MS: usize = 2500;
 /// so the wait after the stop key never grows with a long breathless stretch.
 const SEGMENT_MAX_MS: usize = 12_000;
 
+/// How long a recording may stay without a trace of sound before the bar says
+/// the microphone sends nothing, and the loudest peak that still counts as
+/// "nothing". A muted headset measured 0.00002 on 21 September 2026; a live
+/// microphone in a quiet room stays well above 0.0005 from its own noise.
+const SILENT_MIC_AFTER_SECS: f32 = 2.5;
+const SILENT_MIC_PEAK: f32 = 0.0005;
+
+/// True once the recording has run long enough and its loudest moment is
+/// still digital silence: a muted or switched-off microphone.
+fn mic_sounds_dead(loudest: f32, secs: f32) -> bool {
+    secs >= SILENT_MIC_AFTER_SECS && loudest < SILENT_MIC_PEAK
+}
+
 type SegmentJob = tokio::task::JoinHandle<(Result<crate::asr::TranscriptionResult, crate::asr::AsrError>, Option<(f32, f32)>)>;
 
 /// Joins phrases transcribed separately. A phrase that starts with a comma or
@@ -449,11 +462,23 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
     *level_task = Some(tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_millis(33));
         let mut n: u32 = 0;
+        let mut loudest: f32 = 0.0;
+        let mut warned_silent = false;
         loop {
             tick.tick().await;
             n = n.wrapping_add(1);
             let secs = shared2.audio.recorded_seconds();
-            overlay::emit_level(&app2, shared2.audio.level(), secs);
+            let level = shared2.audio.level();
+            loudest = loudest.max(level);
+            overlay::emit_level(&app2, level, secs);
+            // Say it while the user can still do something about it. The
+            // recording goes on, so nothing is lost if they unmute and talk.
+            if !warned_silent && mic_sounds_dead(loudest, secs) {
+                warned_silent = true;
+                tracing::warn!("the microphone sends silence: loudest peak {loudest:.5} after {secs:.1} s");
+                crate::journal::warn("record.silent_mic", serde_json::json!({ "peak": loudest, "seconds": secs }));
+                overlay::emit_state(&app2, OverlayPayload { state: OverlayState::MicUnavailable, message: Some("msg_mic_silent".into()), preview: None, can_retry: false, seconds: secs, movable: false });
+            }
             if secs >= max_secs {
                 let _ = shared2.tx.send(PipelineMsg::Toggle);
                 break;
@@ -1164,6 +1189,17 @@ mod tests {
     use crate::asr::{AsrError, TranscriptionResult};
     use crate::settings::{LanguageMode, LanguageModeSetting};
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// On 21 September 2026 a muted headset sent a peak of 0.00002 for 54
+    /// seconds and the user only learned at the end that nothing was heard. A
+    /// live microphone in a quiet room still carries noise far above that.
+    #[test]
+    fn a_microphone_that_sends_nothing_is_called_out_early() {
+        assert!(!mic_sounds_dead(0.00002, 1.0), "too early to judge");
+        assert!(mic_sounds_dead(0.00002, 2.6), "digital silence after the grace period");
+        assert!(!mic_sounds_dead(0.003, 10.0), "room noise from a live microphone");
+        assert!(!mic_sounds_dead(0.056, 3.0), "a quiet speaker");
+    }
 
     /// A stand-in engine that behaves like the real one did on 17 September
     /// 2026 for the Greek word "Χαρά" said on its own.
