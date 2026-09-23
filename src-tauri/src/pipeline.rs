@@ -97,9 +97,11 @@ const SEGMENT_MAX_MS: usize = 12_000;
 
 /// How long a recording may stay without a trace of sound before the bar says
 /// the microphone sends nothing, and the loudest peak that still counts as
-/// "nothing". A muted headset measured 0.00002 on 21 September 2026; a live
-/// microphone in a quiet room stays well above 0.0005 from its own noise.
-const SILENT_MIC_AFTER_SECS: f32 = 2.5;
+/// "nothing". A muted headset measured 0.00002 on 21 September 2026. The same
+/// headset unmuted in a quiet room also stays under 0.0005 until its owner
+/// speaks (measured 23 September 2026), so time is what tells them apart: six
+/// seconds without a sound is longer than anyone waits to start talking.
+const SILENT_MIC_AFTER_SECS: f32 = 6.0;
 const SILENT_MIC_PEAK: f32 = 0.0005;
 
 /// True once the recording has run long enough and its loudest moment is
@@ -1191,12 +1193,12 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     /// On 21 September 2026 a muted headset sent a peak of 0.00002 for 54
-    /// seconds and the user only learned at the end that nothing was heard. A
-    /// live microphone in a quiet room still carries noise far above that.
+    /// seconds and the user only learned at the end that nothing was heard.
     #[test]
     fn a_microphone_that_sends_nothing_is_called_out_early() {
         assert!(!mic_sounds_dead(0.00002, 1.0), "too early to judge");
-        assert!(mic_sounds_dead(0.00002, 2.6), "digital silence after the grace period");
+        assert!(!mic_sounds_dead(0.0003, 3.0), "a noise-gated headset before its owner speaks");
+        assert!(mic_sounds_dead(0.00002, 6.1), "digital silence after the grace period");
         assert!(!mic_sounds_dead(0.003, 10.0), "room noise from a live microphone");
         assert!(!mic_sounds_dead(0.056, 3.0), "a quiet speaker");
     }
