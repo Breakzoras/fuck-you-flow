@@ -500,7 +500,11 @@ pub fn resolve_suggestion(state: State<'_, Arc<AppState>>, id: String, action: S
                 wrong: s.wrong,
                 correct: s.correct,
                 match_mode: "whole_word".into(),
-                case_sensitive: false,
+                // Learned from a single edit, so it changes only the exact
+                // spelling the user corrected. Case-blind, a rule learned as
+                // "App -> up" rewrote every "app" in every dictation after
+                // (23 times by 23 September 2026).
+                case_sensitive: true,
                 language: None,
                 app_scope: None,
                 enabled: true,

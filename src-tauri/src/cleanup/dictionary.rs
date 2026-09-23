@@ -35,6 +35,11 @@ fn boundary_regex(wrong: &str, mode: &str, case_sensitive: bool) -> Option<Regex
     if escaped.is_empty() {
         return None;
     }
+    // A word ends at anything that is not a letter or a digit, except a dot,
+    // hyphen, @ or slash with a letter or digit on its far side: those join
+    // "fuckyouflow.app" or "my-app" into one word the rule must not cut into.
+    const BEFORE: &str = r"(?<![\p{L}\p{N}])(?<![\p{L}\p{N}][.@/\-])";
+    const AFTER: &str = r"(?![\p{L}\p{N}])(?![.@/\-][\p{L}\p{N}])";
     let pattern = match mode {
         // exact: the whole transcript equals the wrong text
         "exact" => format!(r"^\s*{escaped}\s*$"),
@@ -42,9 +47,9 @@ fn boundary_regex(wrong: &str, mode: &str, case_sensitive: bool) -> Option<Regex
         // flexible whitespace between words
         "phrase" => {
             let flexible = wrong.trim().split_whitespace().map(|w| fancy_regex::escape(w).into_owned()).collect::<Vec<String>>().join(r"\s+");
-            format!(r"(?:^|(?<=[^\p{{L}}\p{{N}}])){flexible}(?:$|(?=[^\p{{L}}\p{{N}}]))")
+            format!("{BEFORE}{flexible}{AFTER}")
         }
-        _ => format!(r"(?:^|(?<=[^\p{{L}}\p{{N}}])){escaped}(?:$|(?=[^\p{{L}}\p{{N}}]))"),
+        _ => format!("{BEFORE}{escaped}{AFTER}"),
     };
     RegexBuilder::new(&pattern).case_insensitive(!case_sensitive).build().ok()
 }
@@ -105,8 +110,22 @@ impl DictionaryEngine {
     }
 
     /// Correct terms to bias the recognizer, most recently used first.
+    ///
+    /// Rules the user typed in count as they are. A rule learned from one edit
+    /// in History counts only when its correct form looks like a name (a capital
+    /// or a digit, at most two words): the prompt is there for names, and an
+    /// ordinary word or a corrected sentence only pulls the recognizer off course.
     pub fn hint_terms(&self, max: usize) -> Vec<String> {
-        let mut rules: Vec<&DictionaryRule> = self.rules.iter().filter(|c| c.rule.use_as_hint).map(|c| &c.rule).collect();
+        fn looks_like_a_name(t: &str) -> bool {
+            t.split_whitespace().count() <= 2 && t.chars().any(|c| c.is_uppercase() || c.is_ascii_digit())
+        }
+        let mut rules: Vec<&DictionaryRule> = self
+            .rules
+            .iter()
+            .filter(|c| c.rule.use_as_hint)
+            .filter(|c| c.rule.source == "user" || looks_like_a_name(&c.rule.correct))
+            .map(|c| &c.rule)
+            .collect();
         rules.sort_by(|a, b| b.apply_count.cmp(&a.apply_count).then(b.updated_at.cmp(&a.updated_at)));
         let mut seen = std::collections::HashSet::new();
         rules.into_iter().map(|r| r.correct.trim().to_string()).filter(|t| !t.is_empty() && seen.insert(t.to_lowercase())).take(max).collect()
@@ -234,6 +253,38 @@ mod tests {
     fn longer_rules_win() {
         let e = DictionaryEngine::new(vec![rule("Λούραμ", "Luram", "whole_word", false), rule("Λούραμ ΑΙ", "Luram AI Agency", "phrase", false)], vec![]);
         assert_eq!(e.apply("η Λούραμ ΑΙ", "el").text, "η Luram AI Agency");
+    }
+
+    /// A rule for a short word must not reach inside a web address or a
+    /// hyphenated name. Measured on 23 September 2026: a learned rule
+    /// "App -> up" turned "fuckyouflow.app" into "fuckyouflow.up" eight times,
+    /// because the dot counted as the end of a word.
+    #[test]
+    fn a_word_inside_a_web_address_is_left_alone() {
+        let e = DictionaryEngine::new(vec![rule("app", "up", "whole_word", false)], vec![]);
+        assert_eq!(e.apply("Δες το fuckyouflow.app και το my-app.", "el").text, "Δες το fuckyouflow.app και το my-app.");
+        assert_eq!(e.apply("Άνοιξε το app. Μετά το app, τέλος.", "el").text, "Άνοιξε το up. Μετά το up, τέλος.");
+        let e = DictionaryEngine::new(vec![rule("open claw", "OpenClaw", "phrase", false)], vec![]);
+        assert_eq!(e.apply("see open claw.io and open claw.", "en").text, "see open claw.io and OpenClaw.");
+    }
+
+    /// Hints tell the recognizer which names to expect. A learned correction of
+    /// an ordinary word ("up") or a whole phrase fixed once ("Αυτό είναι λάθος")
+    /// is no name, and as the most used rule "up" went first in every prompt.
+    #[test]
+    fn learned_corrections_hint_only_names() {
+        let mut learned_word = rule("App", "up", "whole_word", false);
+        learned_word.source = "suggested".into();
+        learned_word.apply_count = 23;
+        let mut learned_phrase = rule("Tienen lazos", "Αυτό είναι λάθος", "whole_word", false);
+        learned_phrase.source = "suggested".into();
+        let mut learned_name = rule("τσάτζι πητεί", "chatGPT", "whole_word", false);
+        learned_name.source = "suggested".into();
+        let typed_by_user = rule("λογο", "logo", "whole_word", false);
+        let e = DictionaryEngine::new(vec![learned_word, learned_phrase, learned_name, typed_by_user], vec![]);
+        let mut terms = e.hint_terms(10);
+        terms.sort();
+        assert_eq!(terms, vec!["chatGPT".to_string(), "logo".to_string()]);
     }
 
     #[test]
