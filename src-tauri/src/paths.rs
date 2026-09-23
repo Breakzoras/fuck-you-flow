@@ -268,12 +268,27 @@ fn test_base(kind: &str) -> PathBuf {
     std::env::temp_dir().join(format!("fyf-test-{kind}-{}", std::process::id()))
 }
 
+/// Debug builds only: `FYF_DATA_ROOT` puts both folders under one scratch
+/// root. An end-to-end run with the fake microphone otherwise writes its
+/// dictations into the History, settings and journal of whoever runs it.
+#[cfg(all(debug_assertions, not(test)))]
+fn debug_root(kind: &str) -> Option<PathBuf> {
+    std::env::var_os("FYF_DATA_ROOT").map(|r| PathBuf::from(r).join(kind).join(APP_DIR_NAME))
+}
+
 pub fn config_dir() -> PathBuf {
     static DIR: OnceLock<PathBuf> = OnceLock::new();
     #[cfg(test)]
     return DIR.get_or_init(|| test_base("config").join(APP_DIR_NAME)).clone();
     #[cfg(not(test))]
-    DIR.get_or_init(|| adopt(dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")))).clone()
+    DIR.get_or_init(|| {
+        #[cfg(debug_assertions)]
+        if let Some(d) = debug_root("config") {
+            return d;
+        }
+        adopt(dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")))
+    })
+    .clone()
 }
 
 pub fn local_dir() -> PathBuf {
@@ -281,7 +296,14 @@ pub fn local_dir() -> PathBuf {
     #[cfg(test)]
     return DIR.get_or_init(|| test_base("local").join(APP_DIR_NAME)).clone();
     #[cfg(not(test))]
-    DIR.get_or_init(|| adopt(dirs::data_local_dir().unwrap_or_else(|| PathBuf::from(".")))).clone()
+    DIR.get_or_init(|| {
+        #[cfg(debug_assertions)]
+        if let Some(d) = debug_root("local") {
+            return d;
+        }
+        adopt(dirs::data_local_dir().unwrap_or_else(|| PathBuf::from(".")))
+    })
+    .clone()
 }
 
 /// Where the installer put the engine and the models, set once at startup.
