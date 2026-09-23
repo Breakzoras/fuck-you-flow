@@ -140,7 +140,18 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
 
 fn strip_noise_tags(text: &str) -> String {
     static TAGS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\s*[\[\(](?:music|applause|laughter|noise|silence|blank_audio|inaudible|μουσική|γέλια|χειροκρότημα|ήχος|σιωπή)[^\]\)]*[\]\)]\s*").unwrap());
-    let t = super::replace_all_or_keep(&TAGS, text, " ").to_string();
+    // Subtitle credits Whisper learned from videos and writes after a pause.
+    // Nobody dictates them, so they go wherever they appear.
+    static CREDITS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\s*(?:υπότιτλοι\s+authorwave|subtitles by the amara\.org community)\.?").unwrap());
+    // The credit sometimes comes back cut short as a last lone word. Removed
+    // only after a credit was found, so a sentence that really ends in
+    // "υπότιτλοι" keeps it.
+    static CREDIT_TAIL: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\s+υπότιτλο[ιί]?\.?\s*$").unwrap());
+    let mut t = super::replace_all_or_keep(&TAGS, text, " ").to_string();
+    if CREDITS.is_match(&t).unwrap_or(false) {
+        t = super::replace_all_or_keep(&CREDITS, &t, " ").to_string();
+        t = super::replace_all_or_keep(&CREDIT_TAIL, &t, "").to_string();
+    }
     let t = t.trim_start_matches(|c: char| c == '-' || c == '–' || c == ' ');
     t.to_string()
 }
@@ -202,6 +213,10 @@ fn normalize_spacing(text: &str) -> String {
     // "file.bin" stay intact
     static AFTER_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"([!?;,])(\p{L})|(\.)(\p{Lu})").unwrap());
     let t = super::replace_all_or_keep(&AFTER_PUNCT, &t, "$1$3 $2$4").to_string();
+    // "ό,τι" is one Greek word that is written with a comma inside it; the
+    // rule above just split it. Only the accented ό exists in that word.
+    static O_TI: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?<!\p{L})([όΌ]), ([τΤ]ι)(?!\p{L})").unwrap());
+    let t = super::replace_all_or_keep(&O_TI, &t, "$1,$2").to_string();
     // repair URLs and domains damaged by the previous rule ("example. com")
     static DOMAIN_FIX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b([a-z0-9-]+)\. (com|gr|io|net|org|eu|ai|dev|app|co|uk|de|fr|info)\b").unwrap());
     super::replace_all_or_keep(&DOMAIN_FIX, &t, "$1.$2").to_string()
@@ -306,6 +321,30 @@ mod tests {
         assert_eq!(r.text, "Basically I mean the OpenClaw server is like fine.");
         let r = clean("basically I mean the OpenClaw server is like fine", &opts(CleanupIntensity::Strong));
         assert_eq!(r.text, "The OpenClaw server is fine.");
+    }
+
+    /// "ό,τι" is one Greek word written with a comma. The space-after-comma rule
+    /// split it into "ό, τι" in 19 of 19 dictations that held it, 13 to 23
+    /// September 2026.
+    #[test]
+    fn the_greek_word_o_ti_keeps_its_comma_closed() {
+        let r = clean("κάνε ό,τι θες, Ό,τι πεις", &opts(CleanupIntensity::Normal));
+        assert_eq!(r.text, "Κάνε ό,τι θες, Ό,τι πεις.");
+        let r = clean("ό,τι να είναι", &opts(CleanupIntensity::Normal));
+        assert_eq!(r.text, "Ό,τι να είναι.");
+    }
+
+    /// Whisper learned "Υπότιτλοι AUTHORWAVE" from subtitled videos and writes
+    /// it after a pause. Alone it was already treated as silence; tacked onto a
+    /// real dictation it went into the text (7, 12 and 18 September 2026).
+    #[test]
+    fn a_subtitle_credit_after_real_words_is_dropped() {
+        let r = clean("να ετοιμάσουμε; Υπότιτλοι AUTHORWAVE", &opts(CleanupIntensity::Normal));
+        assert_eq!(r.text, "Να ετοιμάσουμε;");
+        let r = clean("θα το θέσω ως παράδειγμα.\n Υπότιτλοι AUTHORWAVE\n Υπότιτλο", &opts(CleanupIntensity::Normal));
+        assert_eq!(r.text, "Θα το θέσω ως παράδειγμα.");
+        let r = clean("οι υπότιτλοι της ταινίας ήταν καλοί", &opts(CleanupIntensity::Normal));
+        assert_eq!(r.text, "Οι υπότιτλοι της ταινίας ήταν καλοί.");
     }
 
     #[test]
