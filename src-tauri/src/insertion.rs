@@ -1299,8 +1299,15 @@ pub mod win {
     }
 
     /// Bring the target back to the front if focus drifted (for example to our
-    /// own overlay). Uses the documented ALT-press trick when a plain
-    /// SetForegroundWindow is refused.
+    /// own overlay). When a plain SetForegroundWindow is refused, a key press
+    /// from this program first earns the right to change the foreground.
+    ///
+    /// That key used to be Alt, the classic trick, but a bare Alt press and
+    /// release is also the menu key: Chrome, Firefox and Electron programs move
+    /// the focus to their menu, and the Ctrl+V that follows lands there. The
+    /// neutral mask key earns the same right and means nothing to any program
+    /// (measured 23 September 2026: it brought Notepad, Edge and Claude to the
+    /// front every time).
     pub fn restore_focus(target: &Target) -> bool {
         unsafe {
             let h = HWND(target.hwnd as *mut core::ffi::c_void);
@@ -1313,7 +1320,8 @@ pub mod win {
             if SetForegroundWindow(h).as_bool() && GetForegroundWindow() == h {
                 return true;
             }
-            let inputs = [key(VK_MENU, false), key(VK_MENU, true)];
+            let mask = VIRTUAL_KEY(crate::hotkey::VK_MASK);
+            let inputs = [key(mask, false), key(mask, true)];
             SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
             std::thread::sleep(Duration::from_millis(20));
             let _ = SetForegroundWindow(h);
