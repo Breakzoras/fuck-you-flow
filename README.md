@@ -1,6 +1,7 @@
 # Fuck You Flow
 
-Free, open-source dictation for Windows 10 and 11, focused on Greek and English.
+Free, open-source dictation for Windows 10 and 11. English, Greek and 97 more
+languages, detected automatically, or locked to your own language in Settings.
 Press Right Alt, speak, then press it again to insert text into a compatible
 Windows text field. The default Whisper engine processes speech on your own PC.
 
@@ -9,23 +10,26 @@ cap. An optional remote speech provider sends audio to the provider you configur
 its fees and privacy terms apply. The app also checks online for updates, and
 destination apps can store or upload text you insert into them.
 
-Made by [Luram AI Agency](https://luram.gr) in Thessaloniki, Greece. Current release:
-**v0.9.3 beta**, under MIT.
+Made by [Luram AI Agency](https://luram.gr) in Thessaloniki, Greece. Beta, under MIT.
+The [latest release](https://github.com/Breakzoras/fuck-you-flow/releases/latest)
+and the [changelog](https://fuckyouflow.app/changelog/) list what changed.
 
 - [Official website and Windows download](https://fuckyouflow.app/)
 - [Ελληνική σελίδα και λήψη](https://fuckyouflow.app/el/)
 - [FU Flow vs Wispr Flow](https://fuckyouflow.app/wispr-flow-alternative/)
   and [FU Flow vs OpenWhispr](https://fuckyouflow.app/openwhispr-alternative/)
 - [Free offline dictation alternatives](https://fuckyouflow.app/free-offline-dictation-alternatives/)
+- [Which Whisper model to use](https://fuckyouflow.app/guides/choose-a-model/),
+  the in-app Help me choose rule in writing
 - [Dictation guides](https://fuckyouflow.app/guides/),
   [οδηγοί στα ελληνικά](https://fuckyouflow.app/el/guides/)
   and [privacy and offline operation](https://fuckyouflow.app/privacy/)
 
-![Home](press/shots/1-home.png)
+![Home](https://fuckyouflow.app/assets/1-home.png)
 
 ## Why it exists
 
-We wanted a free Windows workflow for local Greek and English dictation, with a
+We wanted a free Windows workflow for local dictation, starting with Greek and English, with a
 hotkey, editable dictionary and no recurring charge for the local engine. FU Flow
 builds that workflow around openly released Whisper models and whisper.cpp.
 
@@ -41,8 +45,20 @@ without claiming to replace every competitor feature.
 - **Transcription while you speak.** Finished phrases are processed during
   recording to reduce the work left when you stop. The remaining wait depends on
   the model, speech, hardware, drivers and available memory.
-- **Greek and English**, including mixed sentences. Review names and punctuation;
-  recognition can make mistakes.
+- **99 languages.** Whisper detects the language on its own, or you pick yours from
+  thirty-three in Settings so it never drifts into another one. Greek and English
+  are the most tested, including English words inside Greek sentences. Review
+  names and punctuation; recognition can make mistakes.
+- **Help me choose.** Two questions (your language, what matters most) plus your
+  graphics card memory pick one model, marked Best for you. The same rule is
+  written out in the [model guide](https://fuckyouflow.app/guides/choose-a-model/).
+- **A paste that checks it arrived.** When nothing takes the words within a second,
+  Ctrl+V is pressed once more; if that fails too, the words stay on the clipboard.
+  In Chrome, Edge, Claude, Slack and other programs built on Chromium the words
+  always stay on the clipboard after pasting, one Ctrl+V away.
+- **Two looks for the dark theme.** Carbon, the default, adds depth with still
+  gradients and shadows; Classic is the original flat black. Neither adds work for
+  the graphics card. A light theme is also available.
 - **Rule-based cleanup.** Rules can remove filler words, apply spoken corrections
   such as "Τρίτη, όχι όχι, Παρασκευή", and add question marks from the wording.
   They can misinterpret speech, so review the result before sharing it.
@@ -53,23 +69,23 @@ without claiming to replace every competitor feature.
 - **Snippets.** Say a phrase, get a block of text.
 - **History, statistics and per-application styles**, all on your disk.
 - **Local speech processing by default.** The local adapter talks to an engine
-  process on the same PC. Selecting the optional remote provider uploads audio
-  instead. The app attempts to reject detected password fields; this is not a
-  guarantee that every sensitive field can be identified.
+  process on the same PC. Selecting the optional remote provider uploads the audio
+  to that provider. The app attempts to reject detected password fields; some
+  sensitive fields may still go unrecognised.
 
 Some applications, protected documents or elevated windows can refuse automatic
 paste. Copy the transcript from History and paste it manually if needed. Local
 history and clipboard contents can be read by someone with access to the PC;
 local recognition does not make a cloud document or conversation offline.
 
-![Dictionary](press/shots/3-dictionary.png)
+![Dictionary](https://fuckyouflow.app/assets/3-dictionary.png)
 
 ## Install
 
 Download the installer from
 [Releases](https://github.com/Breakzoras/fuck-you-flow/releases) and run it. The
-v0.9.3 full installer is about **1.7 GB to download**, including the speech models.
-This is the installer size, not a verified installed-disk minimum. Allow additional
+full installer is about **1.7 GB to download**, including the speech models.
+That is the download size. Allow additional
 space for installation, local models, history and updates. The installer uses
 per-user installation mode.
 
@@ -98,8 +114,8 @@ the wait after finishing dictation until text appeared:
 | 179 | 77 s | 0.53 s |
 | 312 | 152 s | 0.88 s |
 
-These are project measurements, not a controlled comparison with Wispr Flow,
-OpenWhispr or another product, and not a promise of subsecond results on every PC.
+These are the maker's own measurements on one PC. They make no claim about Wispr
+Flow, OpenWhispr or any other product, and results on other PCs will differ.
 The last phrase is one source of remaining work; total recording length, model
 state, memory pressure and other running applications can also affect the wait.
 See the [model benchmark summary](eval/bench-summary.md) for separate recognition
@@ -143,7 +159,7 @@ development binary that looks for the interface on a dev server.
 - [docs/USER-GUIDE.md](docs/USER-GUIDE.md) in Greek
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md)
-- [docs/QUESTION-RULES.md](docs/QUESTION-RULES.md), the Greek grammar rules
+- [docs/QUESTION-RULES.md](docs/QUESTION-RULES.md), the Greek question-mark rules
 - [docs/KNOWN-LIMITATIONS.md](docs/KNOWN-LIMITATIONS.md), read this before
   reporting a bug
 - [docs/THIRD-PARTY-NOTICES.md](docs/THIRD-PARTY-NOTICES.md)
