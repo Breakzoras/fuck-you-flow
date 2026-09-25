@@ -1,11 +1,11 @@
 {
-  "version": "0.9.10",
-  "notes": "Pasting that checks the words arrived, a Help me choose guide for the right model, and the same recording now gives the same text every time. Known issue: in the Claude desktop app about 2 in 60 dictations still did not arrive in testing; the words stay on the clipboard.",
-  "pub_date": "2026-09-25T09:16:39Z",
+  "version": "0.9.11",
+  "notes": "A new look with depth called Carbon (the classic flat black stays in Settings), and in browsers, Claude and Slack your words stay on the clipboard after pasting, one Ctrl+V away.",
+  "pub_date": "2026-09-25T17:40:14Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWd0Vm9zcDB3a20vMWM2QnNtSkVHb0VPdEpERXA5aXNneUtUdDdZTXp0MGpHaWlOZXY1eVBkTWRsNFNEUHpzRFk0TVJ5OG0rcmpIMUxDNkFWaGJjZkFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMzI3NTE2CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTBfeDY0LXNldHVwLmV4ZQpPSG9yYTlwNVpGVzdkMWd3T2hqdkcyWndIU3pyME90TzY5ZTF0U21XSi9EMUdlbjA4TzFwNCs1ZlFycTRQbHdPUU1BdEFwYXRLL0tIS09VdTZ6ZG1DUT09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.10/Fuck.You.Flow.Update.0.9.10.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUXZQMHpxSnlQbzNrdXdlTHcvYWpCcy9uZXd6N3ptaStmb3pkSUY0WW1IR1ovWXZEME8rY1JlUzNzbnMzUGNMZktoT2d2b010WG5KNmJMc1A4TDVUakFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMzU3NzAxCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTFfeDY0LXNldHVwLmV4ZQpjWTdvaWF3eDdZSVhyV0c4N0puQzdWQ2JvSHR4WHdlcGZSK29seGM5YVQxS1ZPVDB2K2VBWk5ESTN5SzlCWE95aXh6U1R1VCtRSHBhNnA2c1lRL1dBUT09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.11/Fuck.You.Flow.Update.0.9.11.exe"
     }
   }
 }
