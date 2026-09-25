@@ -705,6 +705,13 @@ pub mod win {
     }
 
     /// The class name of a window, empty when it has none.
+    /// Chromium and Electron top-level windows (Chrome, Edge, Claude, Slack).
+    /// Their read of the clipboard after Ctrl+V does not prove the words landed
+    /// in a text field.
+    pub(crate) fn is_weak_receipt_class(class: &str) -> bool {
+        class.starts_with("Chrome_WidgetWin")
+    }
+
     fn window_class(h: HWND) -> String {
         use windows::Win32::UI::WindowsAndMessaging::GetClassNameW;
         unsafe {
@@ -1043,6 +1050,26 @@ pub mod win {
         // clipboard goes back; the restore itself retries while the clipboard
         // is still open.
         std::thread::sleep(Duration::from_millis(opts.settle_ms.clamp(30, 400)));
+
+        // In Chromium and Electron windows the receipt is weak. On 25 September
+        // 2026 Chrome asked for 273 dictated words 1 ms after Ctrl+V, yet they
+        // appeared nowhere; the restore then put the old clipboard back and the
+        // words survived only in History. So there the words stay on the
+        // clipboard as real data, one Ctrl+V away, and the old content is not
+        // put back.
+        if is_weak_receipt_class(&window_class(fg_at_send)) {
+            unsafe {
+                drain_done();
+                let _ = PostMessageW(Some(hwnd()), WM_LALIA_SETTEXT, WPARAM(0), LPARAM(0));
+            }
+            if let Err(e) = wait_done(Duration::from_secs(2)) {
+                tracing::warn!("paste: the words could not be kept on the clipboard after a Chromium paste: {e}");
+            } else {
+                tracing::info!("paste: Chromium window, so the words stay on the clipboard and the previous clipboard is not restored");
+            }
+            return InsertReport { outcome: InsertOutcome::Pasted, method: "paste".into(), message: None, elapsed_ms: started.elapsed().as_millis() as u64 };
+        }
+
         if opts.restore_clipboard {
             unsafe {
                 drain_done();
@@ -1314,6 +1341,18 @@ pub mod win {
         fn another_reader_first_is_never_called_a_failure_or_a_success() {
             assert_eq!(receipt_verdict(0, 0, false, false), Receipt::Unknown);
             assert_eq!(receipt_verdict(0, 1, true, false), Receipt::Unknown);
+        }
+
+        /// Chrome, Edge, Claude and Slack keep the words on the clipboard after
+        /// a paste; Notepad, Word and Firefox keep the restore.
+        #[test]
+        fn chromium_windows_keep_the_words_on_the_clipboard() {
+            assert!(is_weak_receipt_class("Chrome_WidgetWin_1"));
+            assert!(is_weak_receipt_class("Chrome_WidgetWin_0"));
+            assert!(!is_weak_receipt_class("Notepad"));
+            assert!(!is_weak_receipt_class("OpusApp"));
+            assert!(!is_weak_receipt_class("MozillaWindowClass"));
+            assert!(!is_weak_receipt_class(""));
         }
 
         #[test]

@@ -18,6 +18,19 @@ KINDS = {
 }
 
 RELEASES = [
+{'version': '0.9.11',
+ 'date': '2026-09-25',
+ 'summary': ('Your words stay one Ctrl+V away after pasting into a browser, Claude or Slack.',
+             'Οι λέξεις σου μένουν ένα Ctrl+V μακριά μετά την επικόλληση σε browser, Claude ή Slack.'),
+ 'lines': [('fixed',
+            'In Chrome, Edge and programs built on them such as Claude and Slack, the words stay on the '
+            'clipboard after pasting. If they do not show up where you were typing, one Ctrl+V brings them '
+            'back. In these programs the earlier clipboard content is no longer put back, even with the '
+            'restore setting on.',
+            'Στο Chrome, στον Edge και σε προγράμματα χτισμένα πάνω τους, όπως το Claude και το Slack, οι '
+            'λέξεις μένουν στο πρόχειρο μετά την επικόλληση. Αν δεν εμφανιστούν εκεί που έγραφες, ένα '
+            'Ctrl+V τις φέρνει πίσω. Σε αυτά τα προγράμματα το προηγούμενο περιεχόμενο του προχείρου δεν '
+            'επιστρέφει πια, ακόμα κι αν είναι ανοιχτή η σχετική ρύθμιση.')]},
 {'version': '0.9.10',
  'date': '2026-09-25',
  'summary': ('Pasting that checks the words arrived, a guide that picks the right model for you, '
