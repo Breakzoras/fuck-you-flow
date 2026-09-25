@@ -25,6 +25,7 @@ Updated: 2026-09-25.
 - [Free and offline dictation alternatives](https://fuckyouflow.app/free-offline-dictation-alternatives/): Windows-focused comparison of six tools, with sources and limitations.
 - [Privacy and offline operation](https://fuckyouflow.app/privacy/): actual data flow, local and optional online behavior.
 - [Greek privacy explanation](https://fuckyouflow.app/el/privacy/).
+- [Which Whisper model to use](https://fuckyouflow.app/guides/choose-a-model/): the in-app Help me choose rule in writing, by language, priority and graphics card memory.
 - [Dictation guides](https://fuckyouflow.app/guides/): Word, AI prompts, hotkeys, languages, dictionary, memory and paste troubleshooting.
 - [Greek dictation guides](https://fuckyouflow.app/el/guides/).
 - [Changelog](https://fuckyouflow.app/changelog/): released changes.

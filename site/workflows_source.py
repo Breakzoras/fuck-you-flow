@@ -84,7 +84,7 @@ PRIVACY = {
             ('h2', 'Practical checks'),
             ('ul', ['Confirm the local provider in Settings before dictating sensitive material.', 'Use a short offline test to check the setup on your own PC.', 'Review what is saved in History and what you copy into another service.', 'If you report a bug, review the diagnostic text before sharing it.']),
             ('h2', 'Inspectable source'),
-            ('p', 'FU Flow is MIT licensed. The public source includes the provider selection, local and remote speech adapters and the update check. This page describes application behavior, not an independent security audit or a compliance certification.') ]},
+            ('p', 'FU Flow is MIT licensed. The public source includes the provider selection, local and remote speech adapters and the update check. This page describes application behavior as the maker documents it. An independent security audit or a compliance certification has yet to be done.') ]},
  'el': {'title': 'Ιδιωτικότητα και υπαγόρευση χωρίς ίντερνετ',
         'description': 'Πώς το FU Flow χειρίζεται ομιλία, τοπικό ιστορικό, πρόχειρο, ενημερώσεις και προαιρετικό απομακρυσμένο πάροχο. Δείτε τι μένει στον υπολογιστή σας.',
         'lead': 'Η προεπιλεγμένη μηχανή ομιλίας τρέχει στον υπολογιστή σας. Η τεχνική αυτή περιγραφή ξεχωρίζει την τοπική αναγνώριση από ενημερώσεις και προαιρετικές online υπηρεσίες.',

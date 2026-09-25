@@ -185,8 +185,8 @@ GUIDES = [
                       "16:51 that day showed 133 MB of the model still on it and 1825 MB sitting in "
                       "system RAM."),
                 ("note", "The project observed waits rising from about 1 second to 20 to 37 seconds "
-                         "while most of the model was outside GPU memory. This is one hardware "
-                         "case, not a universal slowdown factor. Memory bandwidth alone does not "
+                         "while most of the model was outside GPU memory. Other hardware can "
+                         "behave differently. Memory bandwidth alone does not "
                          "predict end-to-end recognition time."),
                 ("h2", "How to see it"),
                 ("p", "The rail down the right hand side of the app answers the question directly. "
@@ -195,7 +195,7 @@ GUIDES = [
                         "The app with the memory rail on the right. The word at the top reads Room "
                         "to spare in green. The card is 26 per cent full and the model bar reads 100 "
                         "per cent on the card."),
-                ("p", "Four bars, each one a reading rather than a calculation:"),
+                ("p", "Four bars, each one read live from the card:"),
                 ("ul", ["<b>Full</b> is how much of the card every program together is holding.",
                         "<b>Model on the card</b> is how much of the speech model is still there. "
                         "At 100 per cent, the model fits in GPU memory. That avoids this memory "
@@ -462,11 +462,11 @@ GUIDES = [
                 ("p", "An English name inside a Greek sentence can work with Greek selected, but recognition may change its spelling or translate it. If you switch to a full English paragraph, select English and compare the result."),
                 ("h2", "Try your real vocabulary"),
                 ("ol", ["Put the cursor in a blank Word document or another editable text field. Select your microphone and the local speech engine.",
-                        "Select Greek and say: Στείλε το brief στο Slack για review. This is an example to try, not a promised recognition result.",
+                        "Select Greek and say: Στείλε το brief στο Slack για review. This is an example to try; your result depends on your voice and microphone.",
                         "Press right Alt to stop, then check the Greek words and the spelling of brief, Slack and review. Add a Dictionary correction for a recurring mistake.",
-                        "Select English for a full English paragraph. Keep a reference sentence so you can count corrections instead of judging from memory."]),
+                        "Select English for a full English paragraph. Keep a reference sentence so you can count the corrections."]),
                 ("h2", "Greek question marks and spoken punctuation"),
-                ("p", "FU Flow applies text cleanup after speech recognition. These examples are existing source-test cases, not recordings or accuracy measurements. They depend on the recognizer first producing the words shown."),
+                ("p", "FU Flow applies text cleanup after speech recognition. These examples are existing source-test cases from the code. They depend on the recognizer first producing the words shown."),
                 ("table", ["Recognized text before cleanup", "Result from the text rule"], [
                     ["Είσαι σίγουρος ερωτηματικό Πάμε.", "Είσαι σίγουρος; Πάμε."],
                     ["Are you sure question mark", "Are you sure?"],
@@ -476,8 +476,8 @@ GUIDES = [
                 ("p", "The punctuation word can remain when used as a noun, as in the fourth row. An indirect question can remain a statement, as in the fifth. The optional intonation heuristic is separate from these text rules and can misfire. Review punctuation when it changes the meaning."),
                 ("links", [("https://github.com/Breakzoras/fuck-you-flow/blob/main/src-tauri/src/cleanup/questions.rs", "Read the punctuation rules and existing test cases")]),
                 ("h2", "What our language-setting measurement actually showed"),
-                ("p", "A recorded project experiment from 7 September 2026 used the same 12 Greek clips, an RTX 3070, large-v3-q5_0 and beam size 5. Mean request processing time was 1,129.5 ms with automatic language detection and 909.2 ms with Greek fixed. Mean word error rates were 22.18% and 22.88%, respectively. This sample showed a time saving, not an accuracy improvement."),
-                ("note", "These are maker observations, recalculated from the saved results on 8 September, not a new microphone test or a competitor benchmark. Request processing time does not include the complete hotkey-to-paste workflow. Other models, hardware, languages and recordings can behave differently."),
+                ("p", "A recorded project experiment from 7 September 2026 used the same 12 Greek clips, an RTX 3070, large-v3-q5_0 and beam size 5. Mean request processing time was 1,129.5 ms with automatic language detection and 909.2 ms with Greek fixed. Mean word error rates were 22.18% and 22.88%, respectively. This sample showed a time saving, with accuracy about the same."),
+                ("note", "These are maker observations, recalculated from the saved results on 8 September. Request processing time does not include the complete hotkey-to-paste workflow. Other models, hardware, languages and recordings can behave differently."),
                 ("links", [("/assets/language-settings-observations.json", "Download the measurement settings and per-clip numbers")]),
             ],
         },
@@ -494,7 +494,7 @@ GUIDES = [
                 ("p", "Ένα αγγλικό όνομα μέσα σε ελληνική πρόταση μπορεί να αποδοθεί με επιλεγμένα τα Ελληνικά, αλλά η αναγνώριση μπορεί να αλλάξει την ορθογραφία του ή να το μεταφράσει. Για ολόκληρη αγγλική παράγραφο, επιλέξτε Αγγλικά και συγκρίνετε το αποτέλεσμα."),
                 ("h2", "Δοκιμάστε τις λέξεις που χρησιμοποιείτε"),
                 ("ol", ["Βάλτε τον δρομέα σε κενό έγγραφο Word ή άλλο επεξεργάσιμο πεδίο. Επιλέξτε μικρόφωνο και την τοπική μηχανή ομιλίας.",
-                        "Επιλέξτε Ελληνικά και πείτε: Στείλε το brief στο Slack για review. Είναι παράδειγμα για δοκιμή, όχι εγγυημένο αποτέλεσμα αναγνώρισης.",
+                        "Επιλέξτε Ελληνικά και πείτε: Στείλε το brief στο Slack για review. Είναι παράδειγμα για δοκιμή και το αποτέλεσμα εξαρτάται από τη φωνή και το μικρόφωνό σας.",
                         "Πατήστε δεξί Alt για να σταματήσετε και ελέγξτε τις ελληνικές λέξεις και τα brief, Slack, review. Προσθέστε διόρθωση στο Λεξικό για λάθη που επαναλαμβάνονται.",
                         "Για ολόκληρη αγγλική παράγραφο, επιλέξτε Αγγλικά. Κρατήστε γραμμένο το αρχικό κείμενο ώστε να μετράτε τις διορθώσεις αντί να βασίζεστε στη μνήμη."]),
                 ("h2", "Ελληνικό ερωτηματικό και προφορική στίξη"),
@@ -508,7 +508,7 @@ GUIDES = [
                 ("p", "Η λέξη ερωτηματικό μπορεί να παραμείνει όταν χρησιμοποιείται ως ουσιαστικό, όπως στην τέταρτη γραμμή. Μια πλάγια ερώτηση μπορεί να μείνει κατάφαση, όπως στην πέμπτη. Η προαιρετική εκτίμηση από τον τόνο της φωνής είναι ξεχωριστή και μπορεί να κάνει λάθος. Ελέγχετε τη στίξη όταν αλλάζει το νόημα."),
                 ("links", [("https://github.com/Breakzoras/fuck-you-flow/blob/main/src-tauri/src/cleanup/questions.rs", "Δείτε τους κανόνες στίξης και τα παραδείγματα ελέγχου στον κώδικα")]),
                 ("h2", "Τι έδειξε η δική μας μέτρηση γλώσσας"),
-                ("p", "Το καταγεγραμμένο πείραμα του έργου στις 7 Σεπτεμβρίου 2026 χρησιμοποίησε τα ίδια 12 ελληνικά δείγματα, RTX 3070, large-v3-q5_0 και beam size 5. Ο μέσος χρόνος επεξεργασίας αιτήματος ήταν 1.129,5 ms με αυτόματη ανίχνευση και 909,2 ms με σταθερά Ελληνικά. Τα μέσα ποσοστά σφάλματος λέξεων ήταν αντίστοιχα 22,18% και 22,88%. Το δείγμα έδειξε εξοικονόμηση χρόνου, όχι βελτίωση ακρίβειας."),
+                ("p", "Το καταγεγραμμένο πείραμα του έργου στις 7 Σεπτεμβρίου 2026 χρησιμοποίησε τα ίδια 12 ελληνικά δείγματα, RTX 3070, large-v3-q5_0 και beam size 5. Ο μέσος χρόνος επεξεργασίας αιτήματος ήταν 1.129,5 ms με αυτόματη ανίχνευση και 909,2 ms με σταθερά Ελληνικά. Τα μέσα ποσοστά σφάλματος λέξεων ήταν αντίστοιχα 22,18% και 22,88%. Το δείγμα έδειξε εξοικονόμηση χρόνου, με την ακρίβεια περίπου ίδια."),
                 ("note", "Πρόκειται για μετρήσεις των δημιουργών, που επανυπολογίστηκαν από τα αποθηκευμένα αποτελέσματα στις 8 Σεπτεμβρίου. Δεν είναι νέα δοκιμή μικροφώνου ή σύγκριση ανταγωνιστών. Ο χρόνος αιτήματος δεν περιλαμβάνει όλη τη διαδικασία από το πλήκτρο μέχρι την επικόλληση. Άλλα μοντέλα, μηχανήματα, γλώσσες και ηχογραφήσεις μπορούν να δώσουν διαφορετικά αποτελέσματα."),
                 ("links", [("/assets/language-settings-observations.json", "Κατεβάστε τις ρυθμίσεις και τους αριθμούς ανά δείγμα")]),
             ],

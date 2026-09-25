@@ -151,7 +151,7 @@ WISPR_FAQ_EN = [
 def comparison():
     body = f'<div class="cta"><a class="btn btn-acid" href="{DL}">Download free for Windows</a><a class="btn btn-coral" href="{REPO}">Read the source</a></div><p class="fine">Version {VERSION} beta · {SIZE} · Models included</p>'
     body += '''<h2>The short answer</h2>
-<p>FU Flow is a free Wispr Flow alternative for Windows 10 and 11. It types what you say into any application with a Whisper speech model running on your own PC, with no weekly word limit, no account and no subscription. The installer carries the speech models, the licence is MIT and the source is public.</p>
+<p>FU Flow is a free Wispr Flow alternative for Windows 10 and 11. It types what you say into any application with a Whisper speech model running on your own PC, with no weekly word limit, no account and no subscription. The installer carries the speech models, and the app is open source under the MIT licence, with the code on GitHub.</p>
 <p>FU Flow is an independent Windows beta built by Luram AI Agency. The comparison below covers dictation, and the two products differ in scope. Product details were checked on 8 September 2026.</p>
 <h2>FU Flow compared with Wispr Flow</h2>
 <div class="tbl"><table class="bill"><thead><tr><th scope="col">Dictation feature</th><th scope="col">Wispr Flow</th><th scope="col">FU Flow</th></tr></thead><tbody>

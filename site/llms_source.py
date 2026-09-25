@@ -27,6 +27,7 @@ Updated: {today}.
 - [Free and offline dictation alternatives]({base}/free-offline-dictation-alternatives/): Windows-focused comparison of six tools, with sources and limitations.
 - [Privacy and offline operation]({base}/privacy/): actual data flow, local and optional online behavior.
 - [Greek privacy explanation]({base}/el/privacy/).
+- [Which Whisper model to use]({base}/guides/choose-a-model/): the in-app Help me choose rule in writing, by language, priority and graphics card memory.
 - [Dictation guides]({base}/guides/): Word, AI prompts, hotkeys, languages, dictionary, memory and paste troubleshooting.
 - [Greek dictation guides]({base}/el/guides/).
 - [Changelog]({base}/changelog/): released changes.

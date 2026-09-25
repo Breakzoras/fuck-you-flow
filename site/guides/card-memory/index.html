@@ -418,11 +418,11 @@ table.bill td:first-child{width:auto}
 <p>The speech model sits on the graphics card while the app runs. On the machine measured here it holds 1960 MB there. The card has 8017 MB of usable memory, so at eight in the morning, with little else open, it had room to spare.</p>
 <p>Through the day other programs took that memory: a pixel art editor holding 4025 MB, an Android emulator holding 1419 MB, a game engine and browsers holding a few hundred more. By the afternoon 6160 MB of the card was taken.</p>
 <p>Windows does not refuse a program that no longer fits. It accepts it and moves most of its memory out to ordinary system RAM. Reading the card at 16:51 that day showed 133 MB of the model still on it and 1825 MB sitting in system RAM.</p>
-<p class="note">The project observed waits rising from about 1 second to 20 to 37 seconds while most of the model was outside GPU memory. This is one hardware case, not a universal slowdown factor. Memory bandwidth alone does not predict end-to-end recognition time.</p>
+<p class="note">The project observed waits rising from about 1 second to 20 to 37 seconds while most of the model was outside GPU memory. Other hardware can behave differently. Memory bandwidth alone does not predict end-to-end recognition time.</p>
 <h2>How to see it</h2>
 <p>The rail down the right hand side of the app answers the question directly. It reads the card every three seconds, and again after every dictation.</p>
 <figure><img src="/assets/1-home.png" alt="The app with the memory rail on the right. The word at the top reads Room to spare in green. The card is 26 per cent full and the model bar reads 100 per cent on the card." loading="lazy" width="1280" height="820"></figure>
-<p>Four bars, each one a reading rather than a calculation:</p>
+<p>Four bars, each one read live from the card:</p>
 <ul><li><b>Full</b> is how much of the card every program together is holding.</li><li><b>Model on the card</b> is how much of the speech model is still there. At 100 per cent, the model fits in GPU memory. That avoids this memory spillover problem, but does not guarantee a particular processing speed.</li><li><b>Accuracy</b> and <b>Speed</b> describe the model in use, from the project&#x27;s own measurements.</li></ul>
 <p>When the second bar falls, the word at the top turns red and the rail says how many MB were pushed out.</p>
 <figure><img src="/assets/7-card-full.png" alt="The same app with the card full. The word at the top reads Out of room in red, the card is 77 per cent full, and the model bar reads 7 per cent with a line saying 1825 MB pushed out to system RAM. A button underneath offers to drop to a smaller model." loading="lazy" width="1280" height="820"></figure>
