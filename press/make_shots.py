@@ -125,7 +125,7 @@ def shell(lang, active, body, status="Speech engine ready (on the GPU)", chip="r
     items = "".join(
         f'<button class="{"active" if n == active else ""}">{n}</button>' for n in NAV
     )
-    return f"""<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><style>
+    return f"""<!doctype html><html lang="{lang}" data-theme="dark" data-skin="carbon"><head><meta charset="utf-8"><style>
 {CSS}
 html,body{{width:{W}px;height:{H}px;overflow:hidden}}
 </style></head><body><div class="layout">

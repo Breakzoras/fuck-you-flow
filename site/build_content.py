@@ -160,7 +160,7 @@ def comparison():
 <tr><td>Speech processing</td><td>Cloud processing</td><td>On your PC by default</td></tr>
 <tr><td>Offline dictation</td><td>Internet required for cloud processing</td><td>Works with the bundled local models</td></tr>
 <tr><td>Platforms</td><td>Windows, macOS, iPhone and Android</td><td>Windows 10 and 11</td></tr>
-<tr><td>Languages</td><td>100+ languages</td><td>Focused on Greek and English</td></tr>
+<tr><td>Languages</td><td>100+ languages</td><td>99 languages, Greek and English the most tested</td></tr>
 <tr><td>Account for local dictation</td><td>Wispr account</td><td>No account or API key</td></tr>
 <tr><td>Product scope</td><td>Dictation, team features and a Mac notetaker</td><td>Dictation, local history, dictionary and snippets</td></tr>
 </tbody></table></div>

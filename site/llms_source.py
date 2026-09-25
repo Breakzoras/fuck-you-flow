@@ -2,7 +2,7 @@
 
 LLMS = '''# FU Flow (Fuck You Flow)
 
-> Free, MIT-licensed dictation for Windows 10 and 11, focused on Greek and English. The default Whisper engine transcribes on the user's PC. No subscription, account or weekly word cap is required for local dictation. Version {ver} beta, made by Luram AI Agency in Thessaloniki, Greece.
+> Free, MIT-licensed dictation for Windows 10 and 11 in 99 languages, with Greek and English the most tested. The default Whisper engine transcribes on the user's PC. No subscription, account or weekly word cap is required for local dictation. Version {ver} beta, made by Luram AI Agency in Thessaloniki, Greece.
 
 Updated: {today}.
 
@@ -12,7 +12,7 @@ Updated: {today}.
 - Offline: local dictation works after setup without internet. The app separately checks online for updates.
 - Optional remote speech: selecting an OpenAI-compatible provider sends audio to that provider. Its charges and privacy terms apply.
 - Text and history: transcripts and dictionary rules are stored locally. Pasted text is also available to the destination program, which may store or upload it.
-- Languages: Greek and English, with dictionary corrections and snippets. Recognition can make mistakes.
+- Languages: 99 through Whisper, detected automatically, or locked to one of thirty-three in Settings. Greek and English are the most tested, including mixed sentences. Dictionary corrections and snippets work in any language. Recognition can make mistakes.
 - Platform: Windows only. Beta compatibility and performance vary with applications, models, hardware and drivers.
 - Speed: four maker observations on an RTX 3070 showed 0.17 to 0.88 seconds of wait after dictation. No independent head-to-head Wispr Flow benchmark is claimed.
 - Price: the released local app is free under MIT. Third-party services, if selected, can have separate fees.

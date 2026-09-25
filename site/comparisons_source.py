@@ -12,7 +12,7 @@ COMPARISONS = [
         "lang": "en",
         "title": "OpenWhispr Alternative for Windows: Local Dictation",
         "description": "Compare FU Flow and OpenWhispr for free local dictation: Windows setup, Greek and English, model downloads, cloud cleanup and practical switching checks.",
-        "lead": "OpenWhispr and FU Flow both offer free local dictation. The useful choice is the workflow you need: a Windows dictation beta focused on Greek and English, or a broader cross-platform tool.",
+        "lead": "OpenWhispr and FU Flow both offer free local dictation. The useful choice is the workflow you need: a Windows dictation beta in 99 languages with Greek and English the most tested, or a broader cross-platform tool.",
         "body": f'''<div class="cta"><a class="btn btn-acid" href="{DL}">Try FU Flow for Windows</a><a class="btn btn-coral" href="https://openwhispr.com/">Visit OpenWhispr</a></div>
 <p>We make FU Flow at Luram AI Agency in Thessaloniki. This comparison uses our application source and OpenWhispr's official documentation, checked on 8 September 2026. Competitor details come from those documents alone.</p>
 <h2>What changes if you choose FU Flow?</h2>
