@@ -358,6 +358,9 @@ pub struct GeneralSettings {
     pub ui_language: String,
     /// "system", "dark", "light"
     pub theme: String,
+    /// The dark look: "carbon" (depth, the default since 0.9.11) or "classic"
+    /// (the flat black of 0.9.10 and before). Light theme ignores it.
+    pub skin: String,
     pub autostart: bool,
     pub first_run_done: bool,
     pub play_sounds: bool,
@@ -381,6 +384,7 @@ impl Default for GeneralSettings {
         Self {
             ui_language: "en".into(),
             theme: "dark".into(),
+            skin: "carbon".into(),
             autostart: false,
             first_run_done: false,
             play_sounds: true,
@@ -531,6 +535,16 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A settings file from 0.9.10 has no skin, so the update lands on Carbon;
+    /// someone who picked Classic keeps it.
+    #[test]
+    fn an_older_settings_file_gets_the_carbon_skin() {
+        let old: GeneralSettings = serde_json::from_str(r#"{"ui_language":"el","theme":"dark"}"#).unwrap();
+        assert_eq!(old.skin, "carbon");
+        let chosen: GeneralSettings = serde_json::from_str(r#"{"theme":"dark","skin":"classic"}"#).unwrap();
+        assert_eq!(chosen.skin, "classic");
+    }
 
     /// A file an editor saved as ANSI is not UTF-8. It used to count as
     /// unreadable and every choice went back to its default.

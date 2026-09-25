@@ -25,7 +25,7 @@ export function languageName(code: string): string {
 }
 
 export interface Settings {
-  general: { ui_language: string; theme: string; autostart: boolean; first_run_done: boolean; play_sounds: boolean; machine_profiled?: boolean; debug_mode?: boolean };
+  general: { ui_language: string; theme: string; skin?: string; autostart: boolean; first_run_done: boolean; play_sounds: boolean; machine_profiled?: boolean; debug_mode?: boolean };
   hotkeys: { push_to_talk: string; hands_free: string; paste_last: string; tap_toggles_hands_free: boolean; tap_ms: number };
   audio: { device_name: string | null; keep_stream_warm: boolean; preroll_ms: number; min_speech_ms: number; max_recording_seconds: number };
   language: { mode: LanguageMode; primary: string };

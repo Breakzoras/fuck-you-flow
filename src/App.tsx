@@ -73,12 +73,13 @@ export default function App() {
     const apply = () => {
       const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
       root.setAttribute("data-theme", dark ? "dark" : "light");
+      root.setAttribute("data-skin", settings.general.skin === "classic" ? "classic" : "carbon");
     };
     apply();
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
-  }, [settings?.general.theme]);
+  }, [settings?.general.theme, settings?.general.skin]);
 
   const toast = useCallback((msg: string, kind: "ok" | "err" = "ok") => {
     setToastMsg({ msg, kind });

@@ -70,6 +70,9 @@ export default function SettingsPage({ engine }: { engine: EngineInfo | null }) 
           <Field label={t("theme")}>
             <Select value={draft.general.theme} onChange={(v) => patch((s) => { s.general.theme = v; return s; })} options={[{ value: "system", label: t("theme_system") }, { value: "dark", label: t("theme_dark") }, { value: "light", label: t("theme_light") }]} />
           </Field>
+          <Field label={t("skin")} hint={t("skin_hint")}>
+            <Select value={draft.general.skin === "classic" ? "classic" : "carbon"} onChange={(v) => patch((s) => { s.general.skin = v; return s; })} options={[{ value: "carbon", label: t("skin_carbon") }, { value: "classic", label: t("skin_classic") }]} />
+          </Field>
           <Toggle label={t("autostart")} checked={draft.general.autostart} onChange={(v) => patch((s) => { s.general.autostart = v; return s; })} />
         </Card>
       )}

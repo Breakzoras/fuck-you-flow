@@ -20,9 +20,19 @@ KINDS = {
 RELEASES = [
 {'version': '0.9.11',
  'date': '2026-09-25',
- 'summary': ('Your words stay one Ctrl+V away after pasting into a browser, Claude or Slack.',
-             'Οι λέξεις σου μένουν ένα Ctrl+V μακριά μετά την επικόλληση σε browser, Claude ή Slack.'),
- 'lines': [('fixed',
+ 'summary': ('A new look with depth called Carbon, and your words stay one Ctrl+V away after pasting into a '
+             'browser, Claude or Slack.',
+             'Νέα εμφάνιση με βάθος με το όνομα Carbon και οι λέξεις σου μένουν ένα Ctrl+V μακριά μετά την επικόλληση σε '
+             'browser, Claude ή Slack.'),
+ 'lines': [('added',
+            'Carbon, the new default look of the dark theme: panels with depth, teal edges and a dark red glow in '
+            'the middle, made from still gradients and shadows so the graphics card does no extra work. The '
+            'classic flat black stays one choice away in Settings, General.',
+            'Carbon, η νέα προεπιλεγμένη εμφάνιση του σκούρου θέματος: πάνελ με βάθος, πρασινογάλαζα περιγράμματα '
+            'και μια σκούρα κόκκινη λάμψη στη μέση, φτιαγμένα από σταθερά ντεγκραντέ και σκιές, ώστε η κάρτα '
+            'γραφικών να μην κάνει καμία επιπλέον δουλειά. Η κλασική επίπεδη μαύρη εμφάνιση μένει μία επιλογή '
+            'μακριά, στις Ρυθμίσεις, Γενικά.'),
+           ('fixed',
             'In Chrome, Edge and programs built on them such as Claude and Slack, the words stay on the '
             'clipboard after pasting. If they do not show up where you were typing, one Ctrl+V brings them '
             'back. In these programs the earlier clipboard content is no longer put back, even with the '
