@@ -429,6 +429,35 @@ table.bill td:first-child{width:auto}
 
   <section>
     <div class="wrap">
+      <article class="rel" id="v0.9.10">
+        <div class="rel-head"><h2>0.9.10</h2><span class="rel-date"><time datetime="2026-09-25">2026-09-25</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.10">Release page</a></div>
+        <p class="rel-sum">Pasting that checks the words arrived, a guide that picks the right model for you, and the same recording now gives the same text every time.</p>
+        <div class="kind">
+          <h3>Known issues</h3>
+          <ul>
+            <li>In the Claude desktop app about 2 in 60 dictations still did not arrive in testing. The words stay on the clipboard and Ctrl+V pastes them.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>New</h3>
+          <ul>
+            <li>Help me choose: two questions in Settings and on first launch (the language you speak, what matters most) plus your graphics card give one model marked Best for you. Use it downloads what is missing and switches to it.</li>
+            <li>Every model and engine now says in plain words who it is for, what you get and what it costs.</li>
+            <li>The bar warns within six seconds when the microphone sends nothing, so you can unmute before the dictation is lost.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Fixed</h3>
+          <ul>
+            <li>Pasting now checks that the program you are typing in actually took the words. When nothing took them within a second, Ctrl+V is pressed once more, and if that fails too the words stay on the clipboard and the note says so.</li>
+            <li>Browsers and Electron programs could move the focus to their menu before the paste, so the words landed nowhere.</li>
+            <li>The same recording could come out as different text on each try. The speech engine now starts every recognition the same way, so the same audio gives the same words.</li>
+            <li>A correction learned from one History edit could rewrite a common word everywhere, web addresses included. Learned corrections now match only the exact spelling you fixed and never touch addresses.</li>
+            <li>When one History edit fixes words in two places, both are learned. Small grammar changes such as one letter in an ending stay out of the dictionary.</li>
+            <li>ό,τι stays one word, and subtitle credits that the engine sometimes adds after real speech are removed.</li>
+          </ul>
+        </div>
+      </article>
       <article class="rel" id="v0.9.9">
         <div class="rel-head"><h2>0.9.9</h2><span class="rel-date"><time datetime="2026-09-19">2026-09-19</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.9">Release page</a></div>
         <p class="rel-sum">Better recovery when recognition leaves your chosen languages, plus fixes for startup, shortcuts and pasting.</p>
@@ -631,7 +660,7 @@ table.bill td:first-child{width:auto}
           </ul>
         </div>
       </article>
-      <p class="log-back"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.9/Fuck.You.Flow.Setup.0.9.9.exe">Back to the download</a></p>
+      <p class="log-back"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.10/Fuck.You.Flow.Setup.0.9.10.exe">Back to the download</a></p>
     </div>
   </section>
 </main>

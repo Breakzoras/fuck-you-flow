@@ -46,6 +46,122 @@ MODEL_TABLE = {
 
 GUIDES = [
     {
+        "slug": "choose-a-model",
+        "featured": True,
+        "en": {
+            "title": "Which Whisper Model Should I Use? A Plain Guide",
+            "description": "Pick the right offline speech model in FU Flow from two answers: the language you speak and what matters most to you. Plain words on large-v3, turbo q8 and turbo q5.",
+            "lead": ("From version 0.9.10 Fuck You Flow has a Help me choose guide in Settings and on "
+                     "first launch. It asks two questions, reads your graphics card and marks the "
+                     "model that suits you with Best for you. One button downloads it if needed and "
+                     "switches to it. This page gives the same rule in writing."),
+            "blocks": [
+                ("h2", "The two questions"),
+                ("ul", ["<b>Which language do you mostly speak?</b> Greek with English words mixed in, "
+                        "English only, or another language.",
+                        "<b>What matters most to you?</b> That it writes correctly, that it writes "
+                        "fast, or that your computer stays free, for example while you play."]),
+                ("p", "The app also reads how much memory your graphics card has. That decides what "
+                      "fits, so the answer is personal to your machine."),
+                ("h2", "What the guide picks"),
+                ("table", ["Your situation", "Best for you", "Why"], [
+                    ["Greek or another language, card with 3 GB or more, you want it correct",
+                     "Whisper large-v3", "The fewest mistakes, Greek above all."],
+                    ["Card with 3 GB or more, you want speed", "Whisper large-v3-turbo q8",
+                     "Noticeably faster, with a few more mistakes in Greek."],
+                    ["English only, card with 3 GB or more", "Whisper large-v3-turbo q8 (q5 for speed)",
+                     "In English it comes close to the big model and writes much faster."],
+                    ["Card with 1.5 to 3 GB", "Whisper large-v3-turbo q8 or q5",
+                     "It fits easily and writes well."],
+                    ["You want the computer free while you dictate", "Whisper large-v3-turbo q5",
+                     "The lightest model that still writes well."],
+                    ["No graphics card the app can use", "Whisper large-v3-turbo q5 on the processor",
+                     "The fastest model on a processor that still writes well."]]),
+                ("h2", "The models in plain words"),
+                ("ul", ["<b>large-v3</b>: for Greek or another language besides English, on a card "
+                        "of 3 GB or more. You get the fewest mistakes. It is a little slower and takes "
+                        "about 2 GB on the card.",
+                        "<b>large-v3-turbo q8</b>: for speed with good accuracy, or for mostly English. "
+                        "Much faster than large-v3 and close to it in English. In Greek it makes more "
+                        "mistakes than large-v3.",
+                        "<b>large-v3-turbo q5</b>: for small cards, computers without a card, or people "
+                        "who play while they dictate. The lightest and fastest that still writes well, "
+                        "about 1 GB. A little less accurate than turbo q8.",
+                        "<b>medium</b>: for old computers where the others will not start. It loads "
+                        "almost anywhere and makes the most mistakes in Greek, so turbo q5 is usually "
+                        "the better pick."]),
+                ("h2", "Where the ranking comes from"),
+                ("p", "On Greek, the published FLEURS figures give Whisper large-v3 10.9 wrong words out "
+                      "of 100 and large-v3-turbo 13.0. On Common Voice the same two score 13.7 and "
+                      "20.6. On English the turbo model comes close to large-v3 and runs several times "
+                      "faster. The guide in the app was written on 23 September 2026 from those figures."),
+                ("note", "The card limits in the rule are 3000 MB for large-v3 and 1500 MB for turbo. "
+                         "Below 1500 MB, or with no usable card, the processor does the work. Other "
+                         "programs holding the card can still push a model out of it; the card memory "
+                         "guide shows how to see that."),
+                ("links", [("/guides/card-memory/", "Fix slow dictation caused by a full graphics card")]),
+            ],
+        },
+        "el": {
+            "title": "Ποιο μοντέλο Whisper να διαλέξω; Απλός οδηγός",
+            "description": "Διαλέξτε το σωστό τοπικό μοντέλο ομιλίας στο FU Flow με δύο απαντήσεις: τη γλώσσα που μιλάτε και τι σας νοιάζει πιο πολύ. Απλά λόγια για large-v3, turbo q8 και turbo q5.",
+            "lead": ("Από την έκδοση 0.9.10 το Fuck You Flow έχει τον οδηγό «Βοήθησέ με να διαλέξω» "
+                     "στις Ρυθμίσεις και στην πρώτη εκκίνηση. Κάνει δύο ερωτήσεις, διαβάζει την κάρτα "
+                     "γραφικών σας και σημειώνει με «Ιδανικό για σένα» το μοντέλο που σας ταιριάζει. "
+                     "Ένα κουμπί το κατεβάζει όταν χρειάζεται και το ενεργοποιεί. Εδώ θα βρείτε τον "
+                     "ίδιο κανόνα γραμμένο."),
+            "blocks": [
+                ("h2", "Οι δύο ερωτήσεις"),
+                ("ul", ["<b>Σε ποια γλώσσα μιλάτε κυρίως;</b> Ελληνικά με αγγλικές λέξεις μέσα, "
+                        "μόνο αγγλικά ή άλλη γλώσσα.",
+                        "<b>Τι σας νοιάζει πιο πολύ;</b> Να γράφει σωστά, να γράφει γρήγορα ή να μένει "
+                        "ελεύθερος ο υπολογιστής, π.χ. όσο παίζετε."]),
+                ("p", "Η εφαρμογή διαβάζει επίσης πόση μνήμη έχει η κάρτα γραφικών σας. Από αυτό "
+                      "εξαρτάται τι χωράει, οπότε η απάντηση είναι προσωπική για τον δικό σας υπολογιστή."),
+                ("h2", "Τι προτείνει ο οδηγός"),
+                ("table", ["Η περίπτωσή σας", "Ιδανικό για εσάς", "Γιατί"], [
+                    ["Ελληνικά ή άλλη γλώσσα, κάρτα 3 GB και πάνω, θέλετε να γράφει σωστά",
+                     "Whisper large-v3", "Τα λιγότερα λάθη, ειδικά στα ελληνικά."],
+                    ["Κάρτα 3 GB και πάνω, θέλετε ταχύτητα", "Whisper large-v3-turbo q8",
+                     "Γράφει αισθητά πιο γρήγορα, με λίγα περισσότερα λάθη στα ελληνικά."],
+                    ["Μόνο αγγλικά, κάρτα 3 GB και πάνω", "Whisper large-v3-turbo q8 (q5 για ταχύτητα)",
+                     "Στα αγγλικά φτάνει σχεδόν το μεγάλο μοντέλο και γράφει πολύ πιο γρήγορα."],
+                    ["Κάρτα από 1,5 ως 3 GB", "Whisper large-v3-turbo q8 ή q5",
+                     "Χωράει άνετα και γράφει καλά."],
+                    ["Θέλετε ελεύθερο τον υπολογιστή όσο υπαγορεύετε", "Whisper large-v3-turbo q5",
+                     "Το πιο ελαφρύ μοντέλο που γράφει ακόμα καλά."],
+                    ["Καμία κάρτα γραφικών που μπορεί να χρησιμοποιήσει η εφαρμογή",
+                     "Whisper large-v3-turbo q5 στον επεξεργαστή",
+                     "Στον επεξεργαστή είναι το πιο γρήγορο που γράφει καλά."]]),
+                ("h2", "Τα μοντέλα με απλά λόγια"),
+                ("ul", ["<b>large-v3</b>: για ελληνικά ή άλλη γλώσσα πέρα από τα αγγλικά, σε κάρτα "
+                        "3 GB και πάνω. Κάνει τα λιγότερα λάθη. Είναι λίγο πιο αργό και πιάνει περίπου "
+                        "2 GB στην κάρτα.",
+                        "<b>large-v3-turbo q8</b>: για ταχύτητα με καλή ακρίβεια ή για κυρίως αγγλικά. "
+                        "Πολύ πιο γρήγορο από το large-v3 και σχεδόν ίδιο στα αγγλικά. Στα ελληνικά "
+                        "κάνει περισσότερα λάθη από το large-v3.",
+                        "<b>large-v3-turbo q5</b>: για κάρτες με λίγη μνήμη, υπολογιστές χωρίς κάρτα "
+                        "ή όσους παίζουν ενώ υπαγορεύουν. Το πιο ελαφρύ και γρήγορο που γράφει καλά, "
+                        "περίπου 1 GB. Λίγο λιγότερη ακρίβεια από το turbo q8.",
+                        "<b>medium</b>: για παλιούς υπολογιστές, όταν τα άλλα δεν ξεκινούν. Φορτώνει "
+                        "σχεδόν παντού και κάνει τα περισσότερα λάθη στα ελληνικά, γι' αυτό το turbo q5 "
+                        "είναι συνήθως καλύτερη επιλογή."]),
+                ("h2", "Από πού βγαίνει η σειρά"),
+                ("p", "Στα ελληνικά, τα δημοσιευμένα νούμερα του FLEURS δίνουν στο Whisper large-v3 "
+                      "10,9 λάθος λέξεις στις 100 και στο large-v3-turbo 13,0. Στο Common Voice τα ίδια "
+                      "δύο δίνουν 13,7 και 20,6. Στα αγγλικά το turbo πλησιάζει το large-v3 και τρέχει "
+                      "αρκετές φορές πιο γρήγορα. Ο οδηγός της εφαρμογής γράφτηκε στις 23 Σεπτεμβρίου "
+                      "2026 με βάση αυτά τα νούμερα."),
+                ("note", "Τα όρια κάρτας στον κανόνα είναι 3000 MB για το large-v3 και 1500 MB για το "
+                         "turbo. Κάτω από 1500 MB, ή χωρίς κάρτα που μπορεί να χρησιμοποιηθεί, δουλεύει "
+                         "ο επεξεργαστής. Άλλα προγράμματα που πιάνουν την κάρτα μπορούν ακόμα να "
+                         "σπρώξουν ένα μοντέλο έξω από αυτήν· ο οδηγός για τη μνήμη της κάρτας δείχνει "
+                         "πώς να το δείτε."),
+                ("links", [("/el/guides/card-memory/", "Αργή υπαγόρευση επειδή γέμισε η κάρτα γραφικών")]),
+            ],
+        },
+    },
+    {
         "slug": "card-memory",
         "featured": True,
         "en": {

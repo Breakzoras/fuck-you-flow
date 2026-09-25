@@ -1,8 +1,8 @@
 # FU Flow (Fuck You Flow)
 
-> Free, MIT-licensed dictation for Windows 10 and 11, focused on Greek and English. The default Whisper engine transcribes on the user's PC. No subscription, account or weekly word cap is required for local dictation. Version 0.9.9 beta, made by Luram AI Agency in Thessaloniki, Greece.
+> Free, MIT-licensed dictation for Windows 10 and 11, focused on Greek and English. The default Whisper engine transcribes on the user's PC. No subscription, account or weekly word cap is required for local dictation. Version 0.9.10 beta, made by Luram AI Agency in Thessaloniki, Greece.
 
-Updated: 2026-09-19.
+Updated: 2026-09-25.
 
 ## Product and limits
 
@@ -32,8 +32,8 @@ Updated: 2026-09-19.
 
 ## Download and source
 
-- [Windows installer 0.9.9](https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.9/Fuck.You.Flow.Setup.0.9.9.exe): 1.7 GB, speech models included.
-- [Release notes and checksums](https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.9).
+- [Windows installer 0.9.10](https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.10/Fuck.You.Flow.Setup.0.9.10.exe): 1.7 GB, speech models included.
+- [Release notes and checksums](https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.10).
 - [Source code](https://github.com/Breakzoras/fuck-you-flow).
 - [Luram AI Agency](https://luram.gr/): maker. Contact: info@luram.gr.
 - [Detailed product description](https://fuckyouflow.app/llms-full.txt).
@@ -49,6 +49,7 @@ The default speech engine is local. The models are included in the 1.7 GB instal
 ## Practical guides
 
 - [Free Voice to Text on PC: Talk and It Types](https://fuckyouflow.app/guides/voice-to-text-pc/)
+- [Which Whisper Model Should I Use? A Plain Guide](https://fuckyouflow.app/guides/choose-a-model/)
 - [Fix Slow Offline Dictation: Whisper GPU Memory](https://fuckyouflow.app/guides/card-memory/)
 - [Windows Dictation Hotkey: Start, Stop and Cancel](https://fuckyouflow.app/guides/the-key/)
 - [Fix Dictation Spelling with a Custom Dictionary](https://fuckyouflow.app/guides/words-it-gets-wrong/)

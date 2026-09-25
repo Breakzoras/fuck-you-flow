@@ -1,11 +1,11 @@
 {
-  "version": "0.9.9",
-  "notes": "Better language retry recovery, startup recovery, shortcuts and pasting. Known issues: intermittent white listening window and recognition errors remain under investigation.",
-  "pub_date": "2026-09-19T15:34:04Z",
+  "version": "0.9.10",
+  "notes": "Pasting that checks the words arrived, a Help me choose guide for the right model, and the same recording now gives the same text every time. Known issue: in the Claude desktop app about 2 in 60 dictations still did not arrive in testing; the words stay on the clipboard.",
+  "pub_date": "2026-09-25T09:16:39Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUW9qSUpFaDRSTmJORGlxS1J2WnRqdVdCZXRvazc3Z2pLdXgxb1k1QUZsTDlQVEJvSzE4eWhJUEJkZDQ0MXpQdlFtMnlWWUR2eE5UOXBaMHNFeW1odndrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5ODMxOTY1CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuOV94NjQtc2V0dXAuZXhlCjhwTmw4WTZQQXB2bjNJYWhDS1lWQ0FRaUxRZWlacXRTVlFqTEVhT05WbFJLbndUc0VPYmNQN09GWkFINVBHb3dMOWRiL2loRXg4MkRZWFpqcC9YOUFBPT0K",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.9/Fuck.You.Flow.Update.0.9.9.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWd0Vm9zcDB3a20vMWM2QnNtSkVHb0VPdEpERXA5aXNneUtUdDdZTXp0MGpHaWlOZXY1eVBkTWRsNFNEUHpzRFk0TVJ5OG0rcmpIMUxDNkFWaGJjZkFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMzI3NTE2CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTBfeDY0LXNldHVwLmV4ZQpPSG9yYTlwNVpGVzdkMWd3T2hqdkcyWndIU3pyME90TzY5ZTF0U21XSi9EMUdlbjA4TzFwNCs1ZlFycTRQbHdPUU1BdEFwYXRLL0tIS09VdTZ6ZG1DUT09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.10/Fuck.You.Flow.Update.0.9.10.exe"
     }
   }
 }

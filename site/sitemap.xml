@@ -79,6 +79,18 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/voice-to-text-pc/"/>
   </url>
   <url>
+    <loc>https://fuckyouflow.app/guides/choose-a-model/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/choose-a-model/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/choose-a-model/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/choose-a-model/"/>
+  </url>
+  <url>
+    <loc>https://fuckyouflow.app/el/guides/choose-a-model/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/choose-a-model/"/>
+    <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/choose-a-model/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fuckyouflow.app/guides/choose-a-model/"/>
+  </url>
+  <url>
     <loc>https://fuckyouflow.app/guides/card-memory/</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://fuckyouflow.app/guides/card-memory/"/>
     <xhtml:link rel="alternate" hreflang="el" href="https://fuckyouflow.app/el/guides/card-memory/"/>

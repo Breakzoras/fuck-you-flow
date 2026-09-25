@@ -1,0 +1,195 @@
+{
+  "title": "FU Flow language selection observations",
+  "recorded_date": "2026-09-07",
+  "recalculated_date": "2026-09-08",
+  "publisher": "Luram AI Agency, FU Flow maker",
+  "hardware": "NVIDIA RTX 3070",
+  "model": "Whisper large-v3-q5_0",
+  "source_file": "eval/optimization-results.json",
+  "source_sha256": "2a9e7572e568b8f77205643ceb2bf13d946205416f95dd8b98235192e945d133",
+  "conditions": "Same 12 Greek clips, beam size 5, language auto versus el. Saved maker observations; no new audio run performed for this publication.",
+  "metric": "ms is request processing time, not complete hotkey-to-insertion latency. wer is per-clip word error rate as a fraction. Means are unweighted clip means.",
+  "limitations": "No competitor run, raw audio or reference transcripts included. These data let readers recalculate the aggregates, but are not enough to independently reproduce recognition. Other hardware, models, languages and clips may differ.",
+  "summary": {
+    "auto": {
+      "clips": 12,
+      "mean_ms": 1129.5,
+      "mean_wer": 0.2218
+    },
+    "el": {
+      "clips": 12,
+      "mean_ms": 909.2,
+      "mean_wer": 0.2288
+    }
+  },
+  "observations": [
+    {
+      "id": "el-01",
+      "language": "auto",
+      "beam": 5,
+      "ms": 1334,
+      "wer": 0.15384615384615385
+    },
+    {
+      "id": "el-02",
+      "language": "auto",
+      "beam": 5,
+      "ms": 894,
+      "wer": 0.5
+    },
+    {
+      "id": "el-03",
+      "language": "auto",
+      "beam": 5,
+      "ms": 1038,
+      "wer": 0.5833333333333334
+    },
+    {
+      "id": "el-04",
+      "language": "auto",
+      "beam": 5,
+      "ms": 1111,
+      "wer": 0.5833333333333334
+    },
+    {
+      "id": "el-05",
+      "language": "auto",
+      "beam": 5,
+      "ms": 1558,
+      "wer": 0.0
+    },
+    {
+      "id": "el-06",
+      "language": "auto",
+      "beam": 5,
+      "ms": 952,
+      "wer": 0.42857142857142855
+    },
+    {
+      "id": "el-07",
+      "language": "auto",
+      "beam": 5,
+      "ms": 1052,
+      "wer": 0.09090909090909091
+    },
+    {
+      "id": "el-08",
+      "language": "auto",
+      "beam": 5,
+      "ms": 1113,
+      "wer": 0.07692307692307693
+    },
+    {
+      "id": "el-09",
+      "language": "auto",
+      "beam": 5,
+      "ms": 1452,
+      "wer": 0.0
+    },
+    {
+      "id": "el-10",
+      "language": "auto",
+      "beam": 5,
+      "ms": 1045,
+      "wer": 0.09090909090909091
+    },
+    {
+      "id": "mix-01",
+      "language": "auto",
+      "beam": 5,
+      "ms": 1126,
+      "wer": 0.0
+    },
+    {
+      "id": "mix-02",
+      "language": "auto",
+      "beam": 5,
+      "ms": 879,
+      "wer": 0.15384615384615385
+    },
+    {
+      "id": "el-01",
+      "language": "el",
+      "beam": 5,
+      "ms": 963,
+      "wer": 0.15384615384615385
+    },
+    {
+      "id": "el-02",
+      "language": "el",
+      "beam": 5,
+      "ms": 688,
+      "wer": 0.5
+    },
+    {
+      "id": "el-03",
+      "language": "el",
+      "beam": 5,
+      "ms": 1007,
+      "wer": 0.6666666666666666
+    },
+    {
+      "id": "el-04",
+      "language": "el",
+      "beam": 5,
+      "ms": 936,
+      "wer": 0.5833333333333334
+    },
+    {
+      "id": "el-05",
+      "language": "el",
+      "beam": 5,
+      "ms": 1289,
+      "wer": 0.0
+    },
+    {
+      "id": "el-06",
+      "language": "el",
+      "beam": 5,
+      "ms": 714,
+      "wer": 0.42857142857142855
+    },
+    {
+      "id": "el-07",
+      "language": "el",
+      "beam": 5,
+      "ms": 830,
+      "wer": 0.09090909090909091
+    },
+    {
+      "id": "el-08",
+      "language": "el",
+      "beam": 5,
+      "ms": 885,
+      "wer": 0.07692307692307693
+    },
+    {
+      "id": "el-09",
+      "language": "el",
+      "beam": 5,
+      "ms": 1255,
+      "wer": 0.0
+    },
+    {
+      "id": "el-10",
+      "language": "el",
+      "beam": 5,
+      "ms": 810,
+      "wer": 0.09090909090909091
+    },
+    {
+      "id": "mix-01",
+      "language": "el",
+      "beam": 5,
+      "ms": 871,
+      "wer": 0.0
+    },
+    {
+      "id": "mix-02",
+      "language": "el",
+      "beam": 5,
+      "ms": 662,
+      "wer": 0.15384615384615385
+    }
+  ]
+}

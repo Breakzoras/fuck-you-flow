@@ -18,6 +18,67 @@ KINDS = {
 }
 
 RELEASES = [
+{'version': '0.9.10',
+ 'date': '2026-09-25',
+ 'summary': ('Pasting that checks the words arrived, a guide that picks the right model for you, '
+             'and the same recording now gives the same text every time.',
+             'Επικόλληση που ελέγχει ότι οι λέξεις έφτασαν, οδηγός που διαλέγει το σωστό μοντέλο για εσένα '
+             'και η ίδια ηχογράφηση δίνει πια κάθε φορά το ίδιο κείμενο.'),
+ 'lines': [('added',
+            'Help me choose: two questions in Settings and on first launch (the language you speak, what '
+            'matters most) plus your graphics card give one model marked Best for you. Use it downloads '
+            'what is missing and switches to it.',
+            'Βοήθησέ με να διαλέξω: δύο ερωτήσεις στις Ρυθμίσεις και στην πρώτη εκκίνηση (η γλώσσα που μιλάς '
+            'και τι σε νοιάζει πιο πολύ) μαζί με την κάρτα γραφικών σου δίνουν ένα μοντέλο με την ένδειξη '
+            'Ιδανικό για σένα. Το Βάλε το κατεβάζει ό,τι λείπει και το ενεργοποιεί.'),
+           ('added',
+            'Every model and engine now says in plain words who it is for, what you get and what it costs.',
+            'Κάθε μοντέλο και κάθε μηχανή λέει πια με απλά λόγια για ποιον είναι, τι κερδίζεις και ποιο '
+            'είναι το τίμημα.'),
+           ('added',
+            'The bar warns within six seconds when the microphone sends nothing, so you can unmute before '
+            'the dictation is lost.',
+            'Η μπάρα σε ειδοποιεί μέσα σε έξι δευτερόλεπτα όταν το μικρόφωνο δεν στέλνει τίποτα, ώστε να '
+            'το ανοίξεις πριν χαθεί η υπαγόρευση.'),
+           ('fixed',
+            'Pasting now checks that the program you are typing in actually took the words. When nothing '
+            'took them within a second, Ctrl+V is pressed once more, and if that fails too the words stay '
+            'on the clipboard and the note says so.',
+            'Η επικόλληση ελέγχει πια ότι το πρόγραμμα όπου γράφεις πήρε όντως τις λέξεις. Όταν κανείς δεν '
+            'τις πήρε μέσα σε ένα δευτερόλεπτο, πατιέται ξανά Ctrl+V. Αν αποτύχει κι αυτό, οι λέξεις μένουν '
+            'στο πρόχειρο και το μήνυμα το λέει καθαρά.'),
+           ('fixed',
+            'Browsers and Electron programs could move the focus to their menu before the paste, so the '
+            'words landed nowhere.',
+            'Οι browsers και τα προγράμματα Electron μετέφεραν μερικές φορές την εστίαση στο μενού τους πριν '
+            'την επικόλληση και οι λέξεις δεν έφταναν πουθενά.'),
+           ('fixed',
+            'The same recording could come out as different text on each try. The speech engine now '
+            'starts every recognition the same way, so the same audio gives the same words.',
+            'Η ίδια ηχογράφηση μπορούσε να βγάλει διαφορετικό κείμενο σε κάθε δοκιμή. Η μηχανή ομιλίας '
+            'ξεκινά πια κάθε αναγνώριση με τον ίδιο τρόπο, οπότε ο ίδιος ήχος δίνει τις ίδιες λέξεις.'),
+           ('fixed',
+            'A correction learned from one History edit could rewrite a common word everywhere, web '
+            'addresses included. Learned corrections now match only the exact spelling you fixed and '
+            'never touch addresses.',
+            'Μια διόρθωση που μάθαινε από το Ιστορικό μπορούσε να αλλάζει μια συνηθισμένη λέξη παντού, '
+            'ακόμα και μέσα σε διευθύνσεις. Οι μαθημένες διορθώσεις πιάνουν πια μόνο την ακριβή γραφή που '
+            'διόρθωσες και αφήνουν τις διευθύνσεις ήσυχες.'),
+           ('fixed',
+            'When one History edit fixes words in two places, both are learned. Small grammar changes '
+            'such as one letter in an ending stay out of the dictionary.',
+            'Όταν μια διόρθωση στο Ιστορικό αλλάζει λέξεις σε δύο σημεία, μαθαίνονται και τα δύο. Μικρές '
+            'αλλαγές γραμματικής, όπως ένα γράμμα στην κατάληξη, μένουν έξω από το λεξικό.'),
+           ('fixed',
+            'ό,τι stays one word, and subtitle credits that the engine sometimes adds after real speech are '
+            'removed.',
+            'Το ό,τι μένει μία λέξη. Οι τίτλοι υποτίτλων που προσθέτει καμιά φορά η μηχανή μετά από '
+            'πραγματική ομιλία αφαιρούνται.'),
+           ('known',
+            'In the Claude desktop app about 2 in 60 dictations still did not arrive in testing. The words '
+            'stay on the clipboard and Ctrl+V pastes them.',
+            'Στην εφαρμογή Claude για υπολογιστή, περίπου 2 στις 60 υπαγορεύσεις δεν έφτασαν ακόμα στις '
+            'δοκιμές. Οι λέξεις μένουν στο πρόχειρο και το Ctrl+V τις επικολλά.')]},
 {'version': '0.9.9',
  'date': '2026-09-19',
  'summary': ('Better recovery when recognition leaves your chosen languages, plus fixes for startup, '
