@@ -6,6 +6,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
 import "./overlay.css";
 
+const IS_LINUX = /linux/i.test(navigator.userAgent) && !/android/i.test(navigator.userAgent);
+
 type OverlayState =
   | "idle" | "starting" | "recording" | "hands_free" | "processing" | "cleaning" | "success"
   | "cancelled" | "no_speech" | "mic_unavailable" | "model_unavailable" | "offline" | "failed"
@@ -247,8 +249,16 @@ function Overlay() {
   // "show me so I can move it" preview from Settings.
   const takesMouse = p.can_retry || recording || !!p.movable;
   useEffect(() => {
-    getCurrentWindow().setIgnoreCursorEvents(!takesMouse).catch(() => {});
-  }, [takesMouse]);
+    const w = getCurrentWindow();
+    // Linux: the window has no surface while it is hidden, and asking GTK to
+    // pass the pointer through a window without one crashes the whole app
+    // (tao unwraps the missing surface). Wait until it is on screen there.
+    if (IS_LINUX) {
+      w.isVisible().then((v) => { if (v) w.setIgnoreCursorEvents(!takesMouse).catch(() => {}); }).catch(() => {});
+    } else {
+      w.setIgnoreCursorEvents(!takesMouse).catch(() => {});
+    }
+  }, [takesMouse, p.state]);
 
   const stress = stressed && p.state === "processing" ? STRESS_LINE[lang] : null;
 
