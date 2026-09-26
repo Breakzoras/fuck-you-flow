@@ -1595,7 +1595,16 @@ pub mod linux {
         }
     }
 
+    /// The executable's own file name. /proc/<pid>/comm is cut at 15 bytes,
+    /// so "gnome-terminal-server" came back as "gnome-terminal-", the terminal
+    /// went unrecognised and got Ctrl+V, which a terminal ignores (26 September
+    /// 2026, first Linux test). The link to the executable has the whole name.
     pub fn process_name(pid: u32) -> String {
+        if let Ok(exe) = std::fs::read_link(format!("/proc/{pid}/exe")) {
+            if let Some(n) = exe.file_name().and_then(|n| n.to_str()) {
+                return n.to_string();
+            }
+        }
         std::fs::read_to_string(format!("/proc/{pid}/comm")).map(|s| s.trim().to_string()).unwrap_or_default()
     }
 

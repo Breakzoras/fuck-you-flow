@@ -118,6 +118,11 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     // Get the models out of the install folder before anything looks for them.
     // On the same disk this is a rename and costs nothing; see the function for
     // why it has to happen at all.
+    // Linux packages install into a read-only place (/usr/lib, or the AppImage's
+    // own mount) and replace themselves whole, so the models stay where they are.
+    #[cfg(target_os = "linux")]
+    let _ = &resource_dir;
+    #[cfg(not(target_os = "linux"))]
     if !crate::models::migrate_bundled_models(resource_dir.as_deref()) {
         tracing::warn!("a model is still inside the install folder; this copy updates from the site");
     }
