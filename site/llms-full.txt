@@ -1,8 +1,8 @@
 # FU Flow (Fuck You Flow)
 
-> Free, MIT-licensed dictation for Windows 10 and 11 in 99 languages, with Greek and English the most tested. The default Whisper engine transcribes on the user's PC. No subscription, account or weekly word cap is required for local dictation. Version 0.9.11 beta, made by Luram AI Agency in Thessaloniki, Greece.
+> Free, MIT-licensed dictation for Windows 10 and 11 and Ubuntu Linux 22.04 or newer, in 99 languages, with Greek and English the most tested. The default Whisper engine transcribes on the user's PC. No subscription, account or weekly word cap is required for local dictation. Version 0.9.12 beta, made by Luram AI Agency in Thessaloniki, Greece.
 
-Updated: 2026-09-25.
+Updated: 2026-09-26.
 
 ## Product and limits
 
@@ -33,8 +33,8 @@ Updated: 2026-09-25.
 
 ## Download and source
 
-- [Windows installer 0.9.11](https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.11/Fuck.You.Flow.Setup.0.9.11.exe): 1.7 GB, speech models included.
-- [Release notes and checksums](https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.11).
+- [Windows installer 0.9.12](https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12.exe): 1.7 GB, speech models included.
+- [Release notes and checksums](https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.12).
 - [Source code](https://github.com/Breakzoras/fuck-you-flow).
 - [Luram AI Agency](https://luram.gr/): maker. Contact: info@luram.gr.
 - [Detailed product description](https://fuckyouflow.app/llms-full.txt).

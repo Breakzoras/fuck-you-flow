@@ -1,11 +1,23 @@
 {
-  "version": "0.9.11",
-  "notes": "A new look with depth called Carbon (the classic flat black stays in Settings), and in browsers, Claude and Slack your words stay on the clipboard after pasting, one Ctrl+V away.",
-  "pub_date": "2026-09-25T17:40:14Z",
+  "version": "0.9.12",
+  "notes": "Now on Ubuntu Linux. Also smarter learning from your edits, Dictionary rules that know their language, and the speech engine open to your own programs.",
+  "pub_date": "2026-09-26T13:53:56Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUXZQMHpxSnlQbzNrdXdlTHcvYWpCcy9uZXd6N3ptaStmb3pkSUY0WW1IR1ovWXZEME8rY1JlUzNzbnMzUGNMZktoT2d2b010WG5KNmJMc1A4TDVUakFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMzU3NzAxCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTFfeDY0LXNldHVwLmV4ZQpjWTdvaWF3eDdZSVhyV0c4N0puQzdWQ2JvSHR4WHdlcGZSK29seGM5YVQxS1ZPVDB2K2VBWk5ESTN5SzlCWE95aXh6U1R1VCtRSHBhNnA2c1lRL1dBUT09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.11/Fuck.You.Flow.Update.0.9.11.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWc4eURTejJ3Ynp2OU4yYXYyYWIrQ0xUS0hPQlVaYmVwQlBDVVU3UWZZaW9INHhQTTkrNXFNU3d3eDlwa01OSndJcFRNaGtCMWtDYTZtOE9HZVRTTHdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDI5NzQzCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTJfeDY0LXNldHVwLmV4ZQpMdUo1VTJxbDcwaGtaczhMOTBLYndMNHBOaG9ielJaS2xrSUNJa3l1bmxmVWxWbGdHOG1NTTlPa3FrZVUycmJKNXBCUFpYQ1o1MHlvamFQM1EvTXZDQT09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Update.0.9.12.exe"
+    },
+    "linux-x86_64-deb": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUXYvenhmNjh5NzNLTWwzU3lJSjdpaWxycTU3ZGU2eU5hUlFXZ2RSUFdlU3BWcTZqQmZRUGM2cG9OMUVOZm5PbVlaZER4UVJCa3o2alEvV3dxbmpwa0FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDMwODEzCWZpbGU6RnVjay5Zb3UuRmxvdy5VcGRhdGUuMC45LjEyX2FtZDY0LmRlYgovWnd3M09BS0JqSDlqWHYvY0hzU1cyL242WlB2czJ4OFpJT1c3Y01aSzhickRhb01nc3ZkdjFFbXMvMDdVWHQ2TGFaUnFGZ2h2R3lyT2lUMmpjTHRDdz09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Update.0.9.12_amd64.deb"
+    },
+    "linux-x86_64-appimage": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWtBNVd1STFuNzZsTnNPaEozNzBQd2xjTDI4NEtCTVIveXZZS0pqNEJ2UjJ0ZjRSeXhIZThJcGJLTk5HVUM3cHg1SC9TRS9qTitGdkdwZW5CeFlnZXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDMwODE2CWZpbGU6RnVjay5Zb3UuRmxvdy4wLjkuMTJfYW1kNjQuQXBwSW1hZ2UKZ1VSN2ZnMGh3b3RjaUozRktJOHo1Q3NUakpIOXhKcXlFdk9RV2s2Mk9OSlNTOTBESUlGWW95ZGZMSk1jWUh2Q2dsWE5sam9pQTZLaDgxTVZPMm43QlE9PQo=",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.0.9.12_amd64.AppImage"
+    },
+    "linux-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWtBNVd1STFuNzZsTnNPaEozNzBQd2xjTDI4NEtCTVIveXZZS0pqNEJ2UjJ0ZjRSeXhIZThJcGJLTk5HVUM3cHg1SC9TRS9qTitGdkdwZW5CeFlnZXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDMwODE2CWZpbGU6RnVjay5Zb3UuRmxvdy4wLjkuMTJfYW1kNjQuQXBwSW1hZ2UKZ1VSN2ZnMGh3b3RjaUozRktJOHo1Q3NUakpIOXhKcXlFdk9RV2s2Mk9OSlNTOTBESUlGWW95ZGZMSk1jWUh2Q2dsWE5sam9pQTZLaDgxTVZPMm43QlE9PQo=",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.0.9.12_amd64.AppImage"
     }
   }
 }

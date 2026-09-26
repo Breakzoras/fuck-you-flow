@@ -2,7 +2,7 @@
 
 LLMS = '''# FU Flow (Fuck You Flow)
 
-> Free, MIT-licensed dictation for Windows 10 and 11 in 99 languages, with Greek and English the most tested. The default Whisper engine transcribes on the user's PC. No subscription, account or weekly word cap is required for local dictation. Version {ver} beta, made by Luram AI Agency in Thessaloniki, Greece.
+> Free, MIT-licensed dictation for Windows 10 and 11 and Ubuntu Linux 22.04 or newer, in 99 languages, with Greek and English the most tested. The default Whisper engine transcribes on the user's PC. No subscription, account or weekly word cap is required for local dictation. Version {ver} beta, made by Luram AI Agency in Thessaloniki, Greece.
 
 Updated: {today}.
 

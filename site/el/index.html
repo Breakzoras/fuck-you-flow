@@ -37,20 +37,20 @@
       "alternateName": "FU Flow",
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "Speech to text",
-      "operatingSystem": "Windows 10, Windows 11",
-      "softwareVersion": "0.9.11",
+      "operatingSystem": "Windows 10, Windows 11, Ubuntu 22.04 or newer",
+      "softwareVersion": "0.9.12",
       "inLanguage": ["en", "el"],
       "description": "Δωρεάν υπαγόρευση για Windows με ελληνικά και αγγλικά. Η αναγνώριση ομιλίας γίνεται τοπικά από προεπιλογή. Εναλλακτική του Wispr Flow χωρίς συνδρομή ή όριο λέξεων για την τοπική μηχανή.",
       "url": "https://fuckyouflow.app/el/",
-      "downloadUrl": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.11/Fuck.You.Flow.Setup.0.9.11.exe",
+      "downloadUrl": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12.exe",
       "installUrl": "https://github.com/Breakzoras/fuck-you-flow/releases",
-      "fileSize": "1729716694 B",
+      "fileSize": "1729796054 B",
       "image": "https://fuckyouflow.app/assets/og.png",
       "license": "https://opensource.org/licenses/MIT",
       "isAccessibleForFree": true,
       "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR",
                  "availability": "https://schema.org/InStock"},
-      "softwareRequirements": "Windows 10 or 11, 64-bit. A graphics card from NVIDIA, AMD or Intel makes it faster; without one it runs on the processor.",
+      "softwareRequirements": "Windows 10 or 11, 64-bit, or Ubuntu 22.04 or newer (.deb or AppImage). A graphics card from NVIDIA, AMD or Intel makes it faster; without one it runs on the processor.",
       "featureList": [
         "Hotkey dictation into compatible Windows text fields, using the right Alt key",
         "Local speech recognition by default, without an account",
@@ -65,7 +65,7 @@
       ],
       "keywords": "free dictation Windows, Wispr Flow alternative, offline speech to text, local Whisper, Greek dictation, open source voice typing",
       "datePublished": "2026-09-06",
-      "dateModified": "2026-09-25",
+      "dateModified": "2026-09-26",
       "author": {"@id": "https://luram.gr/#org"},
       "publisher": {"@id": "https://luram.gr/#org"},
       "maintainer": {"@id": "https://luram.gr/#org"},
@@ -230,6 +230,14 @@ margin-bottom:26px}
 .creed q{color:var(--fg);font-style:normal}
 .creed .creed-out{color:var(--acid-text);font-size:21px;margin-bottom:0;font-weight:700}
 .fine{font-size:15px;color:var(--muted);margin:22px auto 0}
+.linux-dl{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
+.linux-link{display:inline-flex;align-items:center;gap:10px;font-size:19px;font-weight:700;color:var(--fg);text-decoration:none;padding:8px 14px;border:1px solid var(--line);background:var(--bg)}
+.linux-link:hover{border-color:#E95420}
+.linux-link:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.ubuntu-mark{flex:none}
+.linux-new{margin:0;font-size:15px;color:var(--muted)}
+.linux-new a{color:inherit}
+.new-tag{display:inline-block;margin-right:8px;padding:2px 8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:var(--coral);color:var(--coral-fg)}
 .fine a{color:var(--coral-text)}
 
 /* the app in a window */
@@ -496,14 +504,18 @@ table.bill td:first-child{width:auto}
   <div class="wrap">
     <div class="hero-copy">
       <p class="kicker">Η φωνή σας. Ο υπολογιστής σας. Χωρίς συνδρομή.</p>
-      <div class="badges"><span>beta</span><span>Windows</span></div>
+      <div class="badges"><span>beta</span><span>Windows</span><span>Ubuntu Linux</span></div>
       <h1 id="h1">Δωρεάν υπαγόρευση στα ελληνικά για Windows.</h1>
       <p class="lead">Γράψτε με τη φωνή σας. Το FU Flow μετατρέπει ελληνική και αγγλική ομιλία σε κείμενο στις εφαρμογές των Windows με τοπικό Whisper. Χωρίς συνδρομή, εβδομαδιαίο όριο λέξεων ή λογαριασμό για τοπική υπαγόρευση. Από τη Luram AI Agency στη Θεσσαλονίκη.</p>
       <div class="cta">
-        <a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.11/Fuck.You.Flow.Setup.0.9.11.exe"><svg class="winmark" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path fill="currentColor" d="M1 1h10v10H1zM13 1h10v10H13zM1 13h10v10H1zM13 13h10v10H13z"/></svg><span class="btn-l"><span class="btn-t">Κατεβάστε το για Windows</span><small class="btn-v">Έκδοση 0.9.11</small></span></a>
+        <a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12.exe"><svg class="winmark" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path fill="currentColor" d="M1 1h10v10H1zM13 1h10v10H13zM1 13h10v10H1zM13 13h10v10H13z"/></svg><span class="btn-l"><span class="btn-t">Κατεβάστε το για Windows</span><small class="btn-v">Έκδοση 0.9.12</small></span></a>
         <a class="btn btn-coral" href="https://github.com/Breakzoras/fuck-you-flow">Δείτε τον κώδικα</a>
       </div>
-      <p class="fine">Windows 10 και 11. Έκδοση 0.9.11 beta. 1,7 GB με τα μοντέλα ομιλίας μέσα. Η τοπική υπαγόρευση λειτουργεί χωρίς ίντερνετ μετά την εγκατάσταση. Άδεια MIT. Το άθροισμα ελέγχου SHA256 βρίσκεται στη <a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.11">σελίδα της έκδοσης</a>. Τι άλλαξε σε κάθε έκδοση βρίσκεται στο <a href="/el/changelog/">ιστορικό αλλαγών</a>.</p>
+      <div class="linux-dl">
+        <a class="linux-link" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12_amd64.deb"><!-- The official Ubuntu logo, as Canonical ships it in Ubuntu (base-files, /usr/share/pixmaps/ubuntu-logo.svg). Ubuntu is a trademark of Canonical Ltd. --><svg class="ubuntu-mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true" focusable="false"><rect fill="#e95420" width="32" height="32"/><g fill="#fff"><circle cx="7.18" cy="15.82" r="3.35"/><circle cx="21.1" cy="8.48" r="3.35"/><path d="M14.73,24.42a8.08,8.08,0,0,1-5.55-4.25,4.83,4.83,0,0,1-2.85.35,10.87,10.87,0,0,0,7.85,6.58,11,11,0,0,0,2.37.25,4.71,4.71,0,0,1-1-2.8A2.89,2.89,0,0,1,14.73,24.42Z"/><circle cx="20.35" cy="24.45" r="3.35"/><path d="M25,23.23a11,11,0,0,0,.55-12.83,4.85,4.85,0,0,1-1.88,2.2,8.22,8.22,0,0,1,.78,5.55,8.08,8.08,0,0,1-1.05,2.6A4.58,4.58,0,0,1,25,23.23Z"/><path d="M6.9,11h.25a4.65,4.65,0,0,1,1,.1,4.84,4.84,0,0,1,1.52.63,8.12,8.12,0,0,1,6.58-3.52,6.42,6.42,0,0,1,.1-.75,4.63,4.63,0,0,1,.92-1.95A11,11,0,0,0,6.9,11Z"/></g></svg><span class="linux-t">Κατεβάστε το για Ubuntu Linux</span></a>
+        <p class="linux-new"><span class="new-tag">Νέο</span>Τώρα και σε Ubuntu Linux: 22.04 ή νεότερο, ως .deb ή <a href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12_amd64.AppImage">AppImage</a>.</p>
+      </div>
+      <p class="fine">Windows 10 και 11. Έκδοση 0.9.12 beta. 1,7 GB με τα μοντέλα ομιλίας μέσα. Η τοπική υπαγόρευση λειτουργεί χωρίς ίντερνετ μετά την εγκατάσταση. Άδεια MIT. Το άθροισμα ελέγχου SHA256 βρίσκεται στη <a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.12">σελίδα της έκδοσης</a>. Τι άλλαξε σε κάθε έκδοση βρίσκεται στο <a href="/el/changelog/">ιστορικό αλλαγών</a>.</p>
     </div>
 
     <div class="frame hero-frame">
@@ -809,7 +821,7 @@ table.bill td:first-child{width:auto}
 <footer class="foot">
   <div class="wrap">
     <div class="foot-top">
-      <p>Fuck You Flow, έκδοση 0.9.11 beta. Δωρεάν τοπική υπαγόρευση με MIT.</p>
+      <p>Fuck You Flow, έκδοση 0.9.12 beta. Δωρεάν τοπική υπαγόρευση με MIT.</p>
       <nav class="foot-links" aria-label="Footer">
         <a href="https://github.com/Breakzoras/fuck-you-flow">Κώδικας στο GitHub</a>
         <a href="https://github.com/Breakzoras/fuck-you-flow/releases">Όλες οι εκδόσεις</a>

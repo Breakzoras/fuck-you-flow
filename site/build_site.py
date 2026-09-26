@@ -100,7 +100,7 @@ def jsonld(lang):
       "alternateName": "FU Flow",
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "Speech to text",
-      "operatingSystem": "Windows 10, Windows 11",
+      "operatingSystem": "Windows 10, Windows 11, Ubuntu 22.04 or newer",
       "softwareVersion": "%(ver)s",
       "inLanguage": ["en", "el"],
       "description": %(desc)s,
@@ -113,7 +113,7 @@ def jsonld(lang):
       "isAccessibleForFree": true,
       "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR",
                  "availability": "https://schema.org/InStock"},
-      "softwareRequirements": "Windows 10 or 11, 64-bit. A graphics card from NVIDIA, AMD or Intel makes it faster; without one it runs on the processor.",
+      "softwareRequirements": "Windows 10 or 11, 64-bit, or Ubuntu 22.04 or newer (.deb or AppImage). A graphics card from NVIDIA, AMD or Intel makes it faster; without one it runs on the processor.",
       "featureList": [
         "Hotkey dictation into compatible Windows text fields, using the right Alt key",
         "Local speech recognition by default, without an account",
@@ -295,6 +295,9 @@ TR = [('Skip to content', 'Στο περιεχόμενο'),
   'Windows με τοπικό Whisper. Χωρίς συνδρομή, εβδομαδιαίο όριο λέξεων ή λογαριασμό για τοπική υπαγόρευση. '
   'Από τη Luram AI Agency στη Θεσσαλονίκη.'),
  ('Download for Windows', 'Κατεβάστε το για Windows'),
+ ('<span class="linux-t">Download for Ubuntu Linux</span>', '<span class="linux-t">Κατεβάστε το για Ubuntu Linux</span>'),
+ ('<span class="new-tag">New</span>Now on Ubuntu Linux: 22.04 or newer, as a .deb or an ',
+  '<span class="new-tag">Νέο</span>Τώρα και σε Ubuntu Linux: 22.04 ή νεότερο, ως .deb ή '),
  ('<small class="btn-v">Version {{VERSION}}</small>', '<small class="btn-v">Έκδοση {{VERSION}}</small>'),
  ('>Read the code</a>', '>Δείτε τον κώδικα</a>'),
  ('Version {{VERSION}} beta. {{SIZE}} with the speech models included. Local dictation works offline after '

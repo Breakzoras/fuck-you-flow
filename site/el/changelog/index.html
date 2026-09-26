@@ -137,6 +137,14 @@ margin-bottom:26px}
 .creed q{color:var(--fg);font-style:normal}
 .creed .creed-out{color:var(--acid-text);font-size:21px;margin-bottom:0;font-weight:700}
 .fine{font-size:15px;color:var(--muted);margin:22px auto 0}
+.linux-dl{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
+.linux-link{display:inline-flex;align-items:center;gap:10px;font-size:19px;font-weight:700;color:var(--fg);text-decoration:none;padding:8px 14px;border:1px solid var(--line);background:var(--bg)}
+.linux-link:hover{border-color:#E95420}
+.linux-link:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.ubuntu-mark{flex:none}
+.linux-new{margin:0;font-size:15px;color:var(--muted)}
+.linux-new a{color:inherit}
+.new-tag{display:inline-block;margin-right:8px;padding:2px 8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:var(--coral);color:var(--coral-fg)}
 .fine a{color:var(--coral-text)}
 
 /* the app in a window */
@@ -431,10 +439,11 @@ table.bill td:first-child{width:auto}
     <div class="wrap">
       <article class="rel" id="v0.9.12">
         <div class="rel-head"><h2>0.9.12</h2><span class="rel-date"><time datetime="2026-09-26">2026-09-26</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.12">Σελίδα έκδοσης</a></div>
-        <p class="rel-sum">Πιο έξυπνη μάθηση από τις διορθώσεις σου, κανόνες Λεξικού που ξέρουν τη γλώσσα τους και η μηχανή ομιλίας διαθέσιμη στα δικά σου προγράμματα.</p>
+        <p class="rel-sum">Τώρα και σε Ubuntu Linux. Επίσης πιο έξυπνη μάθηση από τις διορθώσεις σου, κανόνες Λεξικού που ξέρουν τη γλώσσα τους και η μηχανή ομιλίας διαθέσιμη στα δικά σου προγράμματα.</p>
         <div class="kind">
           <h3>Νέα</h3>
           <ul>
+            <li>Το Fuck You Flow τρέχει σε Ubuntu Linux 22.04 ή νεότερο, ως πακέτο .deb ή AppImage, σε X11 και Wayland. Ενημερώνεται μόνο του όπως και στα Windows.</li>
             <li>Τοπική θυρίδα για τα δικά σου προγράμματα, στις Ρυθμίσεις, Απόρρητο. Προγράμματα και bots σε αυτόν τον υπολογιστή στέλνουν ήχο και παίρνουν πίσω το κείμενο από τη μηχανή ομιλίας. Μένει κλειστή μέχρι να την ανοίξεις και απαντά μόνο σε προγράμματα του ίδιου υπολογιστή.</li>
           </ul>
         </div>
@@ -443,6 +452,13 @@ table.bill td:first-child{width:auto}
           <ul>
             <li>Η μάθηση από τις διορθώσεις σου δουλεύει πια και σε μεγάλα κείμενα. Μια διόρθωση μαθαίνεται όταν την κάνεις δύο φορές ή όταν είναι όνομα ή τεχνικός όρος. Μια λέξη που αφήνεις ίδια σε άλλα κείμενα δεν γίνεται κανόνας. Οι παλιές σου διορθώσεις διαβάζονται ξανά μία φορά, οπότε μπορεί να σε περιμένουν νέες Προτάσεις μάθησης.</li>
             <li>Κάθε κανόνας του Λεξικού ανήκει στη γλώσσα των γραμμάτων του και εφαρμόζεται σε κείμενο αυτής της γλώσσας. Με δύο γλώσσες επιλεγμένες, δουλεύουν μαζί οι κανόνες και των δύο, μαζί και οι αγγλικές λέξεις μέσα στην άλλη γλώσσα. Η φόρμα διαλέγει τη γλώσσα όσο γράφεις.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Γνωστά προβλήματα</h3>
+          <ul>
+            <li>Linux: το AppImage χρειάζεται μία φορά άδεια για το πληκτρολόγιο και η εφαρμογή δείχνει την εντολή που πρέπει να τρέξεις. Το .deb τη ρυθμίζει μόνο του στην εγκατάσταση.</li>
+            <li>Linux σε Wayland: τα στυλ ανά εφαρμογή δεν εφαρμόζονται, γιατί η εφαρμογή δεν βλέπει ποιο πρόγραμμα είναι μπροστά. Η υπαγόρευση δουλεύει κανονικά.</li>
           </ul>
         </div>
       </article>
@@ -661,7 +677,7 @@ table.bill td:first-child{width:auto}
           </ul>
         </div>
       </article>
-      <p class="log-back"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.11/Fuck.You.Flow.Setup.0.9.11.exe">Πίσω στο κατέβασμα</a></p>
+      <p class="log-back"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12.exe">Πίσω στο κατέβασμα</a></p>
     </div>
   </section>
 </main>

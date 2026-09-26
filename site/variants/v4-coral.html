@@ -127,6 +127,14 @@ margin-bottom:26px}
 .creed q{color:var(--fg);font-style:normal}
 .creed .creed-out{color:var(--acid-text);font-size:21px;margin-bottom:0;font-weight:700}
 .fine{font-size:15px;color:var(--muted);margin:22px auto 0}
+.linux-dl{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
+.linux-link{display:inline-flex;align-items:center;gap:10px;font-size:19px;font-weight:700;color:var(--fg);text-decoration:none;padding:8px 14px;border:1px solid var(--line);background:var(--bg)}
+.linux-link:hover{border-color:#E95420}
+.linux-link:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.ubuntu-mark{flex:none}
+.linux-new{margin:0;font-size:15px;color:var(--muted)}
+.linux-new a{color:inherit}
+.new-tag{display:inline-block;margin-right:8px;padding:2px 8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:var(--coral);color:var(--coral-fg)}
 .fine a{color:var(--coral-text)}
 
 /* the app in a window */
@@ -393,12 +401,16 @@ table.bill td:first-child{width:auto}
   <div class="wrap">
     <div class="hero-copy">
       <p class="kicker">Your voice. Your computer. No subscription.</p>
-      <div class="badges"><span>beta</span><span>Windows</span></div>
+      <div class="badges"><span>beta</span><span>Windows</span><span>Ubuntu Linux</span></div>
       <h1 id="h1">Free voice to text for Windows.</h1>
       <p class="lead">Speak, and it types. FU Flow turns your speech into text in any Windows app with local Whisper: English, Greek and 97 more languages, auto-detected. No subscription, no weekly word cap and no account for local dictation. Built by Luram AI Agency in Thessaloniki.</p>
       <div class="cta">
         <a class="btn btn-acid" href="{{DOWNLOAD}}"><svg class="winmark" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path fill="currentColor" d="M1 1h10v10H1zM13 1h10v10H13zM1 13h10v10H1zM13 13h10v10H13z"/></svg><span class="btn-l"><span class="btn-t">Download for Windows</span><small class="btn-v">Version {{VERSION}}</small></span></a>
         <a class="btn btn-coral" href="https://github.com/Breakzoras/fuck-you-flow">Read the code</a>
+      </div>
+      <div class="linux-dl">
+        <a class="linux-link" href="{{LINUX_DEB}}"><!-- The official Ubuntu logo, as Canonical ships it in Ubuntu (base-files, /usr/share/pixmaps/ubuntu-logo.svg). Ubuntu is a trademark of Canonical Ltd. --><svg class="ubuntu-mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true" focusable="false"><rect fill="#e95420" width="32" height="32"/><g fill="#fff"><circle cx="7.18" cy="15.82" r="3.35"/><circle cx="21.1" cy="8.48" r="3.35"/><path d="M14.73,24.42a8.08,8.08,0,0,1-5.55-4.25,4.83,4.83,0,0,1-2.85.35,10.87,10.87,0,0,0,7.85,6.58,11,11,0,0,0,2.37.25,4.71,4.71,0,0,1-1-2.8A2.89,2.89,0,0,1,14.73,24.42Z"/><circle cx="20.35" cy="24.45" r="3.35"/><path d="M25,23.23a11,11,0,0,0,.55-12.83,4.85,4.85,0,0,1-1.88,2.2,8.22,8.22,0,0,1,.78,5.55,8.08,8.08,0,0,1-1.05,2.6A4.58,4.58,0,0,1,25,23.23Z"/><path d="M6.9,11h.25a4.65,4.65,0,0,1,1,.1,4.84,4.84,0,0,1,1.52.63,8.12,8.12,0,0,1,6.58-3.52,6.42,6.42,0,0,1,.1-.75,4.63,4.63,0,0,1,.92-1.95A11,11,0,0,0,6.9,11Z"/></g></svg><span class="linux-t">Download for Ubuntu Linux</span></a>
+        <p class="linux-new"><span class="new-tag">New</span>Now on Ubuntu Linux: 22.04 or newer, as a .deb or an <a href="{{LINUX_APPIMAGE}}">AppImage</a>.</p>
       </div>
       <p class="fine">Windows 10 and 11. Version {{VERSION}} beta. {{SIZE}} with the speech models included. Local dictation works offline after setup. MIT license. The SHA256 checksum is on the <a href="{{RELEASE}}">release page</a>. What changed in each version is on the <a href="/changelog/">changelog</a>.</p>
     </div>

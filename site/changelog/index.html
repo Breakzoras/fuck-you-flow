@@ -137,6 +137,14 @@ margin-bottom:26px}
 .creed q{color:var(--fg);font-style:normal}
 .creed .creed-out{color:var(--acid-text);font-size:21px;margin-bottom:0;font-weight:700}
 .fine{font-size:15px;color:var(--muted);margin:22px auto 0}
+.linux-dl{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
+.linux-link{display:inline-flex;align-items:center;gap:10px;font-size:19px;font-weight:700;color:var(--fg);text-decoration:none;padding:8px 14px;border:1px solid var(--line);background:var(--bg)}
+.linux-link:hover{border-color:#E95420}
+.linux-link:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.ubuntu-mark{flex:none}
+.linux-new{margin:0;font-size:15px;color:var(--muted)}
+.linux-new a{color:inherit}
+.new-tag{display:inline-block;margin-right:8px;padding:2px 8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:var(--coral);color:var(--coral-fg)}
 .fine a{color:var(--coral-text)}
 
 /* the app in a window */
@@ -431,10 +439,11 @@ table.bill td:first-child{width:auto}
     <div class="wrap">
       <article class="rel" id="v0.9.12">
         <div class="rel-head"><h2>0.9.12</h2><span class="rel-date"><time datetime="2026-09-26">2026-09-26</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.12">Release page</a></div>
-        <p class="rel-sum">Learning from your edits gets smarter, Dictionary rules know their language, and your own programs can use the speech engine.</p>
+        <p class="rel-sum">Now on Ubuntu Linux. Also smarter learning from your edits, Dictionary rules that know their language, and the speech engine open to your own programs.</p>
         <div class="kind">
           <h3>New</h3>
           <ul>
+            <li>Fuck You Flow runs on Ubuntu Linux 22.04 or newer, as a .deb package or an AppImage, under X11 and Wayland. It updates itself like the Windows version.</li>
             <li>A local endpoint for your own programs, in Settings, Privacy. Scripts and bots on this computer can send audio and get the text back from the speech engine. It stays off until you turn it on and answers only programs on this computer.</li>
           </ul>
         </div>
@@ -443,6 +452,13 @@ table.bill td:first-child{width:auto}
           <ul>
             <li>Learning from your edits now works on long transcripts too. A correction is learned when you make it twice or when it is a name or a technical term, and a word you leave as it is elsewhere never becomes a rule. Your earlier edits are read again once, so new suggestions may be waiting under Suggestions.</li>
             <li>Each Dictionary rule belongs to the language of its letters and applies to text in that language. With two languages chosen, the rules of both work together, English words inside the other language included. The form picks the language as you type.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Known issues</h3>
+          <ul>
+            <li>Linux: the AppImage needs a one-time keyboard permission, and the app shows the command to run. The .deb sets it up during install.</li>
+            <li>Linux under Wayland: per-app styles are skipped, because the app cannot see which program is in front. Dictation works as usual.</li>
           </ul>
         </div>
       </article>
@@ -659,7 +675,7 @@ table.bill td:first-child{width:auto}
           </ul>
         </div>
       </article>
-      <p class="log-back"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.11/Fuck.You.Flow.Setup.0.9.11.exe">Back to the download</a></p>
+      <p class="log-back"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12.exe">Back to the download</a></p>
     </div>
   </section>
 </main>

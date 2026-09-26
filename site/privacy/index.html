@@ -12,7 +12,7 @@
 <meta property="og:title" content="Local Dictation Privacy and Offline Operation | FU Flow"><meta property="og:description" content="How FU Flow handles speech, local history, clipboard insertion, update checks and the optional remote speech provider. Know what stays on your PC.">
 <meta property="og:image" content="https://fuckyouflow.app/assets/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="FU Flow"><meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebPage", "@id": "https://fuckyouflow.app/privacy/#page", "url": "https://fuckyouflow.app/privacy/", "name": "Local Dictation Privacy and Offline Operation", "headline": "Local Dictation Privacy and Offline Operation", "description": "How FU Flow handles speech, local history, clipboard insertion, update checks and the optional remote speech provider. Know what stays on your PC.", "inLanguage": "en", "dateModified": "2026-09-25", "image": "https://fuckyouflow.app/assets/og.png", "author": {"@type": "Organization", "name": "Luram AI Agency", "url": "https://luram.gr/"}, "about": {"@type": "SoftwareApplication", "@id": "https://fuckyouflow.app/#app", "name": "Fuck You Flow"}}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://fuckyouflow.app/"}, {"@type": "ListItem", "position": 2, "name": "Local Dictation Privacy and Offline Operation", "item": "https://fuckyouflow.app/privacy/"}]}]}</script><script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebPage", "@id": "https://fuckyouflow.app/privacy/#page", "url": "https://fuckyouflow.app/privacy/", "name": "Local Dictation Privacy and Offline Operation", "headline": "Local Dictation Privacy and Offline Operation", "description": "How FU Flow handles speech, local history, clipboard insertion, update checks and the optional remote speech provider. Know what stays on your PC.", "inLanguage": "en", "dateModified": "2026-09-26", "image": "https://fuckyouflow.app/assets/og.png", "author": {"@type": "Organization", "name": "Luram AI Agency", "url": "https://luram.gr/"}, "about": {"@type": "SoftwareApplication", "@id": "https://fuckyouflow.app/#app", "name": "Fuck You Flow"}}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://fuckyouflow.app/"}, {"@type": "ListItem", "position": 2, "name": "Local Dictation Privacy and Offline Operation", "item": "https://fuckyouflow.app/privacy/"}]}]}</script><script>
 (function(){var r=document.documentElement,s=null;try{s=localStorage.getItem("fyf-theme")}catch(e){}
 var sys=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";
 r.setAttribute("data-theme",s||sys);
@@ -128,6 +128,14 @@ margin-bottom:26px}
 .creed q{color:var(--fg);font-style:normal}
 .creed .creed-out{color:var(--acid-text);font-size:21px;margin-bottom:0;font-weight:700}
 .fine{font-size:15px;color:var(--muted);margin:22px auto 0}
+.linux-dl{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
+.linux-link{display:inline-flex;align-items:center;gap:10px;font-size:19px;font-weight:700;color:var(--fg);text-decoration:none;padding:8px 14px;border:1px solid var(--line);background:var(--bg)}
+.linux-link:hover{border-color:#E95420}
+.linux-link:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.ubuntu-mark{flex:none}
+.linux-new{margin:0;font-size:15px;color:var(--muted)}
+.linux-new a{color:inherit}
+.new-tag{display:inline-block;margin-right:8px;padding:2px 8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:var(--coral);color:var(--coral-fg)}
 .fine a{color:var(--coral-text)}
 
 /* the app in a window */
@@ -413,7 +421,7 @@ table.bill td:first-child{width:auto}
 <button class="nav-btn" id="nav-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button><nav class="nav" id="site-nav" aria-label="Navigation"><a href="/#features">Features</a><a href="/#why">Why free</a><a href="/#speed">Speed</a><a href="/guides/">Guides</a><a href="/wispr-flow-alternative/">vs Wispr Flow</a><a href="/changelog/">Changelog</a><a href="/#faq">Questions</a></nav>
 <div class="tools"><a href="/el/privacy/" lang="el">EL</a><button id="theme-toggle" type="button">Light</button></div></div></header>
 <main id="main" class="content"><p class="crumbs"><a href="/">Home</a> / Local Dictation Privacy and Offline Operation</p><h1>Local Dictation Privacy and Offline Operation</h1><p class="lead">The default speech engine runs on your computer. This technical explanation distinguishes local recognition from updates and optional online services.</p>
-<p class="byline">Luram AI Agency · Updated <time datetime="2026-09-25">2026-09-25</time></p>
+<p class="byline">Luram AI Agency · Updated <time datetime="2026-09-26">2026-09-26</time></p>
 <h2>Local speech is the default</h2>
 <p>FU Flow ships Whisper models and runs recognition through whisper.cpp on the same PC. No FU Flow account or paid API key is required for that mode. Once installed, local dictation can work without an internet connection.</p>
 <h2>An optional remote provider changes the data flow</h2>
@@ -425,5 +433,5 @@ table.bill td:first-child{width:auto}
 <h2>Practical checks</h2>
 <ul><li>Confirm the local provider in Settings before dictating sensitive material.</li><li>Use a short offline test to check the setup on your own PC.</li><li>Review what is saved in History and what you copy into another service.</li><li>If you report a bug, review the diagnostic text before sharing it.</li></ul>
 <h2>Inspectable source</h2>
-<p>FU Flow is MIT licensed. The public source includes the provider selection, local and remote speech adapters and the update check. This page describes application behavior as the maker documents it. An independent security audit or a compliance certification has yet to be done.</p><div class="cta"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.11/Fuck.You.Flow.Setup.0.9.11.exe">Download for Windows</a></div><p class="fine">FU Flow 0.9.11 beta · 1.7 GB · Windows 10 / 11 · MIT</p></main>
+<p>FU Flow is MIT licensed. The public source includes the provider selection, local and remote speech adapters and the update check. This page describes application behavior as the maker documents it. An independent security audit or a compliance certification has yet to be done.</p><div class="cta"><a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12.exe">Download for Windows</a></div><p class="fine">FU Flow 0.9.12 beta · 1.7 GB · Windows 10 / 11 · MIT</p></main>
 <footer class="foot"><div class="wrap"><nav class="foot-links" aria-label="Navigation"><a href="/">Home</a><a href="/guides/">Guides</a><a href="/privacy/">Privacy</a><a href="/wispr-flow-alternative/">FU Flow vs Wispr Flow</a><a href="https://github.com/Breakzoras/fuck-you-flow">GitHub</a></nav><p>Luram AI Agency · Thessaloniki · <a href="https://luram.gr/">luram.gr</a></p></div></footer></body></html>

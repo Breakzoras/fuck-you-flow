@@ -30,12 +30,18 @@ RELEASES = [
         "version": "0.9.12",
         "date": "2026-09-26",
         "summary": (
-            "Learning from your edits gets smarter, Dictionary rules know their language, and "
-            "your own programs can use the speech engine.",
-            "Πιο έξυπνη μάθηση από τις διορθώσεις σου, κανόνες Λεξικού που ξέρουν τη γλώσσα "
-            "τους και η μηχανή ομιλίας διαθέσιμη στα δικά σου προγράμματα.",
+            "Now on Ubuntu Linux. Also smarter learning from your edits, Dictionary rules that "
+            "know their language, and the speech engine open to your own programs.",
+            "Τώρα και σε Ubuntu Linux. Επίσης πιο έξυπνη μάθηση από τις διορθώσεις σου, κανόνες "
+            "Λεξικού που ξέρουν τη γλώσσα τους και η μηχανή ομιλίας διαθέσιμη στα δικά σου "
+            "προγράμματα.",
         ),
         "lines": [
+            ("added",
+             "Fuck You Flow runs on Ubuntu Linux 22.04 or newer, as a .deb package or an AppImage, "
+             "under X11 and Wayland. It updates itself like the Windows version.",
+             "Το Fuck You Flow τρέχει σε Ubuntu Linux 22.04 ή νεότερο, ως πακέτο .deb ή AppImage, "
+             "σε X11 και Wayland. Ενημερώνεται μόνο του όπως και στα Windows."),
             ("added",
              "A local endpoint for your own programs, in Settings, Privacy. Scripts and bots on "
              "this computer can send audio and get the text back from the speech engine. It "
@@ -61,6 +67,17 @@ RELEASES = [
              "κείμενο αυτής της γλώσσας. Με δύο γλώσσες επιλεγμένες, δουλεύουν μαζί οι κανόνες "
              "και των δύο, μαζί και οι αγγλικές λέξεις μέσα στην άλλη γλώσσα. Η φόρμα διαλέγει "
              "τη γλώσσα όσο γράφεις."),
+            ("known",
+             "Linux: the AppImage needs a one-time keyboard permission, and the app shows the "
+             "command to run. The .deb sets it up during install.",
+             "Linux: το AppImage χρειάζεται μία φορά άδεια για το πληκτρολόγιο και η εφαρμογή "
+             "δείχνει την εντολή που πρέπει να τρέξεις. Το .deb τη ρυθμίζει μόνο του στην "
+             "εγκατάσταση."),
+            ("known",
+             "Linux under Wayland: per-app styles are skipped, because the app cannot see which "
+             "program is in front. Dictation works as usual.",
+             "Linux σε Wayland: τα στυλ ανά εφαρμογή δεν εφαρμόζονται, γιατί η εφαρμογή δεν "
+             "βλέπει ποιο πρόγραμμα είναι μπροστά. Η υπαγόρευση δουλεύει κανονικά."),
         ],
     },
     {
