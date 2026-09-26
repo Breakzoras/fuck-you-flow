@@ -4,6 +4,7 @@ import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, ModelStatus,
 import { useApp } from "../hooks";
 import { Badge, Button, Card } from "../ui";
 import ModelGuide, { MachineProfile } from "../ModelGuide";
+import { localDayKey, todayFacts } from "../todayStats";
 
 // Home in the Mono style: a state word, a few lines of facts, the last
 // transcripts as a log. Setup only appears while something is missing.
@@ -106,7 +107,9 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
   const engineLine = engine?.status === "ready"
     ? <><b>{engine.model_id}</b> {engine.gpu ? t("gpu_on") : t("gpu_off")}{engine.warm_ms ? `, ${t("warm_in", { s: (engine.warm_ms / 1000).toFixed(1) })}` : ""}</>
     : <span>{engine?.message ?? state}</span>;
-  const today = stats?.daily?.length ? stats.daily[stats.daily.length - 1] : null;
+  // The "today" row is today only: its words and minutes saved come from today's line of
+  // stats_daily. The all-time total stays on the Statistics page.
+  const today = stats?.daily?.length ? todayFacts(stats.daily, localDayKey(new Date())) : null;
   const fmtTime = (iso: string) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
   const statusClass = (s: string) => (s === "success" ? "ok" : s === "copied" ? "warn" : "err");
 
@@ -189,7 +192,7 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
         <div className="fact"><span className="k">{t("f_mic")}</span><span className="v">{settings.audio.device_name ?? t("system_default")}{snap?.mic_open ? "" : ` · ${t("mic_closed")}`}</span></div>
         <div className="fact"><span className="k">{t("f_key")}</span><span className="v"><span className="kbd">{hk.hands_free}</span> {t("f_key_start")} · <span className="kbd">{hk.hands_free}</span> {t("f_key_stop")} · <span className="kbd">Esc</span> {t("f_key_cancel")}</span></div>
         <div className="fact"><span className="k">{t("f_today")}</span><span className="v">
-          {today ? <><b>{today.words}</b> {t("words")} · {t("median_wait")} <b>{stats && stats.p50_latency_ms ? (stats.p50_latency_ms / 1000).toFixed(2) + " s" : "-"}</b> · <b>{stats ? Math.round(stats.time_saved_minutes) : 0} min</b> {t("saved_short")}</> : <span className="muted">{t("no_history")}</span>}
+          {today ? <><b>{today.words}</b> {t("words")} · {t("median_wait")} <b>{stats && stats.p50_latency_ms ? (stats.p50_latency_ms / 1000).toFixed(2) + " s" : "-"}</b> · <b>{Math.round(today.savedMinutes)} min</b> {t("saved_short")}</> : <span className="muted">{t("no_history")}</span>}
         </span></div>
       </div>
 
