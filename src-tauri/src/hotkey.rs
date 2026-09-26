@@ -974,8 +974,8 @@ pub mod linux {
             if readable == 0 && denied > 0 && !warned {
                 warned = true;
                 tracing::warn!(
-                    "hotkey: no permission to read the keyboard ({denied} devices refused). The installer's udev rule is missing; \
-                     run: sudo usermod -aG input $USER, then log out and back in"
+                    "hotkey: no permission to read the keyboard ({denied} devices refused). The udev rule is missing: install the .deb, \
+                     or add /etc/udev/rules.d/70-fuckyouflow.rules as the Linux test sheet shows"
                 );
                 crate::journal::warn("hotkey.no_permission", serde_json::json!({ "denied": denied }));
             }

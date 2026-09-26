@@ -362,3 +362,20 @@ th { font-size: 13px; color: var(--fg-2); font-weight: 700; text-transform: uppe
 [data-skin="carbon"][data-theme="dark"] .update-bar,
 [data-skin="carbon"][data-theme="dark"] .update-card,
 [data-skin="carbon"][data-theme="dark"] .toast { border-radius: var(--radius); background: var(--panel); }
+
+/* Linux: WebKitGTK draws <select> with the GTK theme, a white box under our
+   light text, so the chosen value could not be read (first Linux test, 26
+   September 2026). Drop the native look there and draw the arrow ourselves.
+   The background colour is left to the rules above, skin by skin. */
+:root[data-os="linux"] select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23c8ff5a' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+:root[data-os="linux"][data-theme="light"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%232f7d00' stroke-width='2'/%3E%3C/svg%3E");
+}
+:root[data-os="linux"] select option { background: var(--bg-2); color: var(--fg); }

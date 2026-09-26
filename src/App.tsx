@@ -74,6 +74,7 @@ export default function App() {
       const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
       root.setAttribute("data-theme", dark ? "dark" : "light");
       root.setAttribute("data-skin", settings.general.skin === "classic" ? "classic" : "carbon");
+      root.setAttribute("data-os", /linux/i.test(navigator.userAgent) ? "linux" : "other");
     };
     apply();
     const mq = window.matchMedia("(prefers-color-scheme: dark)");

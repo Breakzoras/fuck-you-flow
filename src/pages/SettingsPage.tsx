@@ -7,6 +7,8 @@ import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
 import ModelGuide from "../ModelGuide";
 import { BACKEND_EXPLAIN, MODEL_EXPLAIN, Pick } from "../modelChoice";
 
+const IS_LINUX = /linux/i.test(navigator.userAgent) && !/android/i.test(navigator.userAgent);
+
 type Tab = "general" | "mic" | "language" | "models" | "shortcuts" | "cleanup" | "insertion" | "overlay" | "privacy" | "styles" | "cloud";
 
 export default function SettingsPage({ engine }: { engine: EngineInfo | null }) {
@@ -234,8 +236,9 @@ function UpdatesCard() {
     <Card title={t("update_section")}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <span>{t("update_version_now")}: <strong>{answer?.current || version}</strong></span>
-        <Button onClick={check} disabled={state !== "idle"}>{state === "checking" ? t("update_checking") : t("update_check")}</Button>
+        {!IS_LINUX && <Button onClick={check} disabled={state !== "idle"}>{state === "checking" ? t("update_checking") : t("update_check")}</Button>}
       </div>
+      {IS_LINUX && <p className="hint">{t("update_linux")}</p>}
       {answer && !answer.available && <p className="hint">{t("update_none")}</p>}
       {answer && answer.available && (
         <div className="row">
