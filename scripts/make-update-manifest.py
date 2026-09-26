@@ -47,6 +47,11 @@ def main():
                                               "Default: the signed one for the version in tauri.conf.json. Give this when "
                                               "the slim build has been moved aside and the full one has taken its place. "
                                               "Its file name must still carry that version.")
+    ap.add_argument("--linux-deb", default="", help="the signed Linux update .deb; its .sig must sit beside it")
+    ap.add_argument("--linux-appimage", default="", help="the signed Linux .AppImage; its .sig must sit beside it")
+    ap.add_argument("--only-linux", action="store_true", help="leave the Windows entry out (local Linux update tests)")
+    ap.add_argument("--url-base", default="", help="where the files are served from, default the GitHub release. "
+                                                 "Only for local tests: an app points at the manifest it was built with.")
     args = ap.parse_args()
 
     conf = json.load(io.open(os.path.join(ROOT, "src-tauri", "tauri.conf.json"), encoding="utf-8"))
@@ -60,7 +65,9 @@ def main():
     # installer to be published under this version's number: every installed
     # copy would then "update" to the same program and be offered it again
     # forever. Only an installer whose file name carries this version is used.
-    if args.exe:
+    if args.only_linux:
+        exe_path = sig_path = None
+    elif args.exe:
         exe_path = os.path.abspath(args.exe)
         sig_path = exe_path + ".sig"
         if not names_version(exe_path, version):
@@ -95,23 +102,49 @@ def main():
             )
         sig_path = mine[0]
         exe_path = sig_path[: -len(".sig")]
-    if not os.path.exists(exe_path):
-        raise SystemExit("signature without an installer: %s" % sig_path)
+    base = args.url_base.rstrip("/") if args.url_base else "https://github.com/%s/releases/download/%s" % (REPO, tag)
+    platforms = {}
+    uploads = []
+    if exe_path:
+        if not os.path.exists(exe_path):
+            raise SystemExit("signature without an installer: %s" % sig_path)
+        size = os.path.getsize(exe_path)
+        signature = io.open(sig_path, encoding="utf-8").read().strip()
+        # The release keeps its own naming (Fuck.You.Flow.Setup.0.9.1.exe), so the
+        # name on GitHub is decided here and the upload below uses the same one.
+        asset = args.asset or "Fuck.You.Flow.Update.%s.exe" % version
+        platforms["windows-x86_64"] = {"signature": signature, "url": "%s/%s" % (base, asset)}
+        uploads.append((exe_path, asset))
+        print("installer %s (%.0f MB)" % (os.path.basename(exe_path), size / 1048576.0))
 
-    size = os.path.getsize(exe_path)
-    signature = io.open(sig_path, encoding="utf-8").read().strip()
-    # The release keeps its own naming (Fuck.You.Flow.Setup.0.9.1.exe), so the
-    # name on GitHub is decided here and the upload below uses the same one.
-    asset = args.asset or "Fuck.You.Flow.Update.%s.exe" % version
-    url = "https://github.com/%s/releases/download/%s/%s" % (REPO, tag, asset)
+    # Linux: the updater looks for "<os>-<arch>-<bundle>" first, so a .deb
+    # install gets the .deb and an AppImage gets the AppImage. The plain
+    # "linux-x86_64" key points at the AppImage for anything else.
+    for path, key, asset in (
+        (args.linux_deb, "linux-x86_64-deb", "Fuck.You.Flow.Update.%s_amd64.deb" % version),
+        (args.linux_appimage, "linux-x86_64-appimage", "Fuck.You.Flow.%s_amd64.AppImage" % version),
+    ):
+        if not path:
+            continue
+        path = os.path.abspath(path)
+        if not names_version(path, version):
+            raise SystemExit("%s does not carry version %s in its name." % (path, version))
+        if not os.path.exists(path + ".sig"):
+            raise SystemExit("no signature beside %s" % path)
+        sig = io.open(path + ".sig", encoding="utf-8").read().strip()
+        platforms[key] = {"signature": sig, "url": "%s/%s" % (base, asset)}
+        if key.endswith("appimage"):
+            platforms["linux-x86_64"] = dict(platforms[key])
+        uploads.append((path, asset))
+        print("%-22s %s (%.0f MB)" % (key, os.path.basename(path), os.path.getsize(path) / 1048576.0))
+    if not platforms:
+        raise SystemExit("nothing to publish: no Windows installer and no Linux package")
 
     manifest = {
         "version": version,
         "notes": args.notes,
         "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "platforms": {
-            "windows-x86_64": {"signature": signature, "url": url},
-        },
+        "platforms": platforms,
     }
     out_dir = os.path.join(ROOT, "site", "updates")
     os.makedirs(out_dir, exist_ok=True)
@@ -119,12 +152,11 @@ def main():
     io.open(out, "w", encoding="utf-8").write(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
 
     print("version   %s" % version)
-    print("installer %s (%.0f MB)" % (os.path.basename(exe_path), size / 1048576.0))
-    print("url       %s" % url)
     print("written   %s" % out)
     print()
     print("Then, in this order:")
-    print('  gh release upload %s "%s#%s" --clobber --repo %s' % (tag, exe_path, asset, REPO))
+    for path, asset in uploads:
+        print('  gh release upload %s "%s#%s" --clobber --repo %s' % (tag, path, asset, REPO))
     print("  bash site/deploy.sh")
     print("The manifest must go up last, or an app could read it before the file exists.")
 

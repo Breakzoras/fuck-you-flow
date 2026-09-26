@@ -130,18 +130,101 @@ fn edit_distance(a: &str, b: &str) -> usize {
     prev[b.len()]
 }
 
+/// The one-letter-away fixes `classify` leaves out, with how many times each
+/// was made in this edit. They are grammar most of the time ("κόλληση" and
+/// "κόλλησε" are both words), but a misheard word the engine makes up
+/// ("WebDoc", "καταλαβαίες") looks just the same from here.
+pub fn near_fixes(before: &str, after: &str) -> Vec<((String, String), usize)> {
+    let b = tokens(before);
+    let a = tokens(after);
+    let bl: Vec<String> = b.iter().map(|t| t.to_lowercase()).collect();
+    let al: Vec<String> = a.iter().map(|t| t.to_lowercase()).collect();
+    let mut out: Vec<((String, String), usize)> = Vec::new();
+    for (w, c) in change_hunks(&b, &a, &bl, &al) {
+        if w.is_empty() || c.is_empty() || w.len() > 3 || c.len() > 3 {
+            continue;
+        }
+        let pair = (w.join(" "), c.join(" "));
+        if worth_a_rule(&pair.0, &pair.1) {
+            continue;
+        }
+        match out.iter_mut().find(|(p, _)| *p == pair) {
+            Some((_, n)) => *n += 1,
+            None => out.push((pair, 1)),
+        }
+    }
+    out
+}
+
+/// A word that reads as a name or a technical term: a dot, a digit, an
+/// underscore or a capital after the first letter ("WebDoc", "fuckyouflow.up").
+fn technical(word: &str) -> bool {
+    word.chars().any(|c| c == '.' || c == '_' || c.is_ascii_digit()) || word.chars().skip(1).any(|c| c.is_uppercase())
+}
+
+/// How often a word may stand untouched elsewhere before it counts as one of
+/// the user's real words, which a rule must never rewrite.
+const KEPT_LIMIT: usize = 5;
+
+/// A near fix earns a suggestion on real evidence: made twice in this edit,
+/// made once before in another edit, or a name-like word. And never for a word
+/// the user leaves alone in other transcripts, which is how "App" is kept safe.
+fn near_fix_earns_a_rule(db: &Db, history_id: &str, wrong: &str, correct: &str, times_here: usize) -> anyhow::Result<bool> {
+    if technical(wrong) {
+        return Ok(true);
+    }
+    if is_one_of_their_words(db, history_id, wrong)? {
+        return Ok(false);
+    }
+    let before = db.count_learning_pairs("near_correction", wrong, correct)?;
+    Ok(times_here >= 2 || before >= 1)
+}
+
+/// A word the user leaves standing in other transcripts is one of their real
+/// words ("λόγο", "App"), and a rule against it would rewrite every correct
+/// use. A name-like word is exempt: the engine may write "WebDoc" every time
+/// and the user may simply not have fixed it yet.
+fn is_one_of_their_words(db: &Db, history_id: &str, wrong: &str) -> anyhow::Result<bool> {
+    if technical(wrong) || wrong.contains(' ') {
+        return Ok(false);
+    }
+    Ok(db.kept_occurrences(wrong, history_id)? >= KEPT_LIMIT)
+}
+
 /// Records the edit and returns suggestions that reached the evidence threshold.
 pub fn learn_from_edit(db: &Db, history_id: &str, before: &str, after: &str) -> anyhow::Result<Vec<Suggestion>> {
     let kind = classify(before, after);
     let mut out = Vec::new();
-    let fixes = match kind {
-        EditKind::WordCorrection { wrong, correct } => vec![(wrong, correct)],
-        EditKind::Corrections(list) => list,
-        other => {
-            record_other(db, history_id, before, after, other)?;
-            return Ok(out);
-        }
+    let mut fixes = match &kind {
+        EditKind::WordCorrection { wrong, correct } => vec![(wrong.clone(), correct.clone())],
+        EditKind::Corrections(list) => list.clone(),
+        _ => Vec::new(),
     };
+    // Even a clear fix never becomes a rule against one of the user's own
+    // words: "λόγο -> logo" would have broken every "λόγο" (found on Lu's
+    // real history, 26 September 2026).
+    let mut kept = Vec::with_capacity(fixes.len());
+    for (w, c) in fixes {
+        if !is_one_of_their_words(db, history_id, &w)? {
+            kept.push((w, c));
+        }
+    }
+    fixes = kept;
+    // The near fixes, weighed against what the user has done before. Each is
+    // recorded first, so the second time it is made anywhere it counts.
+    if !matches!(kind, EditKind::NoChange | EditKind::StyleOnly | EditKind::Deletion) {
+        for ((wrong, correct), times) in near_fixes(before, after) {
+            let earns = near_fix_earns_a_rule(db, history_id, &wrong, &correct, times)?;
+            db.add_learning_event(Some(history_id), "near_correction", &wrong, &correct)?;
+            if earns {
+                fixes.push((wrong, correct));
+            }
+        }
+    }
+    if fixes.is_empty() {
+        record_other(db, history_id, before, after, kind)?;
+        return Ok(out);
+    }
     for (wrong, correct) in fixes {
         db.add_learning_event(Some(history_id), "word_correction", &wrong, &correct)?;
         let seen = db.count_learning_pairs("word_correction", &wrong, &correct)?;
@@ -152,6 +235,18 @@ pub fn learn_from_edit(db: &Db, history_id: &str, before: &str, after: &str) -> 
         }
     }
     Ok(out)
+}
+
+/// Once, after the update that made learning smarter: every edit that taught
+/// nothing is read again with today's rules, and whatever it earns shows up in
+/// Suggestions for the user to accept or dismiss. Nothing goes into the
+/// Dictionary on its own.
+pub fn relearn_past_edits(db: &Db) -> anyhow::Result<usize> {
+    let mut found = 0;
+    for (id, before, after) in db.edits_that_taught_nothing()? {
+        found += learn_from_edit(db, &id, &before, &after)?.len();
+    }
+    Ok(found)
 }
 
 fn record_other(db: &Db, history_id: &str, before: &str, after: &str, kind: EditKind) -> anyhow::Result<()> {
@@ -222,6 +317,58 @@ mod tests {
         assert_eq!(pairs, vec![("άστρα".to_string(), "astra".to_string()), ("σλακ".to_string(), "Slack".to_string())]);
     }
 
+    /// Lu's edit of 26 September 2026: the same misheard name fixed three
+    /// times in one text. One letter away, and still plainly worth a rule.
+    #[test]
+    fn a_fix_made_twice_in_one_edit_is_learned() {
+        let db = Db::open_in_memory().unwrap();
+        let got = learn_from_edit(&db, "h1", "Στο WebDoc και μετά πάλι στο WebDoc και ξανά WebDoc εδώ", "Στο WebDock και μετά πάλι στο WebDock και ξανά WebDock εδώ").unwrap();
+        assert_eq!(got.iter().map(|s| (s.wrong.as_str(), s.correct.as_str())).collect::<Vec<_>>(), vec![("WebDoc", "WebDock")]);
+    }
+
+    /// A near fix made once waits; made again in a later edit, it is learned.
+    #[test]
+    fn a_near_fix_is_learned_the_second_time() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(learn_from_edit(&db, "h1", "Αυτό είναι τρίπιο πολύ εδώ", "Αυτό είναι τρύπιο πολύ εδώ").unwrap().is_empty());
+        let second = learn_from_edit(&db, "h2", "Το βάζο είναι τρίπιο από κάτω", "Το βάζο είναι τρύπιο από κάτω").unwrap();
+        assert_eq!(second.len(), 1);
+        assert_eq!((second[0].wrong.as_str(), second[0].correct.as_str()), ("τρίπιο", "τρύπιο"));
+    }
+
+    /// "App" stands untouched in many other transcripts, so however often it
+    /// is changed to "up" in one of them, no rule is made against it.
+    #[test]
+    fn a_word_the_user_keeps_elsewhere_is_never_learned() {
+        let db = Db::open_in_memory().unwrap();
+        for i in 0..6 {
+            db.insert_test_history(&format!("k{i}"), "Άνοιξε το App τώρα");
+        }
+        let got = learn_from_edit(&db, "h1", "Level App και App ξανά εδώ", "Level up και up ξανά εδώ").unwrap();
+        assert!(got.is_empty());
+    }
+
+    #[test]
+    fn a_common_word_is_never_replaced_even_by_an_english_one() {
+        let db = Db::open_in_memory().unwrap();
+        for i in 0..6 {
+            db.insert_test_history(&format!("k{i}"), "Το έκανα για αυτό τον λόγο χθες");
+        }
+        assert!(learn_from_edit(&db, "h1", "Φτιάξε το λόγο της εταιρείας", "Φτιάξε το logo της εταιρείας").unwrap().is_empty());
+    }
+
+    /// The engine writes "WebDoc" every time and the user leaves most of them;
+    /// that does not make it one of their words.
+    #[test]
+    fn a_name_the_engine_keeps_mishearing_is_still_learned() {
+        let db = Db::open_in_memory().unwrap();
+        for i in 0..6 {
+            db.insert_test_history(&format!("k{i}"), "Ανέβασέ το στο WebDoc");
+        }
+        let got = learn_from_edit(&db, "h1", "Μπες στο WebDoc τώρα", "Μπες στο WebDock τώρα").unwrap();
+        assert_eq!(got.len(), 1);
+    }
+
     #[test]
     fn suggestion_appears_on_the_first_correction() {
         let db = Db::open_in_memory().unwrap();
@@ -232,5 +379,27 @@ mod tests {
         let second = learn_from_edit(&db, "h2", "Πάμε στο Λούραμ αύριο.", "Πάμε στο Luram αύριο.").unwrap();
         assert_eq!(second.len(), 1);
         assert_eq!(second[0].evidence_count, 2);
+    }
+}
+
+/// Manual check against a copy of a real database:
+/// FYF_DB_COPY=<path> cargo test --lib relearn_on_a_copy -- --ignored --nocapture
+#[cfg(test)]
+mod real_copy {
+    #[test]
+    #[ignore]
+    fn relearn_on_a_copy() {
+        let Ok(p) = std::env::var("FYF_DB_COPY") else { return };
+        let db = crate::db::Db::open(std::path::Path::new(&p)).unwrap();
+        let langs = db.assign_rule_languages().unwrap();
+        let n = super::relearn_past_edits(&db).unwrap();
+        println!("RULES_GIVEN_LANGUAGE {langs}");
+        println!("NEW_SUGGESTIONS {n}");
+        for s in db.list_suggestions().unwrap().into_iter().filter(|s| s.status == "pending") {
+            println!("PENDING {} -> {}", s.wrong, s.correct);
+        }
+        for r in db.list_rules().unwrap() {
+            println!("RULE {:?} {}", r.language, r.wrong);
+        }
     }
 }

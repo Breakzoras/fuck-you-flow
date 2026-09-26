@@ -72,6 +72,9 @@ pub struct CleanupOptions {
     pub capitalize_first: bool,
     /// "el", "en" or "auto"
     pub language: String,
+    /// What the Dictionary runs under when it differs from `language`
+    /// ("multi" when English is mixed into the user's own language).
+    pub dictionary_language: Option<String>,
 }
 
 /// Runs the deterministic part of the pipeline (steps 1 to 3).
@@ -99,7 +102,7 @@ pub fn run_deterministic(
         }
     }
 
-    let d = dict.apply(&text, opts.language.as_str());
+    let d = dict.apply(&text, opts.dictionary_language.as_deref().unwrap_or(opts.language.as_str()));
     if d.text != text {
         applied.extend(d.applied.iter().map(|a| format!("dictionary: {a}")));
         text = d.text;

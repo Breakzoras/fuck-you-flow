@@ -536,6 +536,8 @@ impl Db {
     }
 
     pub fn upsert_rule(&self, rule: &DictionaryRule) -> anyhow::Result<()> {
+        // A rule saved without a language takes the one its letters show.
+        let language = rule.language.clone().or_else(|| crate::cleanup::dictionary::script_language(&rule.wrong));
         let conn = self.conn.lock();
         conn.execute(
             "INSERT INTO dictionary (id, wrong, correct, match_mode, case_sensitive, language, app_scope, enabled, use_as_hint, source, created_at, updated_at, apply_count, last_applied_at)
@@ -543,11 +545,75 @@ impl Db {
              ON CONFLICT(id) DO UPDATE SET wrong=excluded.wrong, correct=excluded.correct, match_mode=excluded.match_mode, case_sensitive=excluded.case_sensitive,
              language=excluded.language, app_scope=excluded.app_scope, enabled=excluded.enabled, use_as_hint=excluded.use_as_hint, updated_at=excluded.updated_at",
             params![
-                rule.id, rule.wrong, rule.correct, rule.match_mode, rule.case_sensitive as i64, rule.language, rule.app_scope, rule.enabled as i64,
+                rule.id, rule.wrong, rule.correct, rule.match_mode, rule.case_sensitive as i64, language, rule.app_scope, rule.enabled as i64,
                 rule.use_as_hint as i64, rule.source, rule.created_at, now(), rule.apply_count as i64, rule.last_applied_at
             ],
         )?;
         Ok(())
+    }
+
+    /// Rules saved before 0.9.12 all said "every language". Each gets the
+    /// language its letters show; a rule with mixed letters keeps "every".
+    pub fn assign_rule_languages(&self) -> anyhow::Result<usize> {
+        let conn = self.conn.lock();
+        let rows: Vec<(String, String)> = {
+            let mut st = conn.prepare("SELECT id, wrong FROM dictionary WHERE language IS NULL")?;
+            let it = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+            it.filter_map(|r| r.ok()).collect()
+        };
+        let mut n = 0;
+        for (id, wrong) in rows {
+            if let Some(lang) = crate::cleanup::dictionary::script_language(&wrong) {
+                n += conn.execute("UPDATE dictionary SET language = ?1 WHERE id = ?2", params![lang, id])?;
+            }
+        }
+        Ok(n)
+    }
+
+    /// How many transcripts show `word` and kept it: never edited, or edited
+    /// with the word still in. A word the user leaves alone that often is a
+    /// real word of theirs, and a rule against it would do harm ("App").
+    pub fn kept_occurrences(&self, word: &str, exclude_id: &str) -> anyhow::Result<usize> {
+        let re = regex::Regex::new(&format!(r"(?i)(^|\W){}(\W|$)", regex::escape(word)))?;
+        let conn = self.conn.lock();
+        let like = format!("%{word}%");
+        let mut st = conn.prepare("SELECT final_text, edited_text FROM history WHERE id != ?1 AND final_text LIKE ?2")?;
+        let rows = st.query_map(params![exclude_id, like], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)))?;
+        let mut n = 0;
+        for (fin, ed) in rows.filter_map(|r| r.ok()) {
+            let kept = match ed {
+                Some(e) => re.is_match(&e),
+                None => re.is_match(&fin),
+            };
+            if kept {
+                n += 1;
+            }
+        }
+        Ok(n)
+    }
+
+    /// Edited transcripts that never taught anything: the ones to look at
+    /// again with today's rules.
+    pub fn edits_that_taught_nothing(&self) -> anyhow::Result<Vec<(String, String, String)>> {
+        let conn = self.conn.lock();
+        let mut st = conn.prepare(
+            "SELECT id, final_text, edited_text FROM history h WHERE edited_text IS NOT NULL AND edited_text != final_text
+             AND NOT EXISTS (SELECT 1 FROM learning_events e WHERE e.history_id = h.id AND e.kind IN ('word_correction','near_correction'))
+             ORDER BY created_at",
+        )?;
+        let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
+    }
+
+    /// Tests only: a transcript nobody edited.
+    #[cfg(test)]
+    pub fn insert_test_history(&self, id: &str, text: &str) {
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO history (id, created_at, raw_text, cleaned_text, final_text, language, cleanup_mode, status) VALUES (?1, ?2, ?3, ?3, ?3, 'el', 'off', 'success')",
+            params![id, now(), text],
+        )
+        .unwrap();
     }
 
     pub fn delete_rule(&self, id: &str) -> anyhow::Result<()> {

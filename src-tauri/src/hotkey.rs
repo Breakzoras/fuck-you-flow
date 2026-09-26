@@ -845,6 +845,10 @@ pub mod linux {
     /// Name of the virtual keyboard the insertion code creates.
     pub const OWN_DEVICE: &str = "Fuck You Flow virtual keyboard";
 
+    /// At least one keyboard is being read. The interface asks for it to
+    /// tell the user why Right Alt does nothing when the permission is missing.
+    pub static KEYBOARD_OK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
     /// Linux key code (input-event-codes.h) to the Windows virtual key the
     /// shortcut logic speaks.
     pub fn vk_from_evdev(code: u16) -> Option<u16> {
@@ -971,6 +975,7 @@ pub mod linux {
                     }
                 }
             }
+            KEYBOARD_OK.store(!open.is_empty(), Ordering::Relaxed);
             if readable == 0 && denied > 0 && !warned {
                 warned = true;
                 tracing::warn!(

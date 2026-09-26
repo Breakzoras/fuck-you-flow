@@ -206,6 +206,54 @@ pub fn migrate_bundled_models(resource_dir: Option<&std::path::Path>) -> bool {
 
 /// True when no model is left inside the install folder, so an update may
 /// replace the program on its own. Answered by the move at startup.
+/// Linux: a package replaces itself whole, so a model left inside it would
+/// have to travel with every update. The model in use and the voice detector
+/// are copied once, in the background, into the user's own models folder,
+/// which `model_path` already prefers. The engine keeps running from the
+/// package meanwhile. Only the model in use is copied, so the disk holds one
+/// extra copy of what is actually needed and nothing else.
+#[cfg(target_os = "linux")]
+pub fn adopt_bundled_models_linux(active_id: &str) {
+    let Some(bundled) = crate::paths::bundled_dir() else { return };
+    let src_dir = bundled.join("models");
+    let dst_dir = crate::paths::models_dir();
+    let mut wanted: Vec<ModelSpec> = catalog().into_iter().filter(|m| m.id == active_id).collect();
+    wanted.push(vad_spec());
+    let external = |specs: &[ModelSpec]| {
+        specs.iter().all(|m| std::fs::metadata(dst_dir.join(&m.file_name)).map(|md| md.len() == m.size_bytes).unwrap_or(false))
+    };
+    if external(&wanted) {
+        MODELS_EXTERNAL.store(true, std::sync::atomic::Ordering::Relaxed);
+        return;
+    }
+    MODELS_EXTERNAL.store(false, std::sync::atomic::Ordering::Relaxed);
+    let _ = std::thread::Builder::new().name("fyf-model-copy".into()).spawn(move || {
+        if let Err(e) = std::fs::create_dir_all(&dst_dir) {
+            tracing::warn!("cannot create {}: {e}", dst_dir.display());
+            return;
+        }
+        for m in &wanted {
+            let from = src_dir.join(&m.file_name);
+            let to = dst_dir.join(&m.file_name);
+            if !from.exists() || std::fs::metadata(&to).map(|md| md.len() == m.size_bytes).unwrap_or(false) {
+                continue;
+            }
+            let part = to.with_extension("part");
+            let started = std::time::Instant::now();
+            match std::fs::copy(&from, &part).and_then(|_| std::fs::rename(&part, &to)) {
+                Ok(()) => tracing::info!("model {} copied out of the package in {} ms", m.file_name, started.elapsed().as_millis()),
+                Err(e) => {
+                    let _ = std::fs::remove_file(&part);
+                    tracing::warn!("model {} stays in the package: {e}", m.file_name);
+                }
+            }
+        }
+        let done = external(&wanted);
+        MODELS_EXTERNAL.store(done, std::sync::atomic::Ordering::Relaxed);
+        crate::journal::info("models.adopted", serde_json::json!({ "external": done }));
+    });
+}
+
 pub fn models_are_external() -> bool {
     MODELS_EXTERNAL.load(std::sync::atomic::Ordering::Relaxed)
 }

@@ -353,6 +353,7 @@ pub fn reclean_history(state: State<'_, Arc<AppState>>, id: String) -> R<History
         trailing_punctuation: true,
         capitalize_first: true,
         language: h.detected_language.clone().unwrap_or_else(|| h.language.clone()),
+        dictionary_language: Some(settings.language.dictionary_code(&h.detected_language.clone().unwrap_or_else(|| h.language.clone()))),
     };
     let out = {
         let d = state.shared.dict.read();
@@ -928,6 +929,7 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
         trailing_punctuation: true,
         capitalize_first: true,
         language: settings.language.effective(heard.as_deref(), &raw),
+        dictionary_language: Some(settings.language.dictionary_code(&settings.language.effective(heard.as_deref(), &raw))),
     };
     let outcome = {
         let dict = state.shared.dict.read();
@@ -1035,6 +1037,33 @@ pub async fn set_notepad_when_lost(app: tauri::AppHandle, state: State<'_, Arc<A
 
 /// The version of the running program. Answered from the binary itself, so the
 /// Settings page can show it without asking the server anything.
+/// Linux only: whether the two permissions the shortcut and the paste need
+/// are in place. A missing virtual keyboard is retried here, so the answer
+/// turns green by itself once the user has added the rule.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct InputStatus {
+    pub linux: bool,
+    pub keyboard: bool,
+    pub virtual_keyboard: bool,
+}
+
+#[tauri::command]
+pub fn linux_input_status() -> InputStatus {
+    #[cfg(target_os = "linux")]
+    {
+        if !crate::insertion::linux::virtual_keyboard_ready() {
+            crate::insertion::linux::ensure_started();
+        }
+        InputStatus {
+            linux: true,
+            keyboard: crate::hotkey::linux::KEYBOARD_OK.load(std::sync::atomic::Ordering::Relaxed),
+            virtual_keyboard: crate::insertion::linux::virtual_keyboard_ready(),
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    InputStatus { linux: false, keyboard: true, virtual_keyboard: true }
+}
+
 #[tauri::command]
 pub fn app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()

@@ -50,6 +50,17 @@ impl LanguageModeSetting {
         }
     }
 
+    /// The language the Dictionary rules run under. With English mixed into
+    /// the user's own language every rule may meet its words, so "multi" lets
+    /// all of them run; otherwise the transcript's own language decides.
+    pub fn dictionary_code(&self, effective: &str) -> String {
+        if matches!(self.mode, LanguageMode::Multi) {
+            "multi".into()
+        } else {
+            effective.to_string()
+        }
+    }
+
     /// The language the cleanup rules and the History entry should use for a
     /// transcript, given what the engine reported it heard.
     pub fn effective(&self, detected: Option<&str>, text: &str) -> String {

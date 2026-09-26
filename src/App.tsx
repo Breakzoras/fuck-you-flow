@@ -15,6 +15,9 @@ import Diagnostics from "./pages/Diagnostics";
 import GpuGauge from "./GpuGauge";
 import { withTimeout } from "./async";
 
+// The same rule the .deb installs, for the AppImage or a missed step.
+const PERM_CMD = "printf '%s\\n' 'KERNEL==\"uinput\", SUBSYSTEM==\"misc\", TAG+=\"uaccess\", OPTIONS+=\"static_node=uinput\"' 'SUBSYSTEM==\"input\", KERNEL==\"event*\", ENV{ID_INPUT_KEYBOARD}==\"1\", TAG+=\"uaccess\"' 'SUBSYSTEM==\"input\", KERNEL==\"event*\", ENV{ID_INPUT_MOUSE}==\"1\", TAG+=\"uaccess\"' | sudo tee /etc/udev/rules.d/70-fuckyouflow.rules && sudo modprobe uinput && sudo udevadm control --reload-rules && sudo udevadm trigger";
+
 type Page = "home" | "history" | "dictionary" | "snippets" | "learning" | "stats" | "settings" | "diagnostics";
 
 export default function App() {
@@ -26,6 +29,16 @@ export default function App() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  // Linux: the keyboard permission comes from a udev rule. Without it the app
+  // runs and Right Alt stays silent, so the missing permission is said here.
+  const [inputMissing, setInputMissing] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const poll = () => api.linuxInputStatus().then((s) => { if (alive) setInputMissing(s.linux && (!s.keyboard || !s.virtual_keyboard)); }).catch(() => {});
+    poll();
+    const iv = setInterval(poll, 5000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
   // The big card in the middle. "Not now" closes it and leaves the bar on top.
   const [prompt, setPrompt] = useState(false);
   const [updating, setUpdating] = useState<{ received: number; total: number; installing?: boolean } | null>(null);
@@ -249,6 +262,14 @@ export default function App() {
           </div>
         </nav>
         <main className="main">
+          {inputMissing && (
+            <div className="update-bar" role="alert">
+              <strong>{t("perm_title")}</strong>
+              <span>{t("perm_body")}</span>
+              <code className="perm-cmd">{PERM_CMD}</code>
+              <button className="primary" onClick={() => { navigator.clipboard.writeText(PERM_CMD).then(() => toast(t("perm_copied"))).catch(() => {}); }}>{t("perm_copy")}</button>
+            </div>
+          )}
           {update && (
             <div className="update-bar" role="status">
               <strong>{t("update_title")}</strong>

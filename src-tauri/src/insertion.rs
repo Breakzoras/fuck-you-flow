@@ -1448,6 +1448,11 @@ pub mod linux {
     }
 
     // ------------------------------------------------------------ keyboard
+    /// The virtual keyboard exists, so the paste chord can be typed.
+    pub fn virtual_keyboard_ready() -> bool {
+        keyboard().lock().map(|g| g.is_some()).unwrap_or(false)
+    }
+
     fn keyboard() -> &'static Mutex<Option<evdev::uinput::VirtualDevice>> {
         static KB: OnceLock<Mutex<Option<evdev::uinput::VirtualDevice>>> = OnceLock::new();
         KB.get_or_init(|| Mutex::new(None))

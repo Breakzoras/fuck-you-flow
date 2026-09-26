@@ -893,6 +893,7 @@ async fn process(
         trailing_punctuation: ctx.trailing_punctuation,
         capitalize_first: ctx.capitalize_first,
         language: effective_lang.clone(),
+        dictionary_language: Some(settings.language.dictionary_code(&effective_lang)),
     };
     let outcome = {
         let dict = shared.dict.read();

@@ -3,12 +3,22 @@ import { api, DictionaryRule, emptyRule } from "../api";
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
 
+/// Greek letters make a Greek rule and Latin letters an English one; the same
+/// rule the program uses when it saves a rule without a language.
+function scriptLanguage(word: string): string | null {
+  const greek = /[Ͱ-Ͽἀ-῿]/.test(word);
+  const latin = /[A-Za-z]/.test(word);
+  return greek && !latin ? "el" : latin && !greek ? "en" : null;
+}
+
 export default function Dictionary() {
   const { t, toast, lang } = useApp();
   const [rules, setRules] = useState<DictionaryRule[]>([]);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"recent" | "usage" | "alpha">("recent");
   const [form, setForm] = useState<DictionaryRule>(emptyRule());
+  // The user picked the language by hand; from then on the letters stop choosing it.
+  const [langTouched, setLangTouched] = useState(false);
   const [testIn, setTestIn] = useState("");
   const [testOut, setTestOut] = useState<{ text: string; applied: string[] } | null>(null);
 
@@ -18,7 +28,7 @@ export default function Dictionary() {
   const save = async () => {
     try {
       await api.saveRule(form);
-      setForm(emptyRule());
+      (setLangTouched(false), setForm(emptyRule()));
       toast(t("saved"));
       load();
     } catch (e) { toast(String(e), "err"); }
@@ -58,7 +68,11 @@ export default function Dictionary() {
       <Card title={form.id ? t("save") : t("add_rule")}>
         <div className="grid2">
           <Field label={t("wrong")} hint={lang === "el" ? "π.χ. Λούραμ" : "e.g. Loo-ram"}>
-            <input type="text" value={form.wrong} onChange={(e) => setForm({ ...form, wrong: e.target.value })} />
+            <input type="text" value={form.wrong} onChange={(e) => {
+              // The language follows the letters until the user picks one.
+              const wrong = e.target.value;
+              setForm({ ...form, wrong, language: langTouched || form.id ? form.language : scriptLanguage(wrong) });
+            }} />
           </Field>
           <Field label={t("correct")} hint={lang === "el" ? "π.χ. Luram" : "e.g. Luram"}>
             <input type="text" value={form.correct} onChange={(e) => setForm({ ...form, correct: e.target.value })} />
@@ -69,7 +83,7 @@ export default function Dictionary() {
             ]} />
           </Field>
           <Field label={t("language_scope")}>
-            <Select value={form.language ?? "global"} onChange={(v) => setForm({ ...form, language: v === "global" ? null : v })} options={[
+            <Select value={form.language ?? "global"} onChange={(v) => { setLangTouched(true); setForm({ ...form, language: v === "global" ? null : v }); }} options={[
               { value: "global", label: t("global") }, { value: "el", label: t("greek") }, { value: "en", label: t("english") },
             ]} />
           </Field>
@@ -78,7 +92,7 @@ export default function Dictionary() {
         <Toggle label={t("use_as_hint")} checked={form.use_as_hint} onChange={(v) => setForm({ ...form, use_as_hint: v })} />
         <div className="row">
           <Button kind="primary" onClick={save} disabled={!form.wrong.trim() || !form.correct.trim()}>{t("save")}</Button>
-          {form.id && <Button onClick={() => setForm(emptyRule())}>{t("cancel")}</Button>}
+          {form.id && <Button onClick={() => (setLangTouched(false), setForm(emptyRule()))}>{t("cancel")}</Button>}
         </div>
       </Card>
 
@@ -109,7 +123,7 @@ export default function Dictionary() {
                   <td>{r.wrong}</td>
                   <td><strong>{r.correct}</strong></td>
                   <td>{r.match_mode === "whole_word" ? t("whole_word") : r.match_mode === "phrase" ? t("phrase") : t("exact")}{r.case_sensitive ? " · Aa" : ""}</td>
-                  <td>{r.language ?? t("global")}{r.source === "suggested" ? " · " : ""}{r.source === "suggested" && <Badge>auto</Badge>}</td>
+                  <td>{r.language === "el" ? t("greek") : r.language === "en" ? t("english") : r.language ?? t("global")}{r.source === "suggested" ? " · " : ""}{r.source === "suggested" && <Badge>auto</Badge>}</td>
                   <td className="hint">{t("applied_times", { n: r.apply_count })}<br />{r.last_applied_at ? r.last_applied_at.slice(0, 10) : t("never")}</td>
                   <td>
                     <div className="row" style={{ gap: 4 }}>

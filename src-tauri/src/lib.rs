@@ -188,6 +188,7 @@ pub fn run() {
             commands::pick_audio_file,
             commands::set_notepad_when_lost,
             commands::app_version,
+            commands::linux_input_status,
             commands::check_for_update,
             commands::install_update,
         ])

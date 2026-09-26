@@ -81,13 +81,18 @@ impl DictionaryEngine {
     }
 
     /// Apply every enabled rule whose language scope matches.
+    /// (See `script_language` for how a rule gets its scope.)
     pub fn apply(&self, text: &str, language: &str) -> DictResult {
         let mut out = text.to_string();
         let mut applied = Vec::new();
         let mut rule_ids = Vec::new();
         for c in &self.rules {
             if let Some(lang) = &c.rule.language {
-                if language != "auto" && language != "multi" && lang != language {
+                // An English rule can only ever match Latin letters, and Latin
+                // letters inside a Greek dictation are English words or names,
+                // so it runs wherever such letters are.
+                let english_here = lang == "en" && out.chars().any(|ch| ch.is_ascii_alphabetic());
+                if language != "auto" && language != "multi" && lang != language && !english_here {
                     continue;
                 }
             }
@@ -184,6 +189,19 @@ pub fn build_hint_prompt(terms: &[String], language: &str, primary: &str) -> Opt
     })
 }
 
+/// The language a rule belongs to, read from the letters of the words it
+/// fixes: Greek letters make it a Greek rule, Latin letters an English one.
+/// Anything else (digits only, mixed scripts) stays for every language.
+pub fn script_language(wrong: &str) -> Option<String> {
+    let greek = wrong.chars().any(|c| ('\u{0370}'..='\u{03FF}').contains(&c) || ('\u{1F00}'..='\u{1FFF}').contains(&c));
+    let latin = wrong.chars().any(|c| c.is_ascii_alphabetic());
+    match (greek, latin) {
+        (true, false) => Some("el".into()),
+        (false, true) => Some("en".into()),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -228,6 +246,23 @@ mod tests {
     fn does_not_touch_inside_longer_words() {
         let e = DictionaryEngine::new(vec![rule("cat", "dog", "whole_word", false)], vec![]);
         assert_eq!(e.apply("concatenate the cat", "en").text, "concatenate the dog");
+    }
+
+    #[test]
+    fn rules_know_their_language_from_their_letters() {
+        assert_eq!(script_language("Λούραμ").as_deref(), Some("el"));
+        assert_eq!(script_language("WebDoc").as_deref(), Some("en"));
+        assert_eq!(script_language("τσάτζι GPT"), None);
+    }
+
+    /// Lu speaks Greek with English in it. An English rule must still fix an
+    /// English word inside a Greek sentence, where the transcript counts as Greek.
+    #[test]
+    fn an_english_rule_reaches_english_words_in_a_greek_sentence() {
+        let mut r = rule("WebDoc", "WebDock", "whole_word", false);
+        r.language = Some("en".into());
+        let e = DictionaryEngine::new(vec![r], vec![]);
+        assert_eq!(e.apply("Ανέβασέ το στο WebDoc τώρα", "el").text, "Ανέβασέ το στο WebDock τώρα");
     }
 
     #[test]

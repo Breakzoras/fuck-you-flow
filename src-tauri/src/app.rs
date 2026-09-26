@@ -72,6 +72,12 @@ pub fn set_autostart(app: &tauri::AppHandle, enabled: bool) -> bool {
 /// uninstaller next to the program and nothing else does, so that file is the
 /// marker. A run from the build folder or a loose copy has no such neighbour.
 pub fn installed_marker(exe: &std::path::Path) -> bool {
+    // Linux: the .deb puts the program under /usr, and an AppImage announces
+    // itself through $APPIMAGE (the autostart entry then points at that file).
+    #[cfg(target_os = "linux")]
+    if exe.starts_with("/usr/") || std::env::var_os("APPIMAGE").is_some() {
+        return true;
+    }
     exe.parent().map(|dir| dir.join("uninstall.exe").is_file()).unwrap_or(false)
 }
 
@@ -209,6 +215,8 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
         settings.asr.model_id = id;
         changed = true;
     }
+    #[cfg(target_os = "linux")]
+    crate::models::adopt_bundled_models_linux(&settings.asr.model_id);
     // A graphics card that is sitting right there should be doing the work.
     // Any modern card can, through Vulkan, AMD and Intel included; the engine
     // runs roughly six times faster on one than on the processor. The first
@@ -246,6 +254,25 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     let settings = settings;
     crate::logging::set_redaction(settings.privacy.redact_logs);
     let db = Arc::new(Db::open(&crate::paths::db_file())?);
+    // 0.9.12: every rule takes the language its letters show, and edits that
+    // taught nothing under the old rules are read once more. Both are safe to
+    // repeat; the second one runs once, behind a marker file.
+    match db.assign_rule_languages() {
+        Ok(n) if n > 0 => tracing::info!("dictionary: {n} rules now carry the language their letters show"),
+        Ok(_) => {}
+        Err(e) => tracing::warn!("dictionary: languages not assigned: {e}"),
+    }
+    let relearn_marker = crate::paths::local_dir().join("learning-v2.done");
+    if !relearn_marker.exists() {
+        match crate::learning::relearn_past_edits(&db) {
+            Ok(n) => {
+                tracing::info!("learning: past edits read again, {n} new suggestions");
+                crate::journal::info("learning.relearned", serde_json::json!({ "suggestions": n }));
+                let _ = std::fs::write(&relearn_marker, b"");
+            }
+            Err(e) => tracing::warn!("learning: past edits not read again: {e}"),
+        }
+    }
     // A history an older build wrote under the old folder name, after the move.
     for orphan in crate::paths::take_orphan_histories() {
         match db.merge_from(&orphan) {

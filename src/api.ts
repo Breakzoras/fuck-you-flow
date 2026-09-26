@@ -190,6 +190,7 @@ export const api = {
   recordShortcut: () => invoke<string>("record_shortcut"),
   // Updates: the check only asks, the install is a separate yes.
   appVersion: () => invoke<string>("app_version"),
+  linuxInputStatus: () => invoke<{ linux: boolean; keyboard: boolean; virtual_keyboard: boolean }>("linux_input_status"),
   checkForUpdate: () => invoke<UpdateInfo>("check_for_update"),
   installUpdate: () => invoke<void>("install_update"),
   quit: () => invoke<void>("quit_app"),
