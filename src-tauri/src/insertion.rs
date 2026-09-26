@@ -1485,8 +1485,12 @@ pub mod linux {
                 *g = Some(d);
             }
             Err(e) => {
-                tracing::warn!("insertion: no virtual keyboard ({e}); the words will stay on the clipboard for Ctrl+V. /dev/uinput needs the installer's udev rule");
-                crate::journal::warn("insertion.no_uinput", serde_json::json!({ "error": e.to_string() }));
+                // Asked again every few seconds by the permission banner; said once.
+                static SAID: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                if !SAID.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                    tracing::warn!("insertion: no virtual keyboard ({e}); the words will stay on the clipboard for Ctrl+V. /dev/uinput needs the installer's udev rule");
+                    crate::journal::warn("insertion.no_uinput", serde_json::json!({ "error": e.to_string() }));
+                }
             }
         }
     }
