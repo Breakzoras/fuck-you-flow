@@ -44,8 +44,12 @@ export interface Settings {
   privacy: {
     keep_history: boolean; retention_days: number | null; keep_audio: boolean; context_awareness: boolean;
     learning_enabled: boolean; learn_from_edits: boolean; redact_logs: boolean;
+    local_api: boolean; local_api_port: number;
   };
 }
+
+/** The fixed door on 127.0.0.1 for the user's own programs. */
+export interface LocalApiStatus { enabled: boolean; listening: boolean; port: number; error: string | null }
 
 export interface HistoryEntry {
   id: string; created_at: string; raw_text: string; cleaned_text: string; final_text: string; language: string;
@@ -191,6 +195,7 @@ export const api = {
   // Updates: the check only asks, the install is a separate yes.
   appVersion: () => invoke<string>("app_version"),
   linuxInputStatus: () => invoke<{ linux: boolean; keyboard: boolean; virtual_keyboard: boolean }>("linux_input_status"),
+  localApiStatus: () => invoke<LocalApiStatus>("local_api_status"),
   checkForUpdate: () => invoke<UpdateInfo>("check_for_update"),
   installUpdate: () => invoke<void>("install_update"),
   quit: () => invoke<void>("quit_app"),

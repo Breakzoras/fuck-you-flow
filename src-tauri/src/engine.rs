@@ -248,6 +248,23 @@ impl EngineManager {
         self.info().status == EngineStatus::Ready
     }
 
+    /// Where the local engine answers right now, for the fixed door in
+    /// local_api: its own port changes on every start. A cloud provider has no
+    /// local engine and is never offered through the door, so nothing sent to
+    /// it can leave the computer.
+    pub fn local_upstream(&self) -> Result<u16, &'static str> {
+        if self.provider_name.read().as_str() != "whisper_local" {
+            return Err("cloud");
+        }
+        let Some(s) = self.local.read().clone() else { return Err("missing") };
+        match s.info().status {
+            EngineStatus::Ready if s.is_alive() => Ok(s.config().port),
+            // Ready with a dead process is the watchdog's to restart: loading.
+            EngineStatus::Ready | EngineStatus::Starting => Err("loading"),
+            _ => Err("missing"),
+        }
+    }
+
     /// The process holding the speech model, when it is a local one. A cloud
     /// provider has none, and neither does an engine that never started.
     pub fn local_pid(&self) -> Option<u32> {

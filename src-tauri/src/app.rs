@@ -337,6 +337,7 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
         let shared2 = shared.clone();
         tauri::async_runtime::spawn(async move {
             let s = shared2.settings.read().clone();
+            crate::local_api::apply(shared2.engine.clone(), s.privacy.local_api, s.privacy.local_api_port);
             shared2.engine.apply(&handle, &s).await;
             let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
             loop {

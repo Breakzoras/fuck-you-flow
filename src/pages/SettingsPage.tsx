@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, languageName, LANGUAGE_CHOICES, ModelStatus, RuntimeStatus, Settings, LanguageMode, UpdateInfo } from "../api";
+import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, languageName, LANGUAGE_CHOICES, ModelStatus, RuntimeStatus, Settings, LanguageMode, UpdateInfo, LocalApiStatus } from "../api";
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
 import ModelGuide from "../ModelGuide";
@@ -433,12 +433,40 @@ function PrivacyTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settings
       <Toggle label={t("context")} checked={draft.privacy.context_awareness} onChange={(v) => patch((s) => { s.privacy.context_awareness = v; return s; })} />
       <Toggle label={t("learning")} checked={draft.privacy.learning_enabled} onChange={(v) => patch((s) => { s.privacy.learning_enabled = v; return s; })} />
       <Toggle label={t("redact")} checked={draft.privacy.redact_logs} onChange={(v) => patch((s) => { s.privacy.redact_logs = v; return s; })} />
+      <LocalDoor draft={draft} patch={patch} />
       <div className="row" style={{ marginTop: 14 }}>
         <Button onClick={exportAll}>{t("export_all")}</Button>
         <Button onClick={() => api.openDataFolder()}>{t("open_folder")}</Button>
         <Button kind="danger" onClick={async () => { if (confirm(t("confirm_delete_all"))) { await api.deleteAll(); toast(t("saved")); } }}>{t("delete_everything")}</Button>
       </div>
     </Card>
+  );
+}
+
+// The fixed door for the user's own programs (bots on this computer). The line
+// under it says what is true right now, which changes only after Save.
+function LocalDoor({ draft, patch }: { draft: Settings; patch: (p: (s: Settings) => Settings) => void }) {
+  const { t } = useApp();
+  const [status, setStatus] = useState<LocalApiStatus | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const read = () => api.localApiStatus().then((s) => { if (alive) setStatus(s); }).catch(() => {});
+    read();
+    const id = window.setInterval(read, 3000);
+    return () => { alive = false; window.clearInterval(id); };
+  }, []);
+  const on = draft.privacy.local_api;
+  return (
+    <>
+      <Toggle label={t("local_api")} hint={t("local_api_hint")} checked={on} onChange={(v) => patch((s) => { s.privacy.local_api = v; return s; })} />
+      {on && (
+        <Field label={t("local_api_port")}>
+          <input type="number" min={1024} max={65535} value={draft.privacy.local_api_port} onChange={(e) => patch((s) => { s.privacy.local_api_port = Number(e.target.value) || 47600; return s; })} style={{ maxWidth: 160 }} />
+        </Field>
+      )}
+      {status?.listening && <p className="hint">{t("local_api_open")} <code>http://127.0.0.1:{status.port}/inference</code></p>}
+      {status?.enabled && status.error && <p className="hint">{t("local_api_failed")} {status.error}</p>}
+    </>
   );
 }
 

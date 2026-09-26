@@ -346,6 +346,10 @@ pub struct PrivacySettings {
     pub learning_enabled: bool,
     pub learn_from_edits: bool,
     pub redact_logs: bool,
+    /// The fixed door on 127.0.0.1 for the user's own programs (local_api).
+    /// Off unless they turn it on.
+    pub local_api: bool,
+    pub local_api_port: u16,
 }
 
 impl Default for PrivacySettings {
@@ -358,6 +362,8 @@ impl Default for PrivacySettings {
             learning_enabled: true,
             learn_from_edits: false,
             redact_logs: true,
+            local_api: false,
+            local_api_port: crate::local_api::DEFAULT_PORT,
         }
     }
 }

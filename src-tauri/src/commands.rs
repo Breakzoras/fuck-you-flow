@@ -41,6 +41,11 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
     // everything. The box on screen refuses it but the box is only HTML, and a
     // saved zero quietly emptied the whole history and its recordings on the
     // next start.
+    // Below 1024 needs special rights on Linux and collides with system
+    // services everywhere; the door goes back to its own number.
+    if settings.privacy.local_api_port < 1024 {
+        settings.privacy.local_api_port = crate::local_api::DEFAULT_PORT;
+    }
     if settings.privacy.retention_days == Some(0) {
         tracing::warn!("retention of 0 days would erase the whole history; keeping 1");
         settings.privacy.retention_days = Some(1);
@@ -55,6 +60,7 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
     *state.shared.settings.write() = settings.clone();
     crate::app::apply_hotkeys(&settings);
     crate::logging::set_redaction(settings.privacy.redact_logs);
+    crate::local_api::apply(state.shared.engine.clone(), settings.privacy.local_api, settings.privacy.local_api_port);
     let _ = state.shared.tx.send(PipelineMsg::SettingsChanged);
     // `backend` belongs in this list: changing the acceleration on its own used
     // to leave the old engine running, so the setting looked ignored.
@@ -733,6 +739,13 @@ pub fn show_main_window(app: tauri::AppHandle) {
         let _ = w.unminimize();
         let _ = w.set_focus();
     }
+}
+
+/// Whether the fixed door for the user's own programs is open, for the line
+/// under its switch in Privacy.
+#[tauri::command]
+pub fn local_api_status() -> crate::local_api::LocalApiStatus {
+    crate::local_api::status()
 }
 
 #[tauri::command]

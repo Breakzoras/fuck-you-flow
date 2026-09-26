@@ -14,6 +14,7 @@ pub mod jobobject;
 pub mod journal;
 pub mod languages;
 pub mod learning;
+pub mod local_api;
 pub mod logging;
 pub mod models;
 pub mod overlay;
@@ -137,6 +138,7 @@ pub fn run() {
             commands::mic_test_open,
             commands::engine_info,
             commands::engine_restart,
+            commands::local_api_status,
             commands::list_models,
             commands::runtime_status,
             commands::gpu_gauge,
