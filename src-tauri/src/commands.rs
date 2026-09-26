@@ -1199,7 +1199,10 @@ pub async fn install_update(app: tauri::AppHandle) -> R<()> {
     let _ = app.emit("lalia://update-progress", serde_json::json!({ "received": 0, "total": 0, "installing": true }));
     // The installer ends this process itself, so the normal way out never
     // runs. Take the tray icon down here, or it stays painted on the taskbar
-    // until the user waves the mouse over it.
+    // until the user waves the mouse over it. On Linux the install can still
+    // fail (the password prompt for a .deb can be cancelled), so the icon
+    // comes down there only once it has worked, just before the restart.
+    #[cfg(target_os = "windows")]
     crate::app::drop_tray(&app);
     if let Err(err) = update.install(got_it.expect("checked just above")) {
         if let Ok(mut slot) = FOUND_UPDATE.lock() {
@@ -1219,6 +1222,7 @@ pub async fn install_update(app: tauri::AppHandle) -> R<()> {
         let engine = app.state::<Arc<AppState>>().shared.engine.clone();
         engine.stop().await;
         tracing::info!("update {version} installed, starting the new version");
+        crate::app::drop_tray(&app);
         app.restart()
     }
     #[cfg(target_os = "windows")]
