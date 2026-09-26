@@ -592,6 +592,18 @@ impl Db {
         Ok(n)
     }
 
+    /// How many transcripts made before `before` show `word` standing as it
+    /// is, matched with the rule's own case sensitivity. Only transcripts from
+    /// before a rule existed count: after that, the rule itself changed them.
+    pub fn kept_before(&self, word: &str, case_sensitive: bool, before: &str) -> anyhow::Result<usize> {
+        let flag = if case_sensitive { "" } else { "(?i)" };
+        let re = regex::Regex::new(&format!(r"{flag}(^|\W){}(\W|$)", regex::escape(word)))?;
+        let conn = self.conn.lock();
+        let mut st = conn.prepare("SELECT final_text, edited_text FROM history WHERE created_at < ?1")?;
+        let rows = st.query_map(params![before], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)))?;
+        Ok(rows.filter_map(|r| r.ok()).filter(|(fin, ed)| re.is_match(ed.as_deref().unwrap_or(fin))).count())
+    }
+
     /// Edited transcripts that never taught anything: the ones to look at
     /// again with today's rules.
     pub fn edits_that_taught_nothing(&self) -> anyhow::Result<Vec<(String, String, String)>> {
