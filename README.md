@@ -1,7 +1,7 @@
 # Fuck You Flow
 
-Free, open-source dictation for Windows 10 and 11. English, Greek and 97 more
-languages, detected automatically, or locked to your own language in Settings.
+Free, open-source dictation for Windows 10 and 11, and now for Ubuntu Linux 22.04
+or newer. English, Greek and 97 more languages, detected automatically, or locked to your own language in Settings.
 Press Right Alt, speak, then press it again to insert text into a compatible
 Windows text field. The default Whisper engine processes speech on your own PC.
 
@@ -15,6 +15,8 @@ The [latest release](https://github.com/Breakzoras/fuck-you-flow/releases/latest
 and the [changelog](https://fuckyouflow.app/changelog/) list what changed.
 
 - [Official website and Windows download](https://fuckyouflow.app/)
+- Ubuntu Linux: the .deb and the AppImage are on the
+  [latest release](https://github.com/Breakzoras/fuck-you-flow/releases/latest)
 - [Ελληνική σελίδα και λήψη](https://fuckyouflow.app/el/)
 - [FU Flow vs Wispr Flow](https://fuckyouflow.app/wispr-flow-alternative/)
   and [FU Flow vs OpenWhispr](https://fuckyouflow.app/openwhispr-alternative/)
@@ -82,6 +84,8 @@ local recognition does not make a cloud document or conversation offline.
 
 ## Install
 
+### Windows
+
 Download the installer from
 [Releases](https://github.com/Breakzoras/fuck-you-flow/releases) and run it. The
 full installer is about **1.7 GB to download**, including the speech models.
@@ -101,6 +105,18 @@ review the selection in the Speech models tab in Settings.
 
 The app checks for available updates after startup. Downloading an update waits
 for your choice. Local dictation does not require a successful update check.
+
+### Ubuntu Linux
+
+Ubuntu 22.04 or newer, 64-bit. From the
+[latest release](https://github.com/Breakzoras/fuck-you-flow/releases/latest)
+download `Fuck.You.Flow.Setup.<version>_amd64.deb` and install it with
+`sudo apt install ./Fuck.You.Flow.Setup.<version>_amd64.deb`, or download the
+AppImage, make it executable and run it. Both include the speech models, about
+1.6 GB. The .deb sets up the keyboard permission the Right Alt shortcut needs;
+with the AppImage the app shows the one command to run. Dictation works under
+X11 and Wayland. Updates arrive through the app, and the .deb asks for your
+password to install them.
 
 ## Speed
 
