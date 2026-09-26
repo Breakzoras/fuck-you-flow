@@ -219,10 +219,10 @@ pub fn adopt_bundled_models_linux(active_id: &str) {
     let dst_dir = crate::paths::models_dir();
     let mut wanted: Vec<ModelSpec> = catalog().into_iter().filter(|m| m.id == active_id).collect();
     wanted.push(vad_spec());
-    let external = |specs: &[ModelSpec]| {
-        specs.iter().all(|m| std::fs::metadata(dst_dir.join(&m.file_name)).map(|md| md.len() == m.size_bytes).unwrap_or(false))
-    };
-    if external(&wanted) {
+    fn external(dir: &Path, specs: &[ModelSpec]) -> bool {
+        specs.iter().all(|m| std::fs::metadata(dir.join(&m.file_name)).map(|md| md.len() == m.size_bytes).unwrap_or(false))
+    }
+    if external(&dst_dir, &wanted) {
         MODELS_EXTERNAL.store(true, std::sync::atomic::Ordering::Relaxed);
         return;
     }
@@ -248,7 +248,7 @@ pub fn adopt_bundled_models_linux(active_id: &str) {
                 }
             }
         }
-        let done = external(&wanted);
+        let done = external(&dst_dir, &wanted);
         MODELS_EXTERNAL.store(done, std::sync::atomic::Ordering::Relaxed);
         crate::journal::info("models.adopted", serde_json::json!({ "external": done }));
     });
