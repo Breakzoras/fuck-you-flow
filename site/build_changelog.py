@@ -129,7 +129,8 @@ def page(lang, script, css):
                    % (esc(ver), date, date, REPO, ver, esc(w["release"])))
         out.append('  <p class="rel-sum">%s</p>' % esc(summary))
         for kind, titles in changelog_source.KINDS.items():
-            items = [ln for ln in rel["lines"] if ln[0] == kind]
+            # A line with no English text belongs to the Greek page alone.
+            items = [ln for ln in rel["lines"] if ln[0] == kind and ln[1 if lang == "en" else 2]]
             if not items:
                 continue
             out.append('  <div class="kind">')
@@ -246,6 +247,18 @@ def main():
     if bad:
         print("comma before και in the Greek page: %d places" % len(bad))
         sys.exit(1)
+    # The English page is read worldwide: no Greek letters and no Greek-only
+    # topic in an English line or summary (those lines carry None instead).
+    for rel in changelog_source.RELEASES:
+        english = [rel["summary"][0]] + [ln[1] for ln in rel["lines"] if ln[1]]
+        for text in english:
+            if re.search(r"[\u0370-\u03ff\u1f00-\u1fff]", text) or re.search(r"\bGreek\b", text):
+                print("version %s: Greek in an English line: %s" % (rel["version"], text[:80]))
+                sys.exit(1)
+        for ln in rel["lines"]:
+            if ln[0] not in changelog_source.KINDS or not ln[2]:
+                print("version %s: bad line %r" % (rel["version"], ln[:2]))
+                sys.exit(1)
     # Every release in the data has to reach both pages.
     for rel in changelog_source.RELEASES:
         for path in OUT.values():

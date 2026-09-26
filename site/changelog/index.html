@@ -429,250 +429,233 @@ table.bill td:first-child{width:auto}
 
   <section>
     <div class="wrap">
-      <article class="rel" id="v0.9.11">
-        <div class="rel-head"><h2>0.9.11</h2><span class="rel-date"><time datetime="2026-09-25">2026-09-25</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.11">Release page</a></div>
-        <p class="rel-sum">A new look with depth called Carbon, and your words stay one Ctrl+V away after pasting into a browser, Claude or Slack.</p>
+      <article class="rel" id="v0.9.12">
+        <div class="rel-head"><h2>0.9.12</h2><span class="rel-date"><time datetime="2026-09-26">2026-09-26</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.12">Release page</a></div>
+        <p class="rel-sum">Learning from your edits gets smarter, Dictionary rules know their language, and your own programs can use the speech engine.</p>
         <div class="kind">
           <h3>New</h3>
           <ul>
-            <li>Carbon, the new default look of the dark theme: panels with depth, teal edges and a dark red glow in the middle, made from still gradients and shadows so the graphics card does no extra work. The classic flat black stays one choice away in Settings, General.</li>
+            <li>A local endpoint for your own programs, in Settings, Privacy. Scripts and bots on this computer can send audio and get the text back from the speech engine. It stays off until you turn it on and answers only programs on this computer.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Improved</h3>
+          <ul>
+            <li>Learning from your edits now works on long transcripts too. A correction is learned when you make it twice or when it is a name or a technical term, and a word you leave as it is elsewhere never becomes a rule. Your earlier edits are read again once, so new suggestions may be waiting under Suggestions.</li>
+            <li>Each Dictionary rule belongs to the language of its letters and applies to text in that language. With two languages chosen, the rules of both work together, English words inside the other language included. The form picks the language as you type.</li>
+          </ul>
+        </div>
+      </article>
+      <article class="rel" id="v0.9.11">
+        <div class="rel-head"><h2>0.9.11</h2><span class="rel-date"><time datetime="2026-09-25">2026-09-25</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.11">Release page</a></div>
+        <p class="rel-sum">A new look called Carbon, and your words stay on the clipboard after pasting into browsers and the apps built on them.</p>
+        <div class="kind">
+          <h3>New</h3>
+          <ul>
+            <li>Carbon, the new default look of the dark theme, with panels that have depth. It adds no load on the graphics card. The classic flat look is in Settings, General.</li>
           </ul>
         </div>
         <div class="kind">
           <h3>Fixed</h3>
           <ul>
-            <li>In Chrome, Edge and programs built on them such as Claude and Slack, the words stay on the clipboard after pasting. If they do not show up where you were typing, one Ctrl+V brings them back. In these programs the earlier clipboard content is no longer put back, even with the restore setting on.</li>
+            <li>In Chrome, Edge and apps built on them, such as Claude and Slack, the words stay on the clipboard after pasting. If they did not arrive, Ctrl+V brings them back.</li>
           </ul>
         </div>
       </article>
       <article class="rel" id="v0.9.10">
         <div class="rel-head"><h2>0.9.10</h2><span class="rel-date"><time datetime="2026-09-25">2026-09-25</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.10">Release page</a></div>
-        <p class="rel-sum">Pasting that checks the words arrived, a guide that picks the right model for you, and the same recording now gives the same text every time.</p>
-        <div class="kind">
-          <h3>Known issues</h3>
-          <ul>
-            <li>In the Claude desktop app about 2 in 60 dictations still did not arrive in testing. The words stay on the clipboard and Ctrl+V pastes them.</li>
-          </ul>
-        </div>
+        <p class="rel-sum">Pasting that checks the words arrived, a guide that picks the right model, and steadier results.</p>
         <div class="kind">
           <h3>New</h3>
           <ul>
-            <li>Help me choose: two questions in Settings and on first launch (the language you speak, what matters most) plus your graphics card give one model marked Best for you. Use it downloads what is missing and switches to it.</li>
-            <li>Every model and engine now says in plain words who it is for, what you get and what it costs.</li>
-            <li>The bar warns within six seconds when the microphone sends nothing, so you can unmute before the dictation is lost.</li>
+            <li>Help me choose: two questions and your graphics card pick the model that suits you. One click downloads it and switches to it.</li>
+            <li>Every model and engine explains in plain words who it is for and what it asks of your computer.</li>
+            <li>The bar warns within six seconds when the microphone sends no sound.</li>
           </ul>
         </div>
         <div class="kind">
           <h3>Fixed</h3>
           <ul>
-            <li>Pasting now checks that the program you are typing in actually took the words. When nothing took them within a second, Ctrl+V is pressed once more, and if that fails too the words stay on the clipboard and the note says so.</li>
-            <li>Browsers and Electron programs could move the focus to their menu before the paste, so the words landed nowhere.</li>
-            <li>The same recording could come out as different text on each try. The speech engine now starts every recognition the same way, so the same audio gives the same words.</li>
-            <li>A correction learned from one History edit could rewrite a common word everywhere, web addresses included. Learned corrections now match only the exact spelling you fixed and never touch addresses.</li>
-            <li>When one History edit fixes words in two places, both are learned. Small grammar changes such as one letter in an ending stay out of the dictionary.</li>
-            <li>ό,τι stays one word, and subtitle credits that the engine sometimes adds after real speech are removed.</li>
+            <li>Pasting checks that the program took the words and tries once more when it did not. If that fails too, the words wait on the clipboard.</li>
+            <li>Words could go missing in browsers and Electron apps that moved the focus to their menu just before the paste.</li>
+            <li>The same recording now gives the same text every time.</li>
+            <li>Learned corrections match only the exact word you fixed and leave web addresses alone. An edit that fixes two words teaches both.</li>
+            <li>Subtitle credits that the engine sometimes added after speech are removed.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Known issues</h3>
+          <ul>
+            <li>In the Claude desktop app a dictation occasionally does not arrive. The words stay on the clipboard for Ctrl+V.</li>
           </ul>
         </div>
       </article>
       <article class="rel" id="v0.9.9">
         <div class="rel-head"><h2>0.9.9</h2><span class="rel-date"><time datetime="2026-09-19">2026-09-19</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.9">Release page</a></div>
-        <p class="rel-sum">Better recovery when recognition leaves your chosen languages, plus fixes for startup, shortcuts and pasting.</p>
+        <p class="rel-sum">Better recovery when recognition drifts out of your languages, plus fixes to startup, shortcuts and pasting.</p>
         <div class="kind">
-          <h3>Known issues</h3>
+          <h3>Improved</h3>
           <ul>
-            <li>The intermittent white Windows window above the listening indicator remains under investigation.</li>
-            <li>Third-language text written in Latin letters may still pass if the engine labels it as English or omits its language. Everyday dictation accuracy still varies.</li>
+            <li>Imported recordings are always left out of the saved-audio cleanup.</li>
           </ul>
         </div>
         <div class="kind">
           <h3>Fixed</h3>
           <ul>
-            <li>Both recognition attempts are checked. If the retry fails or still returns a third language, the recording stays available to retry. The same check covers imported audio.</li>
-            <li>Startup offers a retry button after about 15 seconds when settings cannot load.</li>
-            <li>Changing the cloud recognition address or model now updates the active connection.</li>
-            <li>The Alt key that stops recording keeps its release handling. The floating bar also ends a drag when a quick mouse release was missed.</li>
-            <li>Shortcut fields keep focus while typing. Snippets preserve literal dollar signs. Clipboard recovery sends its request before waiting for the result.</li>
-            <li>English statements such as “You are right.” retain their punctuation. Diagnostics selects the newest log and screen readers follow the interface language.</li>
+            <li>When recognition returns a language you did not choose, the recording is kept so you can try again. The same goes for imported audio.</li>
+            <li>Startup shows a retry button when the settings take too long to load.</li>
+            <li>A new cloud provider address or model takes effect at once.</li>
+            <li>Smaller fixes: the stop key, dragging the bar, shortcut fields, dollar signs in snippets, sentence punctuation, the newest log in Diagnostics and the screen reader language.</li>
           </ul>
         </div>
         <div class="kind">
-          <h3>Changed</h3>
+          <h3>Known issues</h3>
           <ul>
-            <li>Imported source recordings are excluded from saved-audio cleanup lists, adding another layer of file protection.</li>
+            <li>A blank white window sometimes appears above the listening indicator.</li>
+            <li>Text in a third language written in Latin letters can still slip through.</li>
           </ul>
         </div>
       </article>
       <article class="rel" id="v0.9.8">
         <div class="rel-head"><h2>0.9.8</h2><span class="rel-date"><time datetime="2026-09-17">2026-09-17</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.8">Release page</a></div>
-        <p class="rel-sum">The language lock from 0.9.7 now works. Every short piece of a dictation is checked on its own, and a piece that comes out in a third language is heard again in yours.</p>
+        <p class="rel-sum">The language lock now checks every part of a dictation.</p>
         <div class="kind">
           <h3>Fixed</h3>
           <ul>
-            <li>The language lock added in 0.9.7 never fired. It waited for the engine to name the language it heard, and the app never asked the engine for that. The engine now names it for every piece.</li>
-            <li>Stray words in another language inside a correct sentence, such as one Russian or Polish word in a Greek paragraph. While you speak, the app cuts the recording at every pause, and on a piece one second long the engine guesses the language badly. Each piece is now checked on its own and heard again in your language when it strays. One word in a foreign alphabet is enough.</li>
+            <li>The language lock from 0.9.7 now works. Each part of a dictation is checked and heard again in your language when it strays, and one word in another alphabet is enough to catch it.</li>
           </ul>
         </div>
         <div class="kind">
-          <h3>Changed</h3>
+          <h3>Known issues</h3>
           <ul>
-            <li>When the last piece of a dictation has to be heard again, the text arrives half a second to a second and a half later. A single English word said on its own can come out in the letters of your language.</li>
+            <li>When the last part of a dictation has to be heard again, the text arrives up to a second and a half later.</li>
+            <li>A single English word said on its own can come out in the letters of your language.</li>
           </ul>
         </div>
       </article>
       <article class="rel" id="v0.9.7">
         <div class="rel-head"><h2>0.9.7</h2><span class="rel-date"><time datetime="2026-09-16">2026-09-16</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.7">Release page</a></div>
-        <p class="rel-sum">The dictation language stays yours: when the engine guesses a third language, the recording is heard again in the one you chose. Any of thirty-three languages can be that one now. The bar can be dragged to any edge of the screen, the discreet style is a single dot, and a crash that killed the app in the first hour after every boot is gone.</p>
+        <p class="rel-sum">Your dictation language stays yours, thirty-three languages to choose from, a bar you can place anywhere, and a crash fix.</p>
         <div class="kind">
           <h3>New</h3>
           <ul>
-            <li>Your language is a choice in Settings, Language, with thirty-three to pick from. The modes are named after it: your language and English mixed, your language only, English only, or auto-detect among everything. A fresh install picks the language of your Windows.</li>
-            <li>The bar can be dragged with the mouse while it is on screen. It sticks to the nearest edge, top, bottom, left or right, at the spot where you let go, and remembers the place. Settings, Overlay has a button that shows the bar for fifteen seconds so you can move it without dictating.</li>
+            <li>Choose your language in Settings, Language, from thirty-three. The modes are your language with English, your language only, English only, or auto-detect. A new install starts with the language of Windows.</li>
+            <li>Drag the bar to any edge of the screen and it stays there. Settings, Overlay can show it, so you can move it without dictating.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Improved</h3>
+          <ul>
+            <li>The discreet style is a single dot: red while listening, green when done, amber when the words wait on the clipboard.</li>
           </ul>
         </div>
         <div class="kind">
           <h3>Fixed</h3>
           <ul>
-            <li>In the mixed mode (your language and English) the engine was free to guess among all ninety-nine languages it knows, and a short Greek phrase could come out in Czech or Turkish. Now anything that is neither your language nor English is heard again with your language forced. It costs about a second, only on those occasions.</li>
-            <li>For the first hour after Windows started, the app could close without a word the moment the microphone stumbled. A clock that counts from boot was asked for a time before boot. Both the cause and a test that forbids it are in.</li>
-            <li>The Windows clipboard history (Win+V) could grab the text before the window you were dictating into, and the paste came out empty. The history is kept out of the way until the paste is over.</li>
-          </ul>
-        </div>
-        <div class="kind">
-          <h3>Changed</h3>
-          <ul>
-            <li>The discreet style is now a single dot and nothing else: red while listening, green when done, amber when the words landed in the clipboard and wait for you to paste them.</li>
+            <li>In the mixed mode a short phrase could come out in an unrelated language. Anything outside your two languages is now heard again in yours.</li>
+            <li>The app could close during the first hour after Windows started.</li>
+            <li>The Windows clipboard history (Win+V) could leave a paste empty.</li>
           </ul>
         </div>
       </article>
       <article class="rel" id="v0.9.6">
         <div class="rel-head"><h2>0.9.6</h2><span class="rel-date"><time datetime="2026-09-11">2026-09-11</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.6">Release page</a></div>
-        <p class="rel-sum">Versions 0.9.4 and 0.9.5 were never published, so this release carries both: the right Alt key that stopped working and the twenty-three faults found while proving it was never the key, a rebuilt paste, shortcuts on the mouse, the program's own name, an update that now announces itself, and eleven fixes from a full audit.</p>
+        <p class="rel-sum">Updates that announce themselves, a faster paste, mouse button shortcuts, a steadier hotkey and many fixes. It includes the unreleased 0.9.4 and 0.9.5.</p>
         <div class="kind">
           <h3>New</h3>
           <ul>
-            <li>The app looks for a new version a few seconds after it opens. When there is one, its window comes to the front with a large Update now card in the middle, and if you are dictating at that moment it waits until you finish. When there is nothing newer, nothing appears. Check for updates is also in the tray menu.</li>
-            <li>The side buttons of a mouse can hold a shortcut. They are called Mouse4 and Mouse5 and combine with Ctrl, Shift and Alt like any key.</li>
-            <li>Diagnostics has a Key check: press your hotkey and see live what Windows delivered. When the left Alt arrives while hands-free sits on the right one, it says so.</li>
+            <li>The app checks for a new version shortly after it opens and shows an Update now card, waiting until you finish if you are dictating. Check for updates is also in the tray menu.</li>
+            <li>The side buttons of a mouse (Mouse4, Mouse5) can be shortcuts, alone or with Ctrl, Shift and Alt.</li>
+            <li>Diagnostics has a Key check that shows live what your hotkey sends.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Improved</h3>
+          <ul>
+            <li>Pasting is faster and more reliable: the words are on the clipboard before the key press.</li>
+            <li>Dictated words stay in the Windows clipboard history (Win+V) and are kept out of the cloud clipboard.</li>
+            <li>The hotkey recovers within a second when a busy Windows drops it.</li>
+            <li>The program, its folders and its files carry the product name. Your settings, history and models move over by themselves.</li>
           </ul>
         </div>
         <div class="kind">
           <h3>Fixed</h3>
           <ul>
-            <li>Deleting a History entry that came from an audio file you transcribed also deleted your original audio file, wherever it was on the disk. Only the copies the app made itself are deleted now.</li>
-            <li>Two rare faults could close the app in the middle of a dictation without a word: unusual content on the clipboard, and a cleanup rule that ran too long on a long transcript. In both cases the text is now kept as it is and the dictation carries on.</li>
-            <li>Installing over an older version could leave the old program running. The new one then closed at once, and you stayed on the old version without being told. The installer now closes the old one, and when Windows will not let it, it asks you to quit it from the tray and try again.</li>
-            <li>An old copy started after the new version had moved your data saw an empty history and began a second one of its own. The two are now joined the next time the app starts, and nothing is deleted.</li>
-            <li>During the move to the new folder names, a folder that held only recordings or logs could be deleted. It is now kept under another name.</li>
-            <li>If the settings file could not be read for a moment, your choices were replaced by the defaults. They are now kept, and a file that cannot be read is saved aside.</li>
-            <li>Delete all data left full copies of the history in the backup folder. They are deleted too now.</li>
-            <li>After an update the Windows startup entry could keep naming the old program file, which the installer had just removed. It now names the new one.</li>
-            <li>Pressing the update button twice could start two downloads at once. A second press is now turned down while the first download runs.</li>
-            <li>A damaged speech model of the right size could make the app throw away the good copy that came with the installer. The two files are now compared before either is removed.</li>
-            <li>The hotkey went dead for up to half a minute at a time. Windows removes the part of the app that listens for keys when one busy moment takes too long, and tells nobody. The app now puts it back every second, where it used to be every thirty. On a machine at full load, eleven key presses in a row reached Windows and none of them reached the app.</li>
-            <li>Everything on the clipboard that was not plain text was destroyed by every dictation. A copied picture, a copied file or copied formatted text is now put back exactly as it was.</li>
-            <li>Recording a new shortcut read one press of the right Alt as two keys, because that is how Windows delivers it on a Greek keyboard, and the shortcut it saved never matched afterwards.</li>
-            <li>If the speech model file disappeared while the app was running, the app tried to restart it every five seconds for as long as it stayed open. It now stops and says what is missing.</li>
-            <li>After the app had crashed once, the Recent problems list showed only old crash lines and hid every warning of the current run.</li>
-            <li>A very short word said between two long pauses could disappear from the finished text.</li>
-            <li>The paste was built the wrong way round. The app used to put a note on the clipboard saying the words could be had on request, then wait to be asked. Anything else on the machine that watches the clipboard, a remote desktop session for one, could ask first and take the answer, leaving the window that mattered with nothing and the app with a question it could no longer answer. The words now go on the clipboard as they are, before the key is pressed, so there is nothing left to ask for and nothing to go wrong in between. The wait that used to cost most of a second is gone with it.</li>
-            <li>On a German, French or Polish keyboard the right Alt is also the key that types the at sign, the euro sign and every accented letter, so every one of those started a dictation. A letter typed within the first moments of holding the key now means writing, and the recording is dropped without a word.</li>
-            <li>The small window's message was cut off at 12 pixels on one line, so the half that said what to do was the half you could not see. It is now 16 pixels and wraps.</li>
-            <li>Every message in that window was in English. They now follow the language of the app.</li>
-            <li>If the last piece of a long dictation failed to transcribe, the whole dictation was thrown away. What was already transcribed while you spoke is now kept.</li>
-            <li>Saving an empty correction in History made the entry look blank for good, and Copy copied nothing. The original stays visible until a real correction replaces it.</li>
-            <li>Paste last and the Paste button in History ignored your correction and used the original words.</li>
-            <li>The Paste button in History pasted into the app's own window. It now puts the text on the clipboard and asks you to click the window you want.</li>
-            <li>A retention of 0 days was accepted and would erase the whole history with its recordings on the next start. The smallest value is one day.</li>
-            <li>One invalid shortcut discarded every change on every settings tab. An empty shortcut now means off, and a bad one is named.</li>
-            <li>The Start with Windows switch could stay on when nothing had been registered. It now turns itself back off and says so.</li>
-            <li>The Save button in Settings could stay lit after a successful save.</li>
-            <li>The small window could stay on Failed, or keep spinning, after pasting with nothing to paste or when the microphone would not open.</li>
-            <li>When a paste was refused and the clipboard refused it too, the app still said the text was on the clipboard. It now says to open History.</li>
-            <li>A dictation that ended with the tray icon in front is now refused out loud, the way the desktop and the taskbar already were.</li>
-            <li>A copy run from the build folder no longer takes over the Windows startup entry. Only the installed copy does.</li>
-          </ul>
-        </div>
-        <div class="kind">
-          <h3>Changed</h3>
-          <ul>
-            <li>The part of the app that listens for keys now runs ahead of ordinary work, so a busy machine is less likely to make Windows drop it.</li>
-            <li>The dictated words stay in the Windows clipboard history on purpose, so Win+V brings them back if a window ever swallows a paste. They are still refused to the cloud clipboard, so nothing leaves the machine.</li>
-            <li>The program, its folders and its files carry the product name now. The old name showed up in Windows dialogs and on disk, where it had no business being. Your settings, your history and your models move themselves the first time the new version starts.</li>
-            <li>The dashboard no longer stutters while it is open, and the wait after the stop key no longer includes writing to disk. Saving the history and the recovery recording happen out of the way.</li>
-            <li>One repeated harmless warning made up two fifths of the diagnostic log. It is now counted and reported once a minute.</li>
+            <li>On keyboards where the right Alt types accented letters and symbols, typing them no longer starts a dictation.</li>
+            <li>Deleting a History entry that came from an audio file keeps your original file.</li>
+            <li>Pictures, files and formatted text on the clipboard come through a dictation unchanged.</li>
+            <li>If the last part of a long dictation fails, the rest is kept.</li>
+            <li>Installing over an older version closes the old one first, and your settings survive a file that cannot be read for a moment. Delete all data also removes the backups.</li>
+            <li>Smaller fixes in History (corrections, Paste, Copy), in Settings (shortcuts, the Save button, the startup switch, retention) and in the note window, which now follows your language and wraps its text.</li>
           </ul>
         </div>
       </article>
       <article class="rel" id="v0.9.3">
         <div class="rel-head"><h2>0.9.3</h2><span class="rel-date"><time datetime="2026-09-08">2026-09-08</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.3">Release page</a></div>
-        <p class="rel-sum">Two small repairs on the update itself, found the same night 0.9.2 went out.</p>
+        <p class="rel-sum">Two small fixes to updating.</p>
         <div class="kind">
           <h3>Fixed</h3>
           <ul>
-            <li>The bar that announces a new version said the word version twice.</li>
-            <li>The check that runs on its own fifteen seconds after a window opens could land in the middle of a download and swap the version being installed. It now waits for the install to finish.</li>
+            <li>The new version bar repeated a word.</li>
+            <li>An automatic check could interrupt an update that was already downloading.</li>
           </ul>
         </div>
       </article>
       <article class="rel" id="v0.9.2">
         <div class="rel-head"><h2>0.9.2</h2><span class="rel-date"><time datetime="2026-09-08">2026-09-08</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.2">Release page</a></div>
-        <p class="rel-sum">Updates from inside the app, an existing recording turned into text, and the crash that left nothing behind.</p>
+        <p class="rel-sum">Updates from inside the app, recordings turned into text, and a window that keeps your words when a paste cannot land.</p>
         <div class="kind">
           <h3>New</h3>
           <ul>
-            <li>The app asks fuckyouflow.app once at every start and shows a bar when a newer version is out. Nothing is downloaded until you press the button on it.</li>
-            <li>A recording you already have can be turned into text: Home, Sound file to text. Up to 90 minutes, cut into pieces at the quiet parts.</li>
-            <li>When a dictation cannot reach the program you were in, a small window opens with the words, so nothing is lost. It has a switch at the bottom to turn it off, and the same switch lives in Settings, Insertion.</li>
-            <li>A graphics card that was left switched off is switched on by itself when the app finds one with a working Vulkan runtime.</li>
+            <li>The app checks for a newer version at each start. Nothing downloads until you press the button.</li>
+            <li>Turn a recording you already have into text: Home, Sound file to text, up to 90 minutes.</li>
+            <li>When a dictation cannot reach the program you were in, a small window shows the words. You can switch it off in Settings, Insertion.</li>
+            <li>A graphics card left switched off is turned on when it can be used.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Improved</h3>
+          <ul>
+            <li>Speech models move to your data folder on the first run, which keeps updates near 70 MB. They stay when you uninstall.</li>
+            <li>Crashes are written to the logs, so they can be looked into.</li>
           </ul>
         </div>
         <div class="kind">
           <h3>Fixed</h3>
           <ul>
-            <li>The app could die on the spot while reading the clipboard, leaving no message anywhere. It looked for the end of the text as far as 50 million characters ahead, so text placed by another program without a closing marker sent the read past the end of the memory block. It now reads only as far as the block goes.</li>
-            <li>The Windows startup entry named whatever copy of the program was running the last time the settings were saved. It is now written at every start.</li>
-            <li>The small window with the words had no permission to talk to the app, so its buttons did nothing.</li>
-            <li>That same window was painted dark whatever theme you had chosen.</li>
-            <li>The Settings page threw away what you were typing if the app changed a setting at the same moment.</li>
-            <li>A crash used to leave nothing behind. Panics are written straight to logs\panic.log, and a normal exit writes its own line, so the two can be told apart afterwards.</li>
-          </ul>
-        </div>
-        <div class="kind">
-          <h3>Changed</h3>
-          <ul>
-            <li>The installer carries its files uncompressed. The download is 1.7 GB and the install writes the files straight out.</li>
-            <li>The speech models move to your own data folder the first time the app runs. That is what makes a 70 MB update possible, and they stay there when you uninstall.</li>
+            <li>A rare crash while reading the clipboard.</li>
+            <li>Smaller fixes: the note window's buttons and theme, the Windows startup entry, and the Settings page keeping what you type.</li>
           </ul>
         </div>
       </article>
       <article class="rel" id="v0.9.1">
         <div class="rel-head"><h2>0.9.1</h2><span class="rel-date"><time datetime="2026-09-06">2026-09-06</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.1">Release page</a></div>
-        <p class="rel-sum">A paste that goes nowhere is reported as one, and the interface stops being Greek on the inside.</p>
+        <p class="rel-sum">Clear reporting when a paste goes nowhere, and an interface that follows your language everywhere.</p>
         <div class="kind">
           <h3>New</h3>
           <ul>
-            <li>A fresh install reads the language Windows is set to, once, before there are any settings to overwrite. Both the interface language and the dictation language stay changeable under Settings, Language.</li>
-            <li>Settings, Speech models says which device the engine is running on right now and splits its settings into what works the graphics card and what works the processor.</li>
-            <li>An event journal is written next to the logs, one line per event, seven days kept. It records what happened and what failed, and never the text you dictate.</li>
+            <li>A new install picks up the language of Windows. Both the interface and the dictation language can be changed in Settings, Language.</li>
+            <li>Settings, Speech models shows which device the engine runs on.</li>
+            <li>An event log keeps seven days of what happened and what failed. It never holds the text you dictate.</li>
           </ul>
         </div>
         <div class="kind">
           <h3>Fixed</h3>
           <ul>
-            <li>The desktop and the taskbar read the clipboard when they receive Ctrl+V, so a transcript sent there looked like a success in every signal the app had while you saw nothing arrive. The app now stops before the keystroke, leaves the text on the clipboard and says which window was in front.</li>
-            <li>The model descriptions were written in Greek inside the code, so an English interface still showed Greek text, and an unread settings file fell back to Greek.</li>
+            <li>A dictation aimed at the desktop or the taskbar is reported: the text stays on the clipboard and the app says which window was in front.</li>
+            <li>Model descriptions follow the interface language.</li>
           </ul>
         </div>
       </article>
       <article class="rel" id="v0.9.0">
         <div class="rel-head"><h2>0.9.0</h2><span class="rel-date"><time datetime="2026-09-06">2026-09-06</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.0">Release page</a></div>
-        <p class="rel-sum">The first public release: one key, both languages, everything on your own machine.</p>
+        <p class="rel-sum">The first public release: one key, two languages in one sentence, everything on your own computer.</p>
         <div class="kind">
           <h3>New</h3>
           <ul>
-            <li>Hold the right Alt, speak, press it again. The text lands where your cursor is, in any program. Greek and English, mixed in the same sentence.</li>
-            <li>The installer carries everything: the speech engine built with the Vulkan backend, which accelerates on AMD, Intel and NVIDIA cards alike, both speech models and the voice activity detector. Nothing is downloaded later.</li>
-            <li>The first start reads the machine and picks the backend, the model that fits the graphics memory and the thread count that fits the processor.</li>
+            <li>Hold the right Alt, speak, press it again. The text appears where your cursor is, in any program, and two languages can share one sentence.</li>
+            <li>The installer includes everything, with graphics acceleration on AMD, Intel and NVIDIA cards. Nothing downloads later.</li>
+            <li>The first start looks at your computer and picks the model and settings that fit.</li>
           </ul>
         </div>
       </article>

@@ -5,7 +5,7 @@ Update these facts together when publishing a release.
 """
 BASE = "https://fuckyouflow.app"
 REPO = "https://github.com/Breakzoras/fuck-you-flow"
-VERSION = "0.9.11"
+VERSION = "0.9.12"
 SIZE_BYTES = 1729716694
 SIZE = "1.7 GB"
 SIZE_EL = "1,7 GB"
