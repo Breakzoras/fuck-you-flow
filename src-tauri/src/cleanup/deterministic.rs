@@ -193,9 +193,13 @@ fn remove_fillers(text: &str, intensity: &CleanupIntensity) -> String {
     static ORPHAN_COMMA: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*,\s*,+").unwrap());
     static LEADING_COMMA: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?:\s*[,;:.!?])+\s*").unwrap());
     static COMMA_BEFORE_END: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*,\s*([.!?;])").unwrap());
+    // a filler that opened a sentence ("… changelog. Ε, what") leaves its
+    // comma right after the full stop
+    static COMMA_AFTER_END: Lazy<Regex> = Lazy::new(|| Regex::new(r"([.!?;])\s*,\s*").unwrap());
     t = super::replace_all_or_keep(&ORPHAN_COMMA, &t, ",").to_string();
     t = super::replace_all_or_keep(&LEADING_COMMA, &t, "").to_string();
     t = super::replace_all_or_keep(&COMMA_BEFORE_END, &t, "$1").to_string();
+    t = super::replace_all_or_keep(&COMMA_AFTER_END, &t, "$1 ").to_string();
     t
 }
 
@@ -305,6 +309,17 @@ mod tests {
         assert_eq!(r.text, "Θέλω να πάω, στο σπίτι.");
         let r = clean("um I think uh we should go", &opts(CleanupIntensity::Normal));
         assert_eq!(r.text, "I think we should go.");
+    }
+
+    /// 26 September 2026: "…changelog. Ε, what the fuck" came out as
+    /// "…changelog., what the fuck": the filler went, its comma stayed.
+    #[test]
+    fn a_filler_that_opens_a_sentence_takes_its_comma_along() {
+        let r = clean("Διόρθωσέ το changelog. Ε, what the fuck, ρε φίλε", &opts(CleanupIntensity::Normal));
+        assert!(!r.text.contains(".,"), "{}", r.text);
+        assert!(r.text.contains("changelog. "), "{}", r.text);
+        let r = clean("Πάμε. Εμ, τώρα λοιπόν", &opts(CleanupIntensity::Normal));
+        assert!(!r.text.contains(".,"), "{}", r.text);
     }
 
     #[test]
