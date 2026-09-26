@@ -27,6 +27,11 @@ STAGE = os.path.join(ROOT, "src-tauri", "bundled")
 # build is 1.1 GB and only helps NVIDIA, so it stays out of the installer and
 # the developer checkout keeps it for comparison.
 ENGINE = ["whisper-server.exe", "whisper.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll", "ggml-vulkan.dll"]
+# Linux: one statically linked whisper-server with the Vulkan backend inside,
+# built from the same patched whisper.cpp tree. FYF_ENGINE_DIR points at it.
+IS_LINUX = sys.platform.startswith("linux")
+if IS_LINUX:
+    ENGINE = ["whisper-server"]
 MODELS = ["ggml-large-v3-q5_0.bin", "ggml-large-v3-turbo-q5_0.bin", "ggml-silero-v5.1.2.bin"]
 
 
@@ -55,7 +60,8 @@ def link(src, dst):
 def main():
     slim = "--slim" in sys.argv
     total = 0
-    parts = [("engine-vulkan", ENGINE, os.path.join(ROOT, "vendor", "whisper-vulkan"))]
+    engine_src = os.environ.get("FYF_ENGINE_DIR") or os.path.join(ROOT, "vendor", "whisper-linux" if IS_LINUX else "whisper-vulkan")
+    parts = [("engine-vulkan", ENGINE, engine_src)]
     if slim:
         # Leave nothing behind from a previous full staging, or the glob would
         # ship the models anyway.

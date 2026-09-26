@@ -91,7 +91,27 @@
     "resources": [
       "bundled/**/*"
     ],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "linux": {
+      "deb": {
+        "depends": [
+          "libasound2t64 | libasound2",
+          "libvulkan1",
+          "libgomp1",
+          "libayatana-appindicator3-1",
+          "libxdo3"
+        ],
+        "files": {
+          "/etc/udev/rules.d/70-fuckyouflow.rules": "linux/70-fuckyouflow.rules",
+          "/etc/modules-load.d/fuckyouflow.conf": "linux/fuckyouflow-modules.conf"
+        },
+        "postInstallScript": "linux/postinst.sh",
+        "postRemoveScript": "linux/postrm.sh"
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
   },
   "plugins": {
     "updater": {

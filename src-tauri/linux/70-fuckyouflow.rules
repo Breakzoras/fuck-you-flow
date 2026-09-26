@@ -1,0 +1,7 @@
+# Fuck You Flow: lets the person sitting at this computer (the active local
+# session, through systemd-logind's "uaccess") read the keyboards for the
+# dictation shortcut and use a virtual keyboard to press Ctrl+V.
+# Removing this file and rebooting takes the access away again.
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_KEYBOARD}=="1", TAG+="uaccess"
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_MOUSE}=="1", TAG+="uaccess"

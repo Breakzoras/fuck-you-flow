@@ -66,9 +66,20 @@ pub fn detect() -> MachineProfile {
         gpus: gpus(),
         logical_cores: std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4),
         ram_mb: ram_mb(),
-        vulkan_runtime: system32("vulkan-1.dll"),
-        cuda_driver: system32("nvcuda.dll"),
+        vulkan_runtime: driver_library("vulkan-1.dll", "libvulkan.so.1"),
+        cuda_driver: driver_library("nvcuda.dll", "libcuda.so.1"),
     }
+}
+
+/// Whether the graphics driver installed its library: in System32 on Windows,
+/// in the usual library folders on Linux.
+fn driver_library(windows_dll: &str, linux_so: &str) -> bool {
+    if cfg!(windows) {
+        return system32(windows_dll);
+    }
+    ["/usr/lib/x86_64-linux-gnu", "/usr/lib64", "/usr/lib", "/lib/x86_64-linux-gnu", "/usr/lib/wsl/lib"]
+        .iter()
+        .any(|d| std::path::Path::new(d).join(linux_so).exists())
 }
 
 fn system32(dll: &str) -> bool {
@@ -90,7 +101,13 @@ fn ram_mb() -> u64 {
 
 #[cfg(not(windows))]
 fn ram_mb() -> u64 {
-    0
+    // "MemTotal:       32693504 kB"
+    std::fs::read_to_string("/proc/meminfo")
+        .ok()
+        .and_then(|t| t.lines().find(|l| l.starts_with("MemTotal:")).map(|l| l.to_string()))
+        .and_then(|l| l.split_whitespace().nth(1).and_then(|n| n.parse::<u64>().ok()))
+        .map(|kb| kb / 1024)
+        .unwrap_or(0)
 }
 
 /// Every real display adapter, through DXGI (no driver-specific code).
@@ -123,9 +140,69 @@ fn gpus() -> Vec<GpuInfo> {
     out
 }
 
+/// Linux: every display card the kernel lists under /sys/class/drm. Virtual
+/// cards (VirtualBox, VMware, QEMU) are skipped, as DXGI's software adapter is
+/// on Windows. Memory comes from nvidia-smi on NVIDIA and from the amdgpu
+/// driver's own counter on AMD; integrated Intel graphics report none.
 #[cfg(not(windows))]
 fn gpus() -> Vec<GpuInfo> {
-    Vec::new()
+    let mut out = Vec::new();
+    let nvidia = nvidia_smi_cards();
+    let Ok(entries) = std::fs::read_dir("/sys/class/drm") else { return out };
+    let mut seen = std::collections::HashSet::new();
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        // card0, card1 (skip the card0-HDMI-A-1 style connector entries)
+        if !name.starts_with("card") || name.contains('-') {
+            continue;
+        }
+        let dev = e.path().join("device");
+        let Ok(real) = std::fs::canonicalize(&dev) else { continue };
+        if !seen.insert(real.clone()) {
+            continue;
+        }
+        let read = |f: &str| std::fs::read_to_string(dev.join(f)).map(|s| s.trim().to_string()).unwrap_or_default();
+        let vendor_id = read("vendor");
+        let vendor = match vendor_id.as_str() {
+            "0x10de" => "nvidia",
+            "0x1002" | "0x1022" => "amd",
+            "0x8086" => "intel",
+            // VirtualBox, VMware, QEMU/bochs, virtio, Red Hat QXL
+            "0x80ee" | "0x15ad" | "0x1234" | "0x1af4" | "0x1b36" => continue,
+            _ => "other",
+        };
+        let (name, vram_mb) = match vendor {
+            "nvidia" => nvidia.first().cloned().unwrap_or_else(|| ("NVIDIA graphics card".into(), 0)),
+            "amd" => {
+                let bytes: u64 = read("mem_info_vram_total").parse().unwrap_or(0);
+                ("AMD graphics card".into(), bytes / (1024 * 1024))
+            }
+            "intel" => ("Intel graphics".into(), 0),
+            _ => (format!("Graphics card {vendor_id}"), 0),
+        };
+        out.push(GpuInfo { name, vendor: vendor.into(), vram_mb });
+    }
+    out
+}
+
+/// Name and memory of each NVIDIA card, from the driver's own tool.
+#[cfg(not(windows))]
+fn nvidia_smi_cards() -> Vec<(String, u64)> {
+    let Ok(o) = std::process::Command::new("nvidia-smi")
+        .args(["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"])
+        .output()
+    else {
+        return Vec::new();
+    };
+    String::from_utf8_lossy(&o.stdout)
+        .lines()
+        .filter_map(|l| {
+            let mut it = l.split(',');
+            let name = it.next()?.trim().to_string();
+            let mb = it.next()?.trim().parse::<u64>().ok()?;
+            Some((name, mb))
+        })
+        .collect()
 }
 
 /// How full the card is at this moment, as opposed to how big it is. A card

@@ -57,8 +57,31 @@ const SENSITIVE_PROCESSES: &[&str] = &[
     "enpass.exe", "authy.exe", "consent.exe", "logonui.exe", "credentialuihost.exe", "lockapp.exe",
 ];
 
+/// Linux process names carry no ".exe" and some differ outright, so they are
+/// turned into the Windows names the tables below know. Without this the
+/// password-manager check never matched on Linux and failed open.
+fn windows_name(p: &str) -> String {
+    if p.is_empty() || p.ends_with(".exe") {
+        return p.to_string();
+    }
+    let mapped = match p {
+        "gnome-terminal-server" | "gnome-terminal" | "konsole" | "xterm" | "uxterm" | "kitty" | "tilix" | "xfce4-terminal"
+        | "terminator" | "foot" | "ptyxis" | "mate-terminal" | "lxterminal" | "qterminal" | "alacritty" | "wezterm-gui"
+        | "kgx" | "gnome-console" => "wt.exe",
+        "firefox-bin" | "firefox-esr" | "firefox" => "firefox.exe",
+        "chrome" | "chromium" | "chromium-browser" | "google-chrome" => "chrome.exe",
+        "brave" | "brave-browser" => "brave.exe",
+        "telegram-desktop" => "telegram.exe",
+        "signal-desktop" => "signal.exe",
+        "gedit" | "gnome-text-editor" | "kate" | "kwrite" | "mousepad" | "xed" | "pluma" | "soffice.bin" => "notepad.exe",
+        "1password" => "1password.exe",
+        _ => return format!("{p}.exe"),
+    };
+    mapped.to_string()
+}
+
 fn classify_process(proc_name: &str, title: &str) -> (AppCategory, &'static str) {
-    let p = proc_name.to_ascii_lowercase();
+    let p = windows_name(&proc_name.to_ascii_lowercase());
     let t = title.to_ascii_lowercase();
     if SENSITIVE_PROCESSES.iter().any(|s| p == *s) {
         return (AppCategory::Sensitive, "Sensitive application");
@@ -194,6 +217,18 @@ pub mod uia {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// On Linux the process is "keepassxc", never "keepassxc.exe"; the
+    /// password-manager refusal has to fire for both.
+    #[test]
+    fn linux_process_names_hit_the_same_tables() {
+        assert_eq!(classify_process("keepassxc", "").0, AppCategory::Sensitive);
+        assert_eq!(classify_process("KeePassXC.exe", "").0, AppCategory::Sensitive);
+        assert_eq!(classify_process("bitwarden", "").0, AppCategory::Sensitive);
+        assert_eq!(classify_process("gnome-terminal-server", "").0, AppCategory::Terminal);
+        assert_eq!(classify_process("firefox-bin", "Gmail").0, AppCategory::Email);
+        assert_eq!(classify_process("", "").0, AppCategory::Unknown);
+    }
 
     #[test]
     fn classifies_known_apps() {
