@@ -1195,7 +1195,23 @@ pub async fn install_update(app: tauri::AppHandle) -> R<()> {
         INSTALLING.store(false, std::sync::atomic::Ordering::Relaxed);
         return Err(e(err));
     }
-    Ok(())
+    // On Windows the installer has ended this process by now. On Linux the new
+    // AppImage or .deb is already in place and nothing else will start it, so
+    // the app starts itself again; `restart` finds an AppImage through
+    // $APPIMAGE. Measured on 26 September 2026: without this, Update now
+    // replaced the file and left the old version running with its tray icon
+    // already gone.
+    #[cfg(not(target_os = "windows"))]
+    {
+        let engine = app.state::<Arc<AppState>>().shared.engine.clone();
+        engine.stop().await;
+        tracing::info!("update {version} installed, starting the new version");
+        app.restart()
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Ok(())
+    }
 }
 
 // ----- the pill: dragging it and docking it -----
