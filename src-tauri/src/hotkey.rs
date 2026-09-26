@@ -461,6 +461,191 @@ fn refresh_active(bindings: &mut [Binding], down: &HashSet<u16>) {
     }
 }
 
+/// The part both hooks share: remember what is held, decide which chords
+/// just went down or up, and say whether this press belongs to one of them
+/// and must not reach the rest of Windows.
+///
+/// The keyboard and the mouse arrive through two different Windows hooks
+/// that have nothing in common, so the mouse buttons used to be invisible
+/// to the whole program. They now meet here, which is why a side button can
+/// hold a shortcut exactly like a key.
+fn dispatch_key(vk: u16, is_down: bool) -> bool {
+    let is_up = !is_down;
+    // Shortcut recorder in settings: report raw keys, swallow nothing.
+    if SUSPENDED.load(Ordering::Relaxed) {
+        if let Ok(mut st) = STATE.try_lock() {
+            if is_down {
+                st.down.insert(vk);
+            } else {
+                st.down.remove(&vk);
+            }
+            let snapshot: Vec<u16> = st.down.iter().copied().collect();
+            if let Some(tx) = RECORD_SENDER.lock().unwrap().as_ref() {
+                if is_down {
+                    let _ = tx.send(snapshot);
+                }
+            }
+        }
+        // The settings screen is a web page and XBUTTON1 is the browser's
+        // back button, so letting it through while the user is recording a
+        // shortcut would navigate the page away under them. Keys are left
+        // alone: they carry no such meaning here.
+        return matches!(vk, VK_XBUTTON1 | VK_XBUTTON2);
+    }
+
+    if vk == VK_ESCAPE && is_down && CAPTURE_ESCAPE.load(Ordering::Relaxed) {
+        if let Ok(st) = STATE.try_lock() {
+            if let Some(tx) = &st.sender {
+                let _ = tx.send(HotkeyEvent::Escape);
+            }
+        }
+        return true;
+    }
+    if vk == VK_ESCAPE && is_up && CAPTURE_ESCAPE.load(Ordering::Relaxed) {
+        return true;
+    }
+
+    let mut swallow = false;
+    let lock_wait = std::time::Instant::now();
+    // The pipeline takes this lock for microseconds when a recording stops,
+    // which is exactly when the stop key is released. Dropping that key-up
+    // left the chord "held" and swallowed the next press, so wait briefly.
+    let mut st = loop {
+        match STATE.try_lock() {
+            Ok(g) => break g,
+            Err(std::sync::TryLockError::WouldBlock) => {}
+            Err(_) => return false,
+        }
+        if lock_wait.elapsed() > Duration::from_millis(3) {
+            return false;
+        }
+        std::thread::yield_now();
+    };
+
+    let mut was_down = st.down.contains(&vk);
+    if is_down {
+        if was_down {
+            let stale = st.last_down.get(&vk).map(|t| t.elapsed() > Duration::from_millis(350)).unwrap_or(true);
+            if !stale {
+                // auto-repeat: state unchanged, but keep swallowing a chord's main key
+                st.last_down.insert(vk, std::time::Instant::now());
+                let repeat_main = st.bindings.iter().any(|b| b.active && b.chord.main_key() == Some(vk));
+                drop(st);
+                return repeat_main;
+            }
+            // A "repeat" after a long silence is a fresh press whose earlier
+            // release never reached us. Apply the missed release first.
+            st.down.remove(&vk);
+            let snapshot = st.down.clone();
+            let mut released = Vec::new();
+            for b in st.bindings.iter_mut() {
+                if b.active && !b.chord.is_down(&snapshot) {
+                    b.active = false;
+                    released.push(b.id);
+                }
+            }
+            if let Some(tx) = &st.sender {
+                for id in released {
+                    let _ = tx.send(HotkeyEvent::Released(id));
+                }
+            }
+            was_down = false;
+        }
+        st.down.insert(vk);
+        st.last_down.insert(vk, std::time::Instant::now());
+    } else {
+        st.down.remove(&vk);
+        st.last_down.remove(&vk);
+    }
+    let _ = was_down;
+
+    let is_win = vk == VK_LWIN || vk == VK_RWIN;
+    // A character key going down. Mouse side buttons count as characters
+    // here: clicking one while the dictation modifier is held is not
+    // speech either.
+    let typed = is_down && !is_modifier_vk(vk) && vk != VK_ESCAPE;
+    let mut fired: Vec<HotkeyEvent> = Vec::new();
+    let mut any_pressed = false;
+    let mut mask_pending = false;
+    let mut alt_fired = false;
+    let down_snapshot = st.down.clone();
+    for b in st.bindings.iter_mut() {
+        let now = b.chord.is_down(&down_snapshot);
+        if now && !b.active {
+            b.active = true;
+            b.cancelled = false;
+            b.since = Some(std::time::Instant::now());
+            any_pressed = true;
+            fired.push(HotkeyEvent::Pressed(b.id));
+            if b.chord.main_key() == Some(vk) {
+                swallow = true;
+            }
+            if b.chord.contains_win() {
+                mask_pending = true;
+            }
+            if b.chord.contains_alt() {
+                alt_fired = true;
+            }
+        } else if !now && b.active {
+            b.active = false;
+            b.cancelled = false;
+            b.since = None;
+            fired.push(HotkeyEvent::Released(b.id));
+            if b.chord.main_key() == Some(vk) {
+                swallow = true;
+            }
+        }
+    }
+    // Typing, decided only after every shortcut has had its say. A key that
+    // completes another shortcut is not typing: holding the right Alt and
+    // adding Space is how hands free mode starts, and treating that Space
+    // as a letter would throw the recording away at the very moment the
+    // user asked for more of it.
+    if typed && !any_pressed {
+        for b in st.bindings.iter_mut() {
+            let fresh = b.since.map(|t| t.elapsed() < TYPING_WINDOW).unwrap_or(false);
+            if b.active && fresh && !b.cancelled && b.chord.is_all_modifiers() {
+                b.cancelled = true;
+                fired.push(HotkeyEvent::Cancelled(b.id));
+            }
+        }
+    }
+    if mask_pending {
+        st.win_mask_pending = true;
+    }
+    if is_win && is_up && st.win_mask_pending {
+        st.win_mask_pending = false;
+        send_mask_key();
+    }
+    // An Alt shortcut gets the mask key twice: once while the Alt is held
+    // and once when it comes up. A key injected from inside this callback
+    // can reach the window either side of the key being handled, and one
+    // of the two always lands between the Alt going down and coming up, so
+    // no window sees an Alt pressed on its own.
+    let is_alt = matches!(vk, VK_LMENU | VK_RMENU | VK_MENU);
+    if alt_fired {
+        st.alt_mask_pending = true;
+        send_mask_key();
+    } else if is_alt && is_up && st.alt_mask_pending {
+        st.alt_mask_pending = false;
+        send_mask_key();
+    }
+    if let Some(tx) = &st.sender {
+        for ev in fired {
+            let _ = tx.send(ev);
+        }
+    }
+    drop(st);
+    swallow
+}
+
+/// The neutral key that stops Windows from treating a lone Win or Alt as a
+/// trip to the Start menu or a menu bar. Linux has no such habit.
+fn send_mask_key() {
+    #[cfg(windows)]
+    win::send_mask_key_win();
+}
+
 #[cfg(windows)]
 mod win {
     use super::*;
@@ -477,7 +662,7 @@ mod win {
 
     pub const SWALLOW: LRESULT = LRESULT(1);
 
-    fn send_mask_key() {
+    pub(super) fn send_mask_key_win() {
         // Neutral key down+up. Windows sees "another key was pressed while Win
         // was held" and does not open the Start menu on Win release.
         let mk = |flags: KEYBD_EVENT_FLAGS| INPUT {
@@ -560,183 +745,6 @@ mod win {
         }
     }
 
-    /// The part both hooks share: remember what is held, decide which chords
-    /// just went down or up, and say whether this press belongs to one of them
-    /// and must not reach the rest of Windows.
-    ///
-    /// The keyboard and the mouse arrive through two different Windows hooks
-    /// that have nothing in common, so the mouse buttons used to be invisible
-    /// to the whole program. They now meet here, which is why a side button can
-    /// hold a shortcut exactly like a key.
-    fn dispatch_key(vk: u16, is_down: bool) -> bool {
-        let is_up = !is_down;
-        // Shortcut recorder in settings: report raw keys, swallow nothing.
-        if SUSPENDED.load(Ordering::Relaxed) {
-            if let Ok(mut st) = STATE.try_lock() {
-                if is_down {
-                    st.down.insert(vk);
-                } else {
-                    st.down.remove(&vk);
-                }
-                let snapshot: Vec<u16> = st.down.iter().copied().collect();
-                if let Some(tx) = RECORD_SENDER.lock().unwrap().as_ref() {
-                    if is_down {
-                        let _ = tx.send(snapshot);
-                    }
-                }
-            }
-            // The settings screen is a web page and XBUTTON1 is the browser's
-            // back button, so letting it through while the user is recording a
-            // shortcut would navigate the page away under them. Keys are left
-            // alone: they carry no such meaning here.
-            return matches!(vk, VK_XBUTTON1 | VK_XBUTTON2);
-        }
-
-        if vk == VK_ESCAPE && is_down && CAPTURE_ESCAPE.load(Ordering::Relaxed) {
-            if let Ok(st) = STATE.try_lock() {
-                if let Some(tx) = &st.sender {
-                    let _ = tx.send(HotkeyEvent::Escape);
-                }
-            }
-            return true;
-        }
-        if vk == VK_ESCAPE && is_up && CAPTURE_ESCAPE.load(Ordering::Relaxed) {
-            return true;
-        }
-
-        let mut swallow = false;
-        let lock_wait = std::time::Instant::now();
-        // The pipeline takes this lock for microseconds when a recording stops,
-        // which is exactly when the stop key is released. Dropping that key-up
-        // left the chord "held" and swallowed the next press, so wait briefly.
-        let mut st = loop {
-            match STATE.try_lock() {
-                Ok(g) => break g,
-                Err(std::sync::TryLockError::WouldBlock) => {}
-                Err(_) => return false,
-            }
-            if lock_wait.elapsed() > Duration::from_millis(3) {
-                return false;
-            }
-            std::thread::yield_now();
-        };
-
-        let mut was_down = st.down.contains(&vk);
-        if is_down {
-            if was_down {
-                let stale = st.last_down.get(&vk).map(|t| t.elapsed() > Duration::from_millis(350)).unwrap_or(true);
-                if !stale {
-                    // auto-repeat: state unchanged, but keep swallowing a chord's main key
-                    st.last_down.insert(vk, std::time::Instant::now());
-                    let repeat_main = st.bindings.iter().any(|b| b.active && b.chord.main_key() == Some(vk));
-                    drop(st);
-                    return repeat_main;
-                }
-                // A "repeat" after a long silence is a fresh press whose earlier
-                // release never reached us. Apply the missed release first.
-                st.down.remove(&vk);
-                let snapshot = st.down.clone();
-                let mut released = Vec::new();
-                for b in st.bindings.iter_mut() {
-                    if b.active && !b.chord.is_down(&snapshot) {
-                        b.active = false;
-                        released.push(b.id);
-                    }
-                }
-                if let Some(tx) = &st.sender {
-                    for id in released {
-                        let _ = tx.send(HotkeyEvent::Released(id));
-                    }
-                }
-                was_down = false;
-            }
-            st.down.insert(vk);
-            st.last_down.insert(vk, std::time::Instant::now());
-        } else {
-            st.down.remove(&vk);
-            st.last_down.remove(&vk);
-        }
-        let _ = was_down;
-
-        let is_win = vk == VK_LWIN || vk == VK_RWIN;
-        // A character key going down. Mouse side buttons count as characters
-        // here: clicking one while the dictation modifier is held is not
-        // speech either.
-        let typed = is_down && !is_modifier_vk(vk) && vk != VK_ESCAPE;
-        let mut fired: Vec<HotkeyEvent> = Vec::new();
-        let mut any_pressed = false;
-        let mut mask_pending = false;
-        let mut alt_fired = false;
-        let down_snapshot = st.down.clone();
-        for b in st.bindings.iter_mut() {
-            let now = b.chord.is_down(&down_snapshot);
-            if now && !b.active {
-                b.active = true;
-                b.cancelled = false;
-                b.since = Some(std::time::Instant::now());
-                any_pressed = true;
-                fired.push(HotkeyEvent::Pressed(b.id));
-                if b.chord.main_key() == Some(vk) {
-                    swallow = true;
-                }
-                if b.chord.contains_win() {
-                    mask_pending = true;
-                }
-                if b.chord.contains_alt() {
-                    alt_fired = true;
-                }
-            } else if !now && b.active {
-                b.active = false;
-                b.cancelled = false;
-                b.since = None;
-                fired.push(HotkeyEvent::Released(b.id));
-                if b.chord.main_key() == Some(vk) {
-                    swallow = true;
-                }
-            }
-        }
-        // Typing, decided only after every shortcut has had its say. A key that
-        // completes another shortcut is not typing: holding the right Alt and
-        // adding Space is how hands free mode starts, and treating that Space
-        // as a letter would throw the recording away at the very moment the
-        // user asked for more of it.
-        if typed && !any_pressed {
-            for b in st.bindings.iter_mut() {
-                let fresh = b.since.map(|t| t.elapsed() < TYPING_WINDOW).unwrap_or(false);
-                if b.active && fresh && !b.cancelled && b.chord.is_all_modifiers() {
-                    b.cancelled = true;
-                    fired.push(HotkeyEvent::Cancelled(b.id));
-                }
-            }
-        }
-        if mask_pending {
-            st.win_mask_pending = true;
-        }
-        if is_win && is_up && st.win_mask_pending {
-            st.win_mask_pending = false;
-            send_mask_key();
-        }
-        // An Alt shortcut gets the mask key twice: once while the Alt is held
-        // and once when it comes up. A key injected from inside this callback
-        // can reach the window either side of the key being handled, and one
-        // of the two always lands between the Alt going down and coming up, so
-        // no window sees an Alt pressed on its own.
-        let is_alt = matches!(vk, VK_LMENU | VK_RMENU | VK_MENU);
-        if alt_fired {
-            st.alt_mask_pending = true;
-            send_mask_key();
-        } else if is_alt && is_up && st.alt_mask_pending {
-            st.alt_mask_pending = false;
-            send_mask_key();
-        }
-        if let Some(tx) = &st.sender {
-            for ev in fired {
-                let _ = tx.send(ev);
-            }
-        }
-        drop(st);
-        swallow
-    }
 
     pub fn run_hook_thread() {
         unsafe {
@@ -823,6 +831,161 @@ mod win {
     }
 }
 
+/// Linux: the key is read straight from the keyboard devices under
+/// /dev/input, below X11 and Wayland alike, so the shortcut works on both.
+/// Nothing is swallowed here; a bare Right Alt, Ctrl or Win does nothing in
+/// the other programs on the common layouts. The paste chord this program
+/// types comes from its own virtual keyboard, which is skipped by name.
+#[cfg(target_os = "linux")]
+pub mod linux {
+    use super::*;
+    use std::collections::HashSet as Set;
+    use std::path::PathBuf;
+
+    /// Name of the virtual keyboard the insertion code creates.
+    pub const OWN_DEVICE: &str = "Fuck You Flow virtual keyboard";
+
+    /// Linux key code (input-event-codes.h) to the Windows virtual key the
+    /// shortcut logic speaks.
+    pub fn vk_from_evdev(code: u16) -> Option<u16> {
+        Some(match code {
+            1 => VK_ESCAPE,
+            29 => VK_LCONTROL,
+            97 => VK_RCONTROL,
+            42 => VK_LSHIFT,
+            54 => VK_RSHIFT,
+            56 => VK_LMENU,
+            100 => VK_RMENU,
+            125 => VK_LWIN,
+            126 => VK_RWIN,
+            57 => VK_SPACE,
+            14 => VK_BACK,
+            15 => VK_TAB,
+            28 => VK_RETURN,
+            58 => VK_CAPITAL,
+            70 => VK_SCROLL,
+            119 => VK_PAUSE,
+            110 => VK_INSERT,
+            102 => VK_HOME,
+            107 => VK_END,
+            104 => VK_PRIOR,
+            109 => VK_NEXT,
+            127 => VK_APPS,
+            275 => VK_XBUTTON1,
+            276 => VK_XBUTTON2,
+            // F1..F10, F11, F12, F13..F24
+            59..=68 => VK_F1 + (code - 59),
+            87 => VK_F1 + 10,
+            88 => VK_F1 + 11,
+            183..=194 => VK_F1 + 12 + (code - 183),
+            // digits 1..9, 0
+            2..=10 => b'1' as u16 + (code - 2),
+            11 => b'0' as u16,
+            // letters by row
+            16..=25 => b"QWERTYUIOP"[(code - 16) as usize] as u16,
+            30..=38 => b"ASDFGHJKL"[(code - 30) as usize] as u16,
+            44..=50 => b"ZXCVBNM"[(code - 44) as usize] as u16,
+            _ => return None,
+        })
+    }
+
+    /// Keyboards (they have the A key or Right Alt) and mice with side buttons.
+    fn wanted(dev: &evdev::Device) -> bool {
+        if dev.name().map(|n| n == OWN_DEVICE).unwrap_or(false) {
+            return false;
+        }
+        match dev.supported_keys() {
+            Some(keys) => {
+                keys.contains(evdev::KeyCode::KEY_A)
+                    || keys.contains(evdev::KeyCode::KEY_RIGHTALT)
+                    || keys.contains(evdev::KeyCode::BTN_SIDE)
+            }
+            None => false,
+        }
+    }
+
+    fn read_device(path: PathBuf, mut dev: evdev::Device) {
+        let name = dev.name().unwrap_or("?").to_string();
+        tracing::info!("hotkey: listening on {} ({})", path.display(), name);
+        loop {
+            match dev.fetch_events() {
+                Ok(events) => {
+                    for ev in events {
+                        if ev.event_type() != evdev::EventType::KEY {
+                            continue;
+                        }
+                        // 0 up, 1 down, 2 auto-repeat
+                        let is_down = match ev.value() {
+                            0 => false,
+                            1 | 2 => true,
+                            _ => continue,
+                        };
+                        if let Some(vk) = vk_from_evdev(ev.code()) {
+                            if matches!(vk, VK_LMENU | VK_RMENU | VK_LCONTROL | VK_RCONTROL | VK_LWIN | VK_RWIN) && ev.value() != 2 {
+                                tracing::debug!("key {} {}", vk_name(vk), if is_down { "down" } else { "up" });
+                            }
+                            dispatch_key(vk, is_down);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::info!("hotkey: {} went away ({e})", path.display());
+                    return;
+                }
+            }
+        }
+    }
+
+    /// Opens every keyboard it may read, and looks again every three seconds
+    /// for keyboards plugged in later. Reports once when it may read none.
+    pub fn run() {
+        let mut open: Set<PathBuf> = Set::new();
+        let mut warned = false;
+        loop {
+            let mut readable = 0usize;
+            let mut denied = 0usize;
+            if let Ok(entries) = std::fs::read_dir("/dev/input") {
+                for e in entries.flatten() {
+                    let path = e.path();
+                    let is_event = path.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with("event")).unwrap_or(false);
+                    if !is_event {
+                        continue;
+                    }
+                    if open.contains(&path) {
+                        readable += 1;
+                        continue;
+                    }
+                    match evdev::Device::open(&path) {
+                        Ok(dev) => {
+                            readable += 1;
+                            if wanted(&dev) {
+                                open.insert(path.clone());
+                                let p = path.clone();
+                                let _ = std::thread::Builder::new()
+                                    .name("fyf-evdev".into())
+                                    .spawn(move || read_device(p, dev));
+                            }
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => denied += 1,
+                        Err(_) => {}
+                    }
+                }
+            }
+            if readable == 0 && denied > 0 && !warned {
+                warned = true;
+                tracing::warn!(
+                    "hotkey: no permission to read the keyboard ({denied} devices refused). The installer's udev rule is missing; \
+                     run: sudo usermod -aG input $USER, then log out and back in"
+                );
+                crate::journal::warn("hotkey.no_permission", serde_json::json!({ "denied": denied }));
+            }
+            // A device thread that ended (unplugged) is tried again on the next pass.
+            open.retain(|p| p.exists());
+            std::thread::sleep(Duration::from_secs(3));
+        }
+    }
+}
+
 /// Install the hook on a dedicated thread. Events arrive on `tx`.
 pub fn install(tx: tokio::sync::mpsc::UnboundedSender<HotkeyEvent>) {
     STATE.lock().unwrap().sender = Some(tx);
@@ -832,6 +995,13 @@ pub fn install(tx: tokio::sync::mpsc::UnboundedSender<HotkeyEvent>) {
             .name("lalia-keyboard-hook".into())
             .spawn(win::run_hook_thread)
             .expect("spawn hook thread");
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::thread::Builder::new()
+            .name("fyf-evdev-scan".into())
+            .spawn(linux::run)
+            .expect("spawn evdev thread");
     }
 }
 

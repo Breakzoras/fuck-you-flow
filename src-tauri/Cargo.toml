@@ -49,6 +49,16 @@ async-trait = "0.1"
 # they can be turned into text without ffmpeg on the machine.
 symphonia = { version = "0.5", features = ["mp3", "aac", "isomp4", "alac", "flac", "ogg", "vorbis", "wav", "pcm", "adpcm", "mkv", "caf", "aiff"] }
 
+# Linux: the key is read from the keyboard device (evdev) and the paste chord is
+# typed through a virtual keyboard (uinput), so both work under X11 and Wayland.
+# The clipboard and the focused window go through X11 (the app runs as an X11
+# client, under XWayland on a Wayland desktop).
+[target.'cfg(target_os = "linux")'.dependencies]
+evdev = "0.13"
+arboard = "3"
+x11rb = "0.13"
+libc = "0.2"
+
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.62"
 features = [

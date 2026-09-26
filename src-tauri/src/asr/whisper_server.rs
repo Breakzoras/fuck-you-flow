@@ -132,6 +132,15 @@ impl WhisperServer {
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
         cmd.kill_on_drop(true);
+        // Linux has no job object: the kernel kills the engine when this
+        // program dies, so no whisper-server is left holding the card.
+        #[cfg(target_os = "linux")]
+        unsafe {
+            cmd.pre_exec(|| {
+                libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL);
+                Ok(())
+            });
+        }
 
         let mut child = cmd.spawn().map_err(|e| {
             self.set(EngineStatus::Failed, Some(format!("cannot start whisper-server: {e}")));
@@ -401,8 +410,11 @@ pub fn find_runtime_exe_for(backend: &str) -> Option<PathBuf> {
             cuda_dirs(&mut candidates);
         }
     }
-    candidates.into_iter().map(|d| d.join("whisper-server.exe")).find(|p| p.exists())
+    candidates.into_iter().map(|d| d.join(SERVER_EXE)).find(|p| p.exists())
 }
+
+/// The engine file name: whisper-server.exe on Windows, whisper-server elsewhere.
+pub const SERVER_EXE: &str = if cfg!(windows) { "whisper-server.exe" } else { "whisper-server" };
 
 pub fn dev_vendor_dir() -> PathBuf {
     // <repo>/src-tauri -> <repo>/vendor/whisper

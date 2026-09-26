@@ -353,6 +353,21 @@ mod tests {
 /// "en-GB", lowercased. Used once, on a fresh install, to choose the interface
 /// language and the dictation language. Falls back to "en" when Windows will
 /// not say.
+#[cfg(not(windows))]
+pub fn user_locale() -> String {
+    // LANG looks like "el_GR.UTF-8"; the app wants "el-gr".
+    for var in ["LC_ALL", "LC_MESSAGES", "LANG"] {
+        if let Ok(v) = std::env::var(var) {
+            let tag = v.split('.').next().unwrap_or("").replace('_', "-").to_lowercase();
+            if !tag.is_empty() && tag != "c" && tag != "posix" {
+                return tag;
+            }
+        }
+    }
+    "en".into()
+}
+
+#[cfg(windows)]
 pub fn user_locale() -> String {
     use windows::Win32::Globalization::GetUserDefaultLocaleName;
     let mut buf = [0u16; 85];

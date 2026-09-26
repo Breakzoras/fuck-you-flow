@@ -1412,7 +1412,260 @@ pub mod win {
 #[cfg(windows)]
 pub use win::{capture_target, copy_only, ensure_started, foreground_hwnd, paste, read_clipboard_string, restore_focus, type_text, window_alive};
 
-#[cfg(not(windows))]
+/// Linux. The paste chord is typed through a virtual keyboard (uinput), which
+/// sits below X11 and Wayland, so it reaches whatever window has focus on
+/// either. The words go on the X11 clipboard; on a Wayland desktop the app runs
+/// under XWayland and the desktop hands the clipboard across.
+///
+/// Linux gives no sign that a program took the words, so they always stay on
+/// the clipboard after pasting, one Ctrl+V away, exactly as 0.9.11 does for
+/// Chromium windows on Windows.
+#[cfg(target_os = "linux")]
+pub mod linux {
+    use super::*;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+
+    fn clipboard() -> &'static Mutex<Option<arboard::Clipboard>> {
+        static CB: OnceLock<Mutex<Option<arboard::Clipboard>>> = OnceLock::new();
+        CB.get_or_init(|| Mutex::new(None))
+    }
+
+    fn set_clipboard(text: &str) -> Result<(), String> {
+        let mut g = clipboard().lock().map_err(|_| "clipboard lock poisoned".to_string())?;
+        if g.is_none() {
+            *g = Some(arboard::Clipboard::new().map_err(|e| format!("clipboard: {e}"))?);
+        }
+        g.as_mut().unwrap().set_text(text.to_string()).map_err(|e| format!("clipboard: {e}"))
+    }
+
+    pub fn read_clipboard_string() -> Option<String> {
+        let mut g = clipboard().lock().ok()?;
+        if g.is_none() {
+            *g = arboard::Clipboard::new().ok();
+        }
+        g.as_mut()?.get_text().ok()
+    }
+
+    // ------------------------------------------------------------ keyboard
+    fn keyboard() -> &'static Mutex<Option<evdev::uinput::VirtualDevice>> {
+        static KB: OnceLock<Mutex<Option<evdev::uinput::VirtualDevice>>> = OnceLock::new();
+        KB.get_or_init(|| Mutex::new(None))
+    }
+
+    fn make_keyboard() -> std::io::Result<evdev::uinput::VirtualDevice> {
+        let mut keys = evdev::AttributeSet::<evdev::KeyCode>::new();
+        for k in [evdev::KeyCode::KEY_LEFTCTRL, evdev::KeyCode::KEY_LEFTSHIFT, evdev::KeyCode::KEY_V, evdev::KeyCode::KEY_INSERT] {
+            keys.insert(k);
+        }
+        evdev::uinput::VirtualDevice::builder()?
+            .name(crate::hotkey::linux::OWN_DEVICE)
+            .with_keys(&keys)?
+            .build()
+    }
+
+    /// Creates the virtual keyboard once. The desktop needs a moment to adopt a
+    /// new device, so it is made at start-up, long before the first paste.
+    pub fn ensure_started() {
+        let mut g = match keyboard().lock() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        if g.is_some() {
+            return;
+        }
+        match make_keyboard() {
+            Ok(d) => {
+                tracing::info!("insertion: virtual keyboard ready");
+                *g = Some(d);
+            }
+            Err(e) => {
+                tracing::warn!("insertion: no virtual keyboard ({e}); the words will stay on the clipboard for Ctrl+V. /dev/uinput needs the installer's udev rule");
+                crate::journal::warn("insertion.no_uinput", serde_json::json!({ "error": e.to_string() }));
+            }
+        }
+    }
+
+    fn send_chord(shift: bool) -> Result<(), String> {
+        use evdev::{EventType, InputEvent, KeyCode};
+        let mut g = keyboard().lock().map_err(|_| "keyboard lock poisoned".to_string())?;
+        if g.is_none() {
+            *g = Some(make_keyboard().map_err(|e| format!("no virtual keyboard: {e}"))?);
+            std::thread::sleep(Duration::from_millis(250));
+        }
+        let dev = g.as_mut().unwrap();
+        let key = |k: KeyCode, v: i32| InputEvent::new(EventType::KEY.0, k.code(), v);
+        let mut down = vec![key(KeyCode::KEY_LEFTCTRL, 1)];
+        if shift {
+            down.push(key(KeyCode::KEY_LEFTSHIFT, 1));
+        }
+        down.push(key(KeyCode::KEY_V, 1));
+        dev.emit(&down).map_err(|e| e.to_string())?;
+        std::thread::sleep(Duration::from_millis(20));
+        let mut up = vec![key(KeyCode::KEY_V, 0)];
+        if shift {
+            up.push(key(KeyCode::KEY_LEFTSHIFT, 0));
+        }
+        up.push(key(KeyCode::KEY_LEFTCTRL, 0));
+        dev.emit(&up).map_err(|e| e.to_string())
+    }
+
+    fn report(outcome: InsertOutcome, method: &str, message: Option<&str>, started: Instant) -> InsertReport {
+        InsertReport { outcome, method: method.into(), message: message.map(|m| m.to_string()), elapsed_ms: started.elapsed().as_millis() as u64 }
+    }
+
+    pub fn copy_only(text: &str) -> InsertReport {
+        let started = Instant::now();
+        match set_clipboard(text) {
+            Ok(()) => report(InsertOutcome::CopiedOnly, "copy", None, started),
+            Err(e) => {
+                tracing::error!("insertion: {e}");
+                report(InsertOutcome::Failed, "copy", Some(&e), started)
+            }
+        }
+    }
+
+    pub fn paste(text: &str, opts: &InsertOptions) -> InsertReport {
+        let started = Instant::now();
+        if let Err(e) = set_clipboard(text) {
+            tracing::error!("insertion: {e}");
+            return report(InsertOutcome::Failed, "paste", Some(&e), started);
+        }
+        // Let the clipboard settle and the hotkey's own release pass through.
+        std::thread::sleep(Duration::from_millis(opts.settle_ms.clamp(60, 400)));
+        match send_chord(opts.shift_paste) {
+            Ok(()) => {
+                tracing::info!(
+                    "paste: Ctrl+{}V typed through the virtual keyboard; the words stay on the clipboard",
+                    if opts.shift_paste { "Shift+" } else { "" }
+                );
+                std::thread::sleep(Duration::from_millis(80));
+                report(InsertOutcome::PastedNoRestore, "paste", None, started)
+            }
+            Err(e) => {
+                tracing::warn!("paste: could not type the chord ({e}); the words are on the clipboard");
+                report(InsertOutcome::CopiedOnly, "copy", Some("msg_not_taken"), started)
+            }
+        }
+    }
+
+    /// Typing key by key needs a keymap per layout; the paste path covers it.
+    pub fn type_text(text: &str) -> InsertReport {
+        paste(text, &InsertOptions { restore_clipboard: false, settle_ms: 80, shift_paste: false })
+    }
+
+    // ------------------------------------------------------------ windows
+    /// A Wayland session hides every native window from an X11 client, so
+    /// there the target is unknown and the chord goes to whatever has focus.
+    fn wayland_session() -> bool {
+        std::env::var_os("WAYLAND_DISPLAY").is_some()
+            || std::env::var("XDG_SESSION_TYPE").map(|v| v.eq_ignore_ascii_case("wayland")).unwrap_or(false)
+    }
+
+    fn x11() -> Option<(x11rb::rust_connection::RustConnection, u32)> {
+        use x11rb::connection::Connection;
+        let (conn, screen) = x11rb::connect(None).ok()?;
+        let root = conn.setup().roots.get(screen)?.root;
+        Some((conn, root))
+    }
+
+    fn atom(conn: &impl x11rb::connection::Connection, name: &str) -> Option<u32> {
+        use x11rb::protocol::xproto::ConnectionExt;
+        Some(conn.intern_atom(false, name.as_bytes()).ok()?.reply().ok()?.atom)
+    }
+
+    fn prop(conn: &impl x11rb::connection::Connection, win: u32, name: &str, ty: u32) -> Option<Vec<u8>> {
+        use x11rb::protocol::xproto::ConnectionExt;
+        let a = atom(conn, name)?;
+        let r = conn.get_property(false, win, a, ty, 0, 4096).ok()?.reply().ok()?;
+        if r.value.is_empty() {
+            None
+        } else {
+            Some(r.value)
+        }
+    }
+
+    fn active_window(conn: &impl x11rb::connection::Connection, root: u32) -> Option<u32> {
+        let v = prop(conn, root, "_NET_ACTIVE_WINDOW", u32::from(x11rb::protocol::xproto::AtomEnum::WINDOW))?;
+        let w = u32::from_ne_bytes(v.get(0..4)?.try_into().ok()?);
+        if w == 0 {
+            None
+        } else {
+            Some(w)
+        }
+    }
+
+    pub fn process_name(pid: u32) -> String {
+        std::fs::read_to_string(format!("/proc/{pid}/comm")).map(|s| s.trim().to_string()).unwrap_or_default()
+    }
+
+    pub fn capture_target() -> Target {
+        if wayland_session() {
+            return Target::default();
+        }
+        let Some((conn, root)) = x11() else { return Target::default() };
+        let Some(w) = active_window(&conn, root) else { return Target::default() };
+        let cardinal = u32::from(x11rb::protocol::xproto::AtomEnum::CARDINAL);
+        let pid = prop(&conn, w, "_NET_WM_PID", cardinal)
+            .and_then(|v| v.get(0..4).and_then(|b| b.try_into().ok()).map(u32::from_ne_bytes))
+            .unwrap_or(0);
+        let utf8 = atom(&conn, "UTF8_STRING").unwrap_or(0);
+        let title = prop(&conn, w, "_NET_WM_NAME", utf8).map(|v| String::from_utf8_lossy(&v).to_string()).unwrap_or_default();
+        Target {
+            hwnd: w as isize,
+            thread_id: 0,
+            process_id: pid,
+            process_name: if pid > 0 { process_name(pid) } else { String::new() },
+            title,
+            elevated: false,
+            is_password_field: false,
+        }
+    }
+
+    pub fn foreground_hwnd() -> isize {
+        if wayland_session() {
+            return 0;
+        }
+        x11().and_then(|(c, r)| active_window(&c, r)).map(|w| w as isize).unwrap_or(0)
+    }
+
+    pub fn window_alive(hwnd: isize) -> bool {
+        if hwnd == 0 {
+            return true;
+        }
+        use x11rb::protocol::xproto::ConnectionExt;
+        match x11() {
+            Some((c, _)) => c.get_window_attributes(hwnd as u32).ok().and_then(|r| r.reply().ok()).is_some(),
+            None => true,
+        }
+    }
+
+    /// Asks the window manager to bring the target back, then checks.
+    pub fn restore_focus(target: &Target) -> bool {
+        if target.hwnd == 0 {
+            return true;
+        }
+        use x11rb::connection::Connection;
+        use x11rb::protocol::xproto::{ClientMessageEvent, ConnectionExt, EventMask};
+        let Some((conn, root)) = x11() else { return false };
+        let Some(a) = atom(&conn, "_NET_ACTIVE_WINDOW") else { return false };
+        let ev = ClientMessageEvent::new(32, target.hwnd as u32, a, [2u32, 0, 0, 0, 0]);
+        let _ = conn.send_event(false, root, EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY, ev);
+        let _ = conn.flush();
+        for _ in 0..10 {
+            std::thread::sleep(Duration::from_millis(30));
+            if active_window(&conn, root) == Some(target.hwnd as u32) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub use linux::{capture_target, copy_only, ensure_started, foreground_hwnd, paste, read_clipboard_string, restore_focus, type_text, window_alive};
+
+#[cfg(not(any(windows, target_os = "linux")))]
 pub fn capture_target() -> Target {
     Target::default()
 }
