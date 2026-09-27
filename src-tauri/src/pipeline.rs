@@ -94,6 +94,23 @@ const SEGMENT_MIN_MS: usize = 2500;
 /// Without any pause this long, cut anyway at the quietest spot near the end,
 /// so the wait after the stop key never grows with a long breathless stretch.
 const SEGMENT_MAX_MS: usize = 12_000;
+/// The shortest stretch of speech the engine is ever given on its own. Measured
+/// on 27 September 2026 with Lu's own voice: the same last words came out as
+/// Italian-sounding nonsense from 1.0 and 1.5 seconds of audio and right from
+/// 2.5 seconds. A middle piece shorter than this waits for more speech; a last
+/// piece shorter than this is heard again together with the piece before it.
+const MIN_PIECE_MS: usize = 2500;
+
+/// Where the last request starts: a last piece too short to be heard on its
+/// own goes back to the start of the piece before it, so the engine hears it
+/// with real speech around it.
+fn last_request_start(cut: usize, prev_cut: usize, tail_speech_samples: usize, had_pieces: bool) -> usize {
+    if had_pieces && tail_speech_samples > 0 && tail_speech_samples < MIN_PIECE_MS * 16 && prev_cut < cut {
+        prev_cut
+    } else {
+        cut
+    }
+}
 
 /// How long a recording may stay without a trace of sound before the bar says
 /// the microphone sends nothing, and the loudest peak that still counts as
@@ -157,6 +174,9 @@ fn apply_intonation(text: &str, pitch: Option<(f32, f32)>, enabled: bool) -> Str
 struct Segmenter {
     /// Sample index where the next segment starts.
     cut: usize,
+    /// Where the last dispatched segment started, for a short last piece to be
+    /// heard again together with it.
+    prev_cut: usize,
     /// Where the last refused attempt ended. Refusing keeps the cut where it
     /// is, on purpose, so no audio is lost. Without this marker the same
     /// stretch would be copied and analysed again every quarter second, over
@@ -190,7 +210,9 @@ fn join_prompt(hints: Option<String>, previous: &str) -> Option<String> {
 #[must_use]
 fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: Vec<f32>, language: &LanguageModeSetting, hints: Option<String>, beam: u32, vad: bool, min_speech_ms: u64) -> bool {
     let Some(a) = crate::audio::analyze_speech(&samples, min_speech_ms) else { return false };
-    if a.trimmed.is_empty() {
+    // Too little speech to be heard on its own: keep the cut where it is and
+    // let the stretch grow (see MIN_PIECE_MS).
+    if a.trimmed.len() < MIN_PIECE_MS * 16 {
         return false;
     }
     let wav = crate::audio::encode_wav(&a.trimmed);
@@ -503,6 +525,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                         let queued = dispatch_segment(&shared2, &seg, samples, &language, hints.clone(), beam, vad, min_speech_ms);
                         let mut g = seg.lock();
                         if queued {
+                            g.prev_cut = g.cut;
                             g.cut = end;
                         }
                         g.last_try = len;
@@ -516,6 +539,7 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                         let queued = dispatch_segment(&shared2, &seg, samples, &language, hints.clone(), beam, vad, min_speech_ms);
                         let mut g = seg.lock();
                         if queued {
+                            g.prev_cut = g.cut;
                             g.cut = end;
                         }
                         g.last_try = len;
@@ -746,19 +770,23 @@ async fn process(
     let mut tail_prompt: Option<String> = None;
     let mut tail_silent = false;
     if let Some(seg) = segments.as_ref() {
-        let (jobs, cut, last_text) = {
+        let (jobs, cut, prev_cut, last_text) = {
             let mut g = seg.lock();
-            (std::mem::take(&mut g.jobs), g.cut, g.last_text.clone())
+            (std::mem::take(&mut g.jobs), g.cut, g.prev_cut, g.last_text.clone())
         };
         if !jobs.is_empty() {
             let mut all_ok = true;
             let mut parts_ms = 0u64;
+            // whether the last finished piece left text in head_parts, so a
+            // short last piece heard again with it replaces exactly that text
+            let mut last_piece_kept = false;
             for j in jobs {
                 match j.await {
                     Ok((Ok(t), pitch)) => {
                         parts_ms += t.inference_ms;
                         let text = apply_intonation(t.text.trim(), pitch, settings.cleanup.intonation_questions);
-                        if !text.is_empty() && !is_hallucination(&text) {
+                        last_piece_kept = !text.is_empty() && !is_hallucination(&text);
+                        if last_piece_kept {
                             head_parts.push(text);
                         }
                     }
@@ -770,12 +798,42 @@ async fn process(
             }
             if all_ok {
                 let tail = &samples[cut.min(samples.len())..];
-                match crate::audio::analyze_speech(tail, settings.audio.min_speech_ms) {
-                    Some(a) if !a.trimmed.is_empty() => tail_wav = Some(crate::audio::encode_wav(&a.trimmed)),
-                    _ => tail_silent = true,
+                let tail_speech = match crate::audio::analyze_speech(tail, settings.audio.min_speech_ms) {
+                    Some(a) if !a.trimmed.is_empty() => a.trimmed,
+                    _ => Vec::new(),
+                };
+                let start = last_request_start(cut, prev_cut, tail_speech.len(), true);
+                if start != cut {
+                    // A last piece this short comes out as nonsense on its own
+                    // (MIN_PIECE_MS). Hear it again with the piece before it,
+                    // whose text it replaces.
+                    let merged = &samples[start.min(samples.len())..];
+                    match crate::audio::analyze_speech(merged, settings.audio.min_speech_ms) {
+                        Some(a) if !a.trimmed.is_empty() => {
+                            if last_piece_kept {
+                                head_parts.pop();
+                            }
+                            tail_wav = Some(crate::audio::encode_wav(&a.trimmed));
+                            tail_prompt = join_prompt(prompt.clone(), &head_parts.join(" "));
+                            tracing::info!(
+                                "segments: {} finished while speaking ({parts_ms} ms inference), tail {} ms, heard again with the piece before it ({} ms)",
+                                head_parts.len(), tail.len() / 16, a.trimmed.len() / 16
+                            );
+                        }
+                        _ => {
+                            tail_wav = Some(crate::audio::encode_wav(&tail_speech));
+                            tail_prompt = join_prompt(prompt.clone(), &last_text);
+                        }
+                    }
+                } else {
+                    if tail_speech.is_empty() {
+                        tail_silent = true;
+                    } else {
+                        tail_wav = Some(crate::audio::encode_wav(&tail_speech));
+                    }
+                    tail_prompt = join_prompt(prompt.clone(), &last_text);
+                    tracing::info!("segments: {} finished while speaking ({parts_ms} ms inference), tail {} ms", head_parts.len(), tail.len() / 16);
                 }
-                tail_prompt = join_prompt(prompt.clone(), &last_text);
-                tracing::info!("segments: {} finished while speaking ({parts_ms} ms inference), tail {} ms", head_parts.len(), tail.len() / 16);
             } else {
                 head_parts.clear();
                 tracing::warn!("a segment failed; transcribing the whole recording in one pass");
@@ -1315,6 +1373,23 @@ mod tests {
         assert_eq!(join_phrases(&parts), "Δεν τη βλέπω να την έχεις κάνει. σε pixel. Ωραία.");
         let parts = vec!["Καλημέρα".to_string(), ", πώς είσαι;".to_string()];
         assert_eq!(join_phrases(&parts), "Καλημέρα , πώς είσαι;");
+    }
+
+    /// 27 September 2026, 08:38: "…τα δικά σου" was the last 1.1 seconds of a
+    /// dictation and came out as "Πάτε κάσο". A last piece that short is heard
+    /// again from the start of the piece before it.
+    #[test]
+    fn a_short_last_piece_goes_back_to_the_piece_before_it() {
+        let (prev, cut) = (16 * 4_000, 16 * 10_000);
+        assert_eq!(last_request_start(cut, prev, 16 * 1_100, true), prev);
+        assert_eq!(last_request_start(cut, prev, 16 * 2_400, true), prev);
+        // long enough on its own
+        assert_eq!(last_request_start(cut, prev, 16 * 3_000, true), cut);
+        // nothing said after the last pause
+        assert_eq!(last_request_start(cut, prev, 0, true), cut);
+        // no piece before it to lean on
+        assert_eq!(last_request_start(cut, prev, 16 * 1_100, false), cut);
+        assert_eq!(last_request_start(cut, cut, 16 * 1_100, true), cut);
     }
 
     #[test]
