@@ -102,6 +102,11 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
         if text != before {
             applied.push("greek question mark".into());
         }
+        let before = text.clone();
+        text = super::questions::soften_inner_semicolons(&text);
+        if text != before {
+            applied.push("pause mark inside a sentence".into());
+        }
     }
 
     if o.auto_punctuate {
@@ -210,6 +215,12 @@ fn resolve_self_corrections(text: &str) -> String {
 
 fn normalize_spacing(text: &str) -> String {
     let t = super::replace_all_or_keep(&WS, text.trim(), " ").to_string();
+    // A pause in the middle of a sentence arrives as "..." with the next word
+    // in lower case. The rules below folded it into one full stop and the next
+    // word got a capital: a sentence break nobody said (102 of 1037 real
+    // dictations, 27 September 2026). The pause simply goes.
+    static MID_ELLIPSIS: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*(?:\.{3,}|…)(?:\s*(?:\.{3,}|…))*\s+(?=\p{Ll})").unwrap());
+    let t = super::replace_all_or_keep(&MID_ELLIPSIS, &t, " ").to_string();
     let t = super::replace_all_or_keep(&SPACE_BEFORE_PUNCT, &t, "$1").to_string();
     let t = super::replace_all_or_keep(&DOUBLE_PUNCT, &t, "$1").to_string();
     // ensure a space after sentence punctuation when followed by a letter; for the
@@ -263,7 +274,9 @@ pub fn looks_greek(text: &str) -> bool {
 }
 
 fn ensure_terminal_punctuation(text: &str, _language: &str) -> String {
-    let t = text.trim_end();
+    // A dictation that stops on a comma ("…, ίσως,") ended as ",." (10 of
+    // 1037 real dictations, 27 September 2026). The comma gives way to the stop.
+    let t = text.trim_end().trim_end_matches(',').trim_end();
     if t.is_empty() {
         return t.to_string();
     }
@@ -378,6 +391,41 @@ mod tests {
         assert_eq!(clean("Πάμε για καφέ.", &o).text, "Πάμε για καφέ.");
     }
 
+    /// 27 September 2026: "όταν ανοίγεις... παλιά αρχεία" came out as
+    /// "Όταν ανοίγεις. Παλιά αρχεία", a sentence break nobody said.
+    #[test]
+    fn a_pause_inside_a_sentence_is_not_a_full_stop() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("όταν ανοίγεις... παλιά αρχεία, κράτα αντίγραφο", &o).text, "Όταν ανοίγεις παλιά αρχεία, κράτα αντίγραφο.");
+        assert_eq!(clean("πήγα στο... ... στο γραφείο", &o).text, "Πήγα στο στο γραφείο.");
+        assert_eq!(clean("I was… thinking about it", &o).text, "I was thinking about it.");
+        // before a capital it still ends the sentence, as it did
+        assert_eq!(clean("Περίμενε... Τώρα πάμε", &o).text, "Περίμενε. Τώρα πάμε.");
+    }
+
+    /// 27 September 2026: Whisper wrote "μόνο σου; να το ελέγχεις" for a pause
+    /// and the cleanup made it "μόνο σου; Να το ελέγχεις".
+    #[test]
+    fn the_engines_pause_semicolon_inside_a_greek_sentence() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("θέλω να το στέλνεις μόνο σου; να το ελέγχεις πρώτα", &o).text, "Θέλω να το στέλνεις μόνο σου, να το ελέγχεις πρώτα.");
+        assert_eq!(clean("ψάξε μέσα από το; αρχείο τους", &o).text, "Ψάξε μέσα από το αρχείο τους.");
+        // a real question keeps its mark and the next sentence its capital
+        assert_eq!(clean("δεν ξέρω τι λες, για ποιο αρχείο μιλάς; πες μου", &o).text, "Δεν ξέρω τι λες, για ποιο αρχείο μιλάς; Πες μου.");
+        assert_eq!(clean("μήπως φταίει το δίκτυο; και μετά ξαναδοκίμασε", &o).text, "Μήπως φταίει το δίκτυο; Και μετά ξαναδοκίμασε.");
+        // "γιατί" after a comma is "because", no question there
+        assert_eq!(clean("έμεινα μέσα, γιατί έβρεχε; και μετά βγήκα", &o).text, "Έμεινα μέσα, γιατί έβρεχε, και μετά βγήκα.");
+        // English keeps its semicolons
+        assert_eq!(clean("it works; we ship it", &o).text, "It works; we ship it.");
+    }
+
+    #[test]
+    fn a_dictation_that_stops_on_a_comma_ends_with_one_stop() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("θα το δούμε αύριο, ίσως,", &o).text, "Θα το δούμε αύριο, ίσως.");
+        assert_eq!(clean("we check it, then,", &o).text, "We check it, then.");
+    }
+
     #[test]
     fn greek_question_mark_capitalizes_next_sentence() {
         let r = clean("τι κάνεις; είμαι καλά", &opts(CleanupIntensity::Normal));
@@ -424,6 +472,24 @@ mod tests {
         }
         assert_eq!(clean("Τρίτη, διόρθωση, Παρασκευή", &opts(CleanupIntensity::Normal)).text, "Παρασκευή");
         assert_eq!(clean("  γεια?  ", &opts(CleanupIntensity::Off)).text, "γεια?");
+    }
+
+    /// Replays real dictations kept outside the repository. FYF_REPLAY_IN holds
+    /// one raw transcript per line as a JSON string; the cleaned text of each
+    /// goes to FYF_REPLAY_OUT in the same order. Run it on two commits and diff
+    /// the outputs to see every text a cleanup change would touch.
+    #[test]
+    #[ignore]
+    fn replay_history() {
+        let (Ok(input), Ok(output)) = (std::env::var("FYF_REPLAY_IN"), std::env::var("FYF_REPLAY_OUT")) else { return };
+        let o = opts(CleanupIntensity::Normal);
+        let cleaned: Vec<String> = std::fs::read_to_string(input)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str::<String>(line).unwrap())
+            .map(|raw| serde_json::to_string(&clean(&raw, &o).text).unwrap())
+            .collect();
+        std::fs::write(output, cleaned.join("\n")).unwrap();
     }
 
     #[test]
