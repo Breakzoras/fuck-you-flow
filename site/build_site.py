@@ -559,7 +559,14 @@ TR = [('Skip to content', 'Στο περιεχόμενο'),
  ('All dictation guides', 'Όλοι οι οδηγοί υπαγόρευσης'),
  ('href="/guides/', 'href="/el/guides/'),
  ('href="/wispr-flow-alternative/"', 'href="/el/wispr-flow-alternative/"'),
- ('href="/privacy/"', 'href="/el/privacy/"')]
+ ('href="/privacy/"', 'href="/el/privacy/"'),
+ # the words on the phone video card, which its script writes into the page
+ ('"Tap for sound"', '"Πατήστε για ήχο"'),
+ ('"Tap to play"', '"Πατήστε για προβολή"'),
+ ('"Mute"', '"Σίγαση"'),
+ ('"Close video"', '"Κλείσιμο βίντεο"'),
+ ('"Watch it larger, with sound"', '"Δείτε το σε μεγάλο μέγεθος, με ήχο"'),
+ ('"FU Flow video"', '"Βίντεο FU Flow"')]
 
 
 def put_nav(html, lang):
