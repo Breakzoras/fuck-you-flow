@@ -64,6 +64,12 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
         applied.push("removed noise tags".into());
     }
 
+    let before = text.clone();
+    text = drop_piece_openers(&text);
+    if text != before {
+        applied.push("joined a sentence cut in two".into());
+    }
+
     if o.remove_fillers {
         let before = text.clone();
         text = remove_fillers(&text, &o.intensity);
@@ -159,6 +165,18 @@ fn strip_noise_tags(text: &str) -> String {
     }
     let t = t.trim_start_matches(|c: char| c == '-' || c == '–' || c == ' ');
     t.to_string()
+}
+
+/// A long dictation is heard in pieces while it is spoken. When a cut falls
+/// inside a sentence, the engine opens the next piece with "..." glued to its
+/// first word ("στο... ...σπίτι", "αρχεία, ...τα"). The later rules made that
+/// "στο.σπίτι" and "αρχεία.τα" (11 of 1054 real dictations, 27 September
+/// 2026). The opening mark goes before those rules run; a pause mark in front
+/// of it is then handled like any other pause. Only before a lower-case word:
+/// before a capital the old sentence break stays.
+fn drop_piece_openers(text: &str) -> String {
+    static OPENER: Lazy<Regex> = Lazy::new(|| Regex::new(r"(^|\s)(?:\.{3,}|…)(?=\p{Ll})").unwrap());
+    super::replace_all_or_keep(&OPENER, text, "$1").trim_start().to_string()
 }
 
 fn word_list_regex(words: &[&str]) -> Regex {
@@ -401,6 +419,23 @@ mod tests {
         assert_eq!(clean("I was… thinking about it", &o).text, "I was thinking about it.");
         // before a capital it still ends the sentence, as it did
         assert_eq!(clean("Περίμενε... Τώρα πάμε", &o).text, "Περίμενε. Τώρα πάμε.");
+    }
+
+    /// 27 September 2026: a piece of a long dictation that starts inside a
+    /// sentence opens with "..." glued to its first word, and "στο... ...σπίτι"
+    /// came out as "στο.σπίτι".
+    #[test]
+    fn a_piece_that_opens_inside_a_sentence_joins_without_a_stop() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("θα το στείλω στο... ...γραφείο αύριο το πρωί", &o).text, "Θα το στείλω στο γραφείο αύριο το πρωί.");
+        assert_eq!(clean("έλεγξε τα αρχεία, ...τα οποία άλλαξαν χθες", &o).text, "Έλεγξε τα αρχεία, τα οποία άλλαξαν χθες.");
+        assert_eq!(clean("we moved it to the… …shared folder", &o).text, "We moved it to the shared folder.");
+        // at the very start, also with the filler rules off
+        let mut plain = opts(CleanupIntensity::Normal);
+        plain.remove_fillers = false;
+        assert_eq!(clean("...και μετά κλείνουμε", &plain).text, "Και μετά κλείνουμε.");
+        // before a capital it still ends the sentence, as it did
+        assert_eq!(clean("Περίμενε... ...Τώρα πάμε", &o).text, "Περίμενε. Τώρα πάμε.");
     }
 
     /// 27 September 2026: Whisper wrote "μόνο σου; να το ελέγχεις" for a pause
