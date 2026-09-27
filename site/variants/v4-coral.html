@@ -1347,7 +1347,12 @@ width:min(92vw,calc(86vh*9/16));width:min(92vw,calc(86svh*9/16));transform:trans
     }
     var low = window.innerHeight - 14 - h, high = top + 12;
     var y = clear(low) ? low : clear(high) ? high : null;
-    if (y === null) { card.classList.remove("reel-on"); return; }
+    if (y === null) {
+      // Out of sight means out of hearing too: a hidden card cannot be muted by hand.
+      if (!video.muted) { video.muted = true; label(); }
+      card.classList.remove("reel-on");
+      return;
+    }
     card.style.setProperty("--reel-y", Math.round(y) + "px");
     card.classList.add("reel-on");
   }
