@@ -12,6 +12,13 @@ SIZE_EL = "1,7 GB"
 RELEASE_DATE = "2026-09-26"
 CONTENT_DATE = "2026-09-26"
 DL = f"{REPO}/releases/download/v{VERSION}/Fuck.You.Flow.Setup.{VERSION}.exe"
+# The link preview every page shares, 1200 x 630. A new picture gets a new file name,
+# so the networks that cache previews fetch it again. The 27 September 2026 card is
+# the ad's first frame beside the app window; its source is og-card.html in the
+# fyf-ad-2026-09 folder.
+OG_IMAGE = f"{BASE}/assets/og-2026-09-27.png"
+OG_ALT = ("The words $15 a month for Wispr Flow? in white and coral, with FU Flow: free voice "
+          "typing underneath, beside the FU Flow app window on its ready screen.")
 # Linux, full packages with the speech models inside. The small ones the
 # updater fetches sit on the same release under other names.
 LINUX_DEB = f"{REPO}/releases/download/v{VERSION}/Fuck.You.Flow.Setup.{VERSION}_amd64.deb"
