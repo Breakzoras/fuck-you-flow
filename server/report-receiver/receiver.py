@@ -19,7 +19,7 @@ Standard library only. Environment:
     REPORT_TO        where reports go (info@luram.gr)
     REPORT_FROM      verified sender, e.g. "FU Flow reports <reports@example.com>"
     REPORT_DIR       where reports are kept (default /data/reports)
-    DRY_RUN=1        write the mail to REPORT_DIR/outbox instead of sending it
+    DRY_RUN=1        keep each mail in REPORT_DIR/outbox, send nothing
     PORT             default 8787
 """
 import base64

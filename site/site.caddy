@@ -28,6 +28,16 @@ fuckyouflow.app {
 	@oldenglish path /en /en/ /en/*
 	redir @oldenglish / permanent
 
+	# Problem and idea reports sent from inside the app (0.9.13, 28 September
+	# 2026). The receiver (server/report-receiver) runs in its own container on
+	# the Caddy network and is reachable only through here.
+	handle /api/report* {
+		request_body {
+			max_size 400KB
+		}
+		reverse_proxy fyf-reports:8787
+	}
+
 	file_server
 	@static path /assets/* /style.css /theme.js
 	header @static Cache-Control "public, max-age=86400"
