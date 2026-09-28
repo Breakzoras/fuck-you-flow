@@ -129,7 +129,7 @@ def mail(report, report_id, folder):
         report["message"],
     ]
     payload = {
-        "from": os.environ.get("REPORT_FROM", "FU Flow reports <reports@oneclickclaw.io>"),
+        "from": os.environ.get("REPORT_FROM", "FU Flow reports <reports@luram.gr>"),
         "to": [os.environ.get("REPORT_TO", "info@luram.gr")],
         "subject": f"[FU Flow] {kind}: {first}",
         "text": "\n".join(lines),
