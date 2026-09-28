@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -67,6 +68,16 @@ class ReceiverTest(unittest.TestCase):
         self.assertEqual(self.post({"kind": "idea", "message": "hi", "email": "not an address"})[0], 400)
         self.assertEqual(self.post(b"{not json")[0], 400)
         self.assertEqual(self.post({"kind": "idea", "message": "x" * 500_000})[0], 413)
+
+    def test_reports_older_than_90_days_are_deleted(self):
+        folder = Path(self.dir.name)
+        old, new = folder / "old.json", folder / "new.json"
+        old.write_text("{}"), new.write_text("{}")
+        long_ago = time.time() - 91 * 86400
+        os.utime(old, (long_ago, long_ago))
+        receiver.prune(folder, time.time())
+        self.assertFalse(old.exists())
+        self.assertTrue(new.exists())
 
     def test_one_address_is_held_to_five_an_hour(self):
         codes = [self.post({"kind": "idea", "message": f"idea {i}"})[0] for i in range(6)]

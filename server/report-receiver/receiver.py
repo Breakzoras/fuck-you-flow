@@ -211,7 +211,17 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, {"ok": True, "id": report_id, "mailed": mailed})
 
 
+def prune_forever():
+    """Old reports go even when no new one arrives: at start, then hourly."""
+    folder = Path(os.environ.get("REPORT_DIR", "/data/reports"))
+    while True:
+        if folder.is_dir():
+            prune(folder, time.time())
+        time.sleep(3600)
+
+
 def main():
+    threading.Thread(target=prune_forever, daemon=True).start()
     port = int(os.environ.get("PORT", "8787"))
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
 
