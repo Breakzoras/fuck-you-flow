@@ -334,11 +334,11 @@ TR = [('Skip to content', 'Στο περιεχόμενο'),
  ('What is inside', 'Τι έχει μέσα'),
  ('Six things the app does on its own, on your machine, without asking anyone.',
   'Έξι πράγματα που κάνει μόνη της η εφαρμογή, στο μηχάνημά σας, χωρίς να ρωτήσει κανέναν.'),
- ('Greek that holds up', 'Ελληνικά που στέκουν'),
- ('Question marks come from grammar rules or from the rise of your voice. Spoken self-corrections are '
-  'applied before the text lands.',
-  'Τα ερωτηματικά βγαίνουν από κανόνες γραμματικής ή από το ανέβασμα της φωνής σας. Οι προφορικές '
-  'αυτοδιορθώσεις εφαρμόζονται πριν προσγειωθεί το κείμενο.'),
+ ('Clean text, Greek included', 'Καθαρό κείμενο και στα ελληνικά'),
+ ('Hesitation sounds such as “um” and “uh” come out, and spoken self-corrections are applied '
+  'before the text lands. Question marks come from grammar rules or from the rise of your voice.',
+  'Οι ήχοι δισταγμού, όπως τα «εεε» και «μμ», φεύγουν. Οι προφορικές αυτοδιορθώσεις εφαρμόζονται πριν '
+  'προσγειωθεί το κείμενο. Τα ερωτηματικά βγαίνουν από κανόνες γραμματικής ή από το ανέβασμα της φωνής σας.'),
  ('>Snippets<', '>Έτοιμα κομμάτια<'),
  ('Say a phrase, get a whole block of text. Signatures, addresses, the replies you send every day.',
   'Πείτε μια φράση, πάρτε ολόκληρο κομμάτι κειμένου. Υπογραφές, διευθύνσεις, οι απαντήσεις που στέλνετε κάθε '
