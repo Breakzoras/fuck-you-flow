@@ -16,6 +16,8 @@ Made by [Luram AI Agency](https://luram.gr) in Thessaloniki, Greece. Beta, under
 The [latest release](https://github.com/Breakzoras/fuck-you-flow/releases/latest)
 and the [changelog](https://fuckyouflow.app/changelog/) list what changed.
 
+[![Listed on Open Source Alternatives](https://www.opensourcealternatives.to/badge-osa.svg)](https://www.opensourcealternatives.to)
+
 - [Official website and Windows download](https://fuckyouflow.app/)
 - Ubuntu Linux: the .deb and the AppImage are on the
   [latest release](https://github.com/Breakzoras/fuck-you-flow/releases/latest)
