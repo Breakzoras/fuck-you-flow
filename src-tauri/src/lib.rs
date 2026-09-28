@@ -179,6 +179,8 @@ pub fn run() {
             commands::debug_mode_set,
             commands::debug_events,
             commands::debug_bundle,
+            commands::report_preview,
+            commands::send_report,
             commands::recent_keys,
             commands::current_foreground_app,
             commands::record_shortcut,

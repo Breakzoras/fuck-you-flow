@@ -811,6 +811,15 @@ pub fn recent_keys() -> Vec<crate::hotkey::SeenKey> {
 // worked the whole dashboard stopped repainting.
 #[tauri::command(async)]
 pub fn debug_bundle(state: State<'_, Arc<AppState>>) -> R<String> {
+    let out = bundle_text(&state);
+    let path = crate::paths::logs_dir().join("debug-bundle.txt");
+    if let Err(e) = std::fs::write(&path, &out) {
+        tracing::warn!("could not write {}: {e}", path.display());
+    }
+    Ok(out)
+}
+
+fn bundle_text(state: &AppState) -> String {
     use std::fmt::Write as _;
     let mut out = String::new();
     let _ = writeln!(out, "Fuck You Flow {} debug bundle", env!("CARGO_PKG_VERSION"));
@@ -846,11 +855,95 @@ pub fn debug_bundle(state: State<'_, Arc<AppState>>) -> R<String> {
             let _ = writeln!(out, "{line}");
         }
     }
-    let path = crate::paths::logs_dir().join("debug-bundle.txt");
-    if let Err(e) = std::fs::write(&path, &out) {
-        tracing::warn!("could not write {}: {e}", path.display());
+    out
+}
+
+// ----- problem and idea reports -----
+
+/// Where reports go. FYF_REPORT_URL points a test build at a local receiver.
+fn report_url() -> String {
+    std::env::var("FYF_REPORT_URL").unwrap_or_else(|_| "https://fuckyouflow.app/api/report".into())
+}
+
+/// The debug bundle as it leaves the machine: the account name inside file
+/// paths is replaced, so "C:\Users\maria\..." reads "C:\Users\<user>\...".
+/// The bundle itself never holds dictated text (events and problem lines only).
+fn redact(text: &str) -> String {
+    static HOME: once_cell::sync::Lazy<regex::Regex> =
+        once_cell::sync::Lazy::new(|| regex::Regex::new(r"(?i)([a-z]:[\\/]+(?:users|documents and settings)[\\/]+|/home/|/Users/)[^\\/\s:*?<>|]+").unwrap());
+    let mut out = HOME.replace_all(text, "${1}<user>").to_string();
+    if let Some(name) = dirs::home_dir().and_then(|h| h.file_name().map(|n| n.to_string_lossy().to_string())) {
+        if name.chars().count() >= 3 {
+            out = out.replace(&name, "<user>");
+        }
     }
-    Ok(out)
+    out
+}
+
+/// What "include the diagnostic log" would send, shown before sending.
+#[tauri::command(async)]
+pub fn report_preview(state: State<'_, Arc<AppState>>) -> R<String> {
+    Ok(redact(&bundle_text(&state)))
+}
+
+/// Sends a problem or an idea to the maker. Nothing leaves the machine unless
+/// the user presses Send; the log goes only when the box is ticked.
+#[tauri::command]
+pub async fn send_report(state: State<'_, Arc<AppState>>, kind: String, message: String, email: String, include_log: bool) -> R<String> {
+    if kind != "problem" && kind != "idea" {
+        return Err("bad kind".into());
+    }
+    if message.trim().is_empty() {
+        return Err("empty message".into());
+    }
+    let log = if include_log {
+        let state = state.inner().clone();
+        tauri::async_runtime::spawn_blocking(move || redact(&bundle_text(&state))).await.map_err(|e| e.to_string())?
+    } else {
+        String::new()
+    };
+    let ui_language = state.shared.settings.read().general.ui_language.clone();
+    let body = serde_json::json!({
+        "kind": kind,
+        "message": message.chars().take(5000).collect::<String>(),
+        "email": email.trim(),
+        "app_version": env!("CARGO_PKG_VERSION"),
+        "os": format!("{} {}", std::env::consts::OS, std::env::consts::ARCH),
+        "ui_language": ui_language,
+        "log": log.chars().take(290_000).collect::<String>(),
+    });
+    let client = reqwest::Client::builder()
+        .user_agent(concat!("FuckYouFlow/", env!("CARGO_PKG_VERSION")))
+        .timeout(std::time::Duration::from_secs(25))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client.post(report_url()).json(&body).send().await.map_err(|e| {
+        tracing::warn!("report: could not reach the server: {e}");
+        "offline".to_string()
+    })?;
+    let status = resp.status();
+    let reply: serde_json::Value = resp.json().await.unwrap_or_default();
+    if status.is_success() && reply["ok"] == true {
+        tracing::info!("report: sent, id {}", reply["id"].as_str().unwrap_or("?"));
+        Ok(reply["id"].as_str().unwrap_or_default().to_string())
+    } else if status.as_u16() == 429 {
+        Err("too_many".into())
+    } else {
+        tracing::warn!("report: the server said {status}: {reply}");
+        Err("refused".into())
+    }
+}
+
+#[cfg(test)]
+mod report_tests {
+    use super::redact;
+
+    #[test]
+    fn account_names_in_paths_are_hidden() {
+        let t = redact(r"could not open C:\Users\maria.k\AppData\Local\x.log and c:/users/Maria/Documents, /home/kostas/.config");
+        assert!(!t.contains("maria") && !t.contains("Maria") && !t.contains("kostas"), "{t}");
+        assert!(t.contains(r"C:\Users\<user>\AppData") && t.contains("/home/<user>/.config"), "{t}");
+    }
 }
 
 // ----- a sound file the user already has -----

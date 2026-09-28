@@ -13,6 +13,7 @@ import Stats from "./pages/Stats";
 import SettingsPage from "./pages/SettingsPage";
 import Diagnostics from "./pages/Diagnostics";
 import GpuGauge from "./GpuGauge";
+import ReportDialog from "./ReportDialog";
 import { withTimeout } from "./async";
 import logoOnDark from "./assets/luram-logo-on-dark.png";
 import logoOnLight from "./assets/luram-logo-on-light.png";
@@ -27,6 +28,7 @@ type Page = "home" | "history" | "dictionary" | "snippets" | "learning" | "stats
 export default function App() {
   const [settings, setSettingsState] = useState<Settings | null>(null);
   const [page, setPage] = useState<Page>("home");
+  const [reportOpen, setReportOpen] = useState(false);
   const [engine, setEngine] = useState<EngineInfo | null>(null);
   const [snap, setSnap] = useState<PipelineSnapshot | null>(null);
   const [toastMsg, setToastMsg] = useState<{ msg: string; kind: "ok" | "err" } | null>(null);
@@ -264,6 +266,7 @@ export default function App() {
             <span className="dot" />
             <span>{snap?.phase && snap.phase !== "idle" ? phaseLabel : engineLabel}</span>
           </div>
+          <button type="button" className="report-open" onClick={() => setReportOpen(true)}>{t("report_open")}</button>
           {/* The maker's credit, on every page. The link carries utm tags so the
               agency site can count the visitors that came from the app. */}
           <button type="button" className="credit" title="luram.gr" onClick={() => { openUrl(LURAM_URL).catch(() => {}); }}>
@@ -355,6 +358,7 @@ export default function App() {
           </div>
         </main>
         <GpuGauge />
+        {reportOpen && <ReportDialog onClose={() => setReportOpen(false)} />}
         {toastMsg && <div className={`toast ${toastMsg.kind}`} role="status">{toastMsg.msg}</div>}
       </div>
     </AppCtx.Provider>
