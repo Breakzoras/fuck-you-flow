@@ -316,6 +316,7 @@ Confidence: High (enable by default), Medium (opt-in), Low (leave off).
 | G16 | Blocker: unaccented που, πως, and όσο/όποιος/όπου/όπως/όποτε/οπότε/ποτέ never count as wh-tokens | High | (none) | Είπε πως θα έρθει. Αυτό που σου είπα. | On |
 | G17 | Blocker: wh-token that is neither sentence-initial (after G2/1.7 openers) nor governed by a G9 matrix | High | (none) | Δεν ήρθα γιατί έβρεχε. Έμαθα πότε φεύγει. | On |
 | G18 | τάχα as question particle | Low | Τάχα θα έρθει; | Ήταν τάχα άρρωστος. | Off |
+| G19 | Blocker: sentence-initial Γιατί meaning "because", told by the next word: a clause opener (άμα, αν, εάν, όταν, όσο, επειδή, αλλιώς) or an opinion or hedge word in the first or third person (νομίζω, νόμιζα, θεωρώ, νιώθω, πιστεύω, πίστευα, απλά, απλώς, πρακτικά, βασικά, προφανώς), a sentence adverb of certainty or attitude (100%, σίγουρα, δυστυχώς, ευτυχώς, όντως, μάλλον, λογικά) or "any" (οποιοδήποτε) | High | Γιατί δεν ήρθες; Γιατί νόμιζες ότι έφυγα; Γιατί 100 ευρώ; | Γιατί άμα το δεις, θα καταλάβεις. Γιατί 100% θα το βρεις. | On |
 | E1 | Sentence-initial wh-word (4.1 list) with one or more following tokens, after E6/E7 | High | What time is it? | What a mess. | On |
 | E2 | Sentence-initial preposition + wh-word | High | To whom did you send it? | To the man who called. | On |
 | E3 | Sentence-initial auxiliary/modal (incl. negated contractions) + pronoun/there/this/that | High | Do you have a minute? Isn't it late? | Do it now. Have a seat. | On |
@@ -335,6 +336,16 @@ and `?` for English, and only when the ASR left the sentence without a
 terminal `;`, `?`, `!` or `.`. Whisper-family models sometimes emit `;` or `?`
 themselves from intonation; keep whatever mark the ASR already wrote. These
 rules only add a mark.
+
+One exception to "keep what the ASR wrote": in Greek dictation Whisper also
+writes `;` for a plain pause in the middle of a sentence, with the next word in
+lower case ("θέλω να το στέλνεις; να το ελέγχεις πρώτα"). Capitalizing after it turned
+the pause into a false question and a false new sentence. A `;` followed by a
+lower-case word stays a question only when the words before it are one (by the
+rules above, on the whole sentence or on the part after its last comma).
+Otherwise it becomes a comma, or nothing after an article or preposition
+("από το; αρχείο" becomes "από το αρχείο"). In real dictations (27 September 2026)
+this was 65 of 1037 dictations.
 
 ---
 

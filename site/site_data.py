@@ -5,8 +5,8 @@ Update these facts together when publishing a release.
 """
 BASE = "https://fuckyouflow.app"
 REPO = "https://github.com/Breakzoras/fuck-you-flow"
-VERSION = "0.9.12"
-SIZE_BYTES = 1729796054
+VERSION = "0.9.13"
+SIZE_BYTES = 1729921494
 SIZE = "1.7 GB"
 SIZE_EL = "1,7 GB"
 RELEASE_DATE = "2026-09-26"
@@ -21,8 +21,11 @@ OG_ALT = ("The words $15 a month for Wispr Flow? in white and coral, with FU Flo
           "typing underneath, beside the FU Flow app window on its ready screen.")
 # Linux, full packages with the speech models inside. The small ones the
 # updater fetches sit on the same release under other names.
-LINUX_DEB = f"{REPO}/releases/download/v{VERSION}/Fuck.You.Flow.Setup.{VERSION}_amd64.deb"
-LINUX_APPIMAGE = f"{REPO}/releases/download/v{VERSION}/Fuck.You.Flow.Setup.{VERSION}_amd64.AppImage"
+# Linux can trail Windows: 0.9.13 shipped for Windows only, so the Ubuntu
+# buttons keep pointing at the last Linux release.
+LINUX_VERSION = "0.9.12"
+LINUX_DEB = f"{REPO}/releases/download/v{LINUX_VERSION}/Fuck.You.Flow.Setup.{LINUX_VERSION}_amd64.deb"
+LINUX_APPIMAGE = f"{REPO}/releases/download/v{LINUX_VERSION}/Fuck.You.Flow.Setup.{LINUX_VERSION}_amd64.AppImage"
 
 
 def release_tokens(text, lang="en"):

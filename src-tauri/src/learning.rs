@@ -249,6 +249,31 @@ pub fn relearn_past_edits(db: &Db) -> anyhow::Result<usize> {
     Ok(found)
 }
 
+/// Once, for rules learned before the kept-word guard existed. A learned rule
+/// (never one the user typed) whose wrong word the user had left standing in
+/// KEPT_LIMIT or more transcripts before the rule was made is switched off,
+/// never deleted: the Dictionary page can turn it back on. On 26 September
+/// 2026 one History edit taught "το -> αυτό", and every "το" in 19 dictations
+/// after it became "αυτό". Case-only fixes and name-like words are brand
+/// spellings and stay. Returns how many rules were switched off.
+pub fn switch_off_rules_against_kept_words(db: &Db) -> anyhow::Result<usize> {
+    let mut off = 0;
+    for mut rule in db.list_rules()? {
+        if rule.source == "user" || !rule.enabled {
+            continue;
+        }
+        if rule.wrong.to_lowercase() == rule.correct.to_lowercase() || technical(&rule.wrong) || technical(&rule.correct) {
+            continue;
+        }
+        if db.kept_before(&rule.wrong, rule.case_sensitive, &rule.created_at)? >= KEPT_LIMIT {
+            rule.enabled = false;
+            db.upsert_rule(&rule)?;
+            off += 1;
+        }
+    }
+    Ok(off)
+}
+
 fn record_other(db: &Db, history_id: &str, before: &str, after: &str, kind: EditKind) -> anyhow::Result<()> {
     match kind {
         EditKind::WordCorrection { .. } | EditKind::Corrections(_) => {}
@@ -357,6 +382,62 @@ mod tests {
         assert!(learn_from_edit(&db, "h1", "Φτιάξε το λόγο της εταιρείας", "Φτιάξε το logo της εταιρείας").unwrap().is_empty());
     }
 
+    /// 26 September 2026, 13:48: one History edit changed "το" to "αυτό" and
+    /// the old learning made it a rule for every dictation. Today's learning
+    /// sees "το" standing in other transcripts and learns nothing.
+    #[test]
+    fn a_function_word_edit_is_never_learned() {
+        let db = Db::open_in_memory().unwrap();
+        for i in 0..6 {
+            db.insert_test_history(&format!("k{i}"), "Πες μου το τώρα, να το δούμε");
+        }
+        assert!(learn_from_edit(&db, "h1", "Φτιάξε το τώρα", "Φτιάξε αυτό τώρα").unwrap().is_empty());
+    }
+
+    fn learned(db: &Db, wrong: &str, correct: &str, source: &str) {
+        db.upsert_rule(&crate::db::DictionaryRule {
+            id: crate::db::new_id(),
+            wrong: wrong.into(),
+            correct: correct.into(),
+            match_mode: "whole_word".into(),
+            case_sensitive: true,
+            language: None,
+            app_scope: None,
+            enabled: true,
+            use_as_hint: true,
+            source: source.into(),
+            created_at: crate::db::ts_now(),
+            updated_at: crate::db::ts_now(),
+            apply_count: 0,
+            last_applied_at: None,
+        })
+        .unwrap();
+    }
+
+    /// The rule that came before the guard: switched off at the next start.
+    /// A rule the user typed, a brand spelling, a name and a rule with too
+    /// little evidence all stay on.
+    #[test]
+    fn an_old_rule_against_a_kept_word_is_switched_off() {
+        let db = Db::open_in_memory().unwrap();
+        for i in 0..6 {
+            db.insert_test_history(&format!("k{i}"), "Πες μου το τώρα στο oneclickclaw και στο WebDoc");
+        }
+        db.insert_test_history("once", "Και άσε το αυτό");
+        learned(&db, "το", "αυτό", "suggested");
+        learned(&db, "το", "αυτό", "user");
+        learned(&db, "oneclickclaw", "OneClickClaw", "suggested");
+        learned(&db, "WebDoc", "WebDock", "suggested");
+        learned(&db, "άσε", "πιάσε", "suggested");
+        assert_eq!(switch_off_rules_against_kept_words(&db).unwrap(), 1);
+        let on: Vec<(String, String, bool)> = db.list_rules().unwrap().into_iter().map(|r| (r.correct, r.source, r.enabled)).collect();
+        assert!(on.contains(&("αυτό".into(), "suggested".into(), false)));
+        assert!(on.contains(&("αυτό".into(), "user".into(), true)));
+        assert_eq!(on.iter().filter(|r| r.2).count(), 4);
+        // it runs once, and a second pass finds nothing more
+        assert_eq!(switch_off_rules_against_kept_words(&db).unwrap(), 0);
+    }
+
     /// The engine writes "WebDoc" every time and the user leaves most of them;
     /// that does not make it one of their words.
     #[test]
@@ -400,6 +481,22 @@ mod real_copy {
         }
         for r in db.list_rules().unwrap() {
             println!("RULE {:?} {}", r.language, r.wrong);
+        }
+    }
+
+    /// The kept-word check on a copy of a real database: prints the rules it
+    /// would switch off. Run with FYF_DB_COPY pointing at a copy, never the
+    /// live file.
+    #[test]
+    #[ignore]
+    fn kept_word_check_on_a_copy() {
+        let Ok(p) = std::env::var("FYF_DB_COPY") else { return };
+        let db = crate::db::Db::open(std::path::Path::new(&p)).unwrap();
+        let before: Vec<_> = db.list_rules().unwrap().into_iter().filter(|r| r.enabled).map(|r| r.id).collect();
+        let n = super::switch_off_rules_against_kept_words(&db).unwrap();
+        println!("SWITCHED_OFF {n}");
+        for r in db.list_rules().unwrap().into_iter().filter(|r| !r.enabled && before.contains(&r.id)) {
+            println!("OFF {} -> {}", r.wrong, r.correct);
         }
     }
 }

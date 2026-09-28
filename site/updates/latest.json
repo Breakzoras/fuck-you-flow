@@ -1,23 +1,11 @@
 {
-  "version": "0.9.12",
-  "notes": "Now on Ubuntu Linux. Also smarter learning from your edits, Dictionary rules that know their language, and the speech engine open to your own programs.",
-  "pub_date": "2026-09-26T13:53:56Z",
+  "version": "0.9.13",
+  "notes": "Send a problem or an idea from inside the app. Also cleaner punctuation, better short endings, and one paste per dictation in Chromium and Electron apps.",
+  "pub_date": "2026-09-28T12:44:37Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWc4eURTejJ3Ynp2OU4yYXYyYWIrQ0xUS0hPQlVaYmVwQlBDVVU3UWZZaW9INHhQTTkrNXFNU3d3eDlwa01OSndJcFRNaGtCMWtDYTZtOE9HZVRTTHdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDI5NzQzCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTJfeDY0LXNldHVwLmV4ZQpMdUo1VTJxbDcwaGtaczhMOTBLYndMNHBOaG9ielJaS2xrSUNJa3l1bmxmVWxWbGdHOG1NTTlPa3FrZVUycmJKNXBCUFpYQ1o1MHlvamFQM1EvTXZDQT09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Update.0.9.12.exe"
-    },
-    "linux-x86_64-deb": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUXYvenhmNjh5NzNLTWwzU3lJSjdpaWxycTU3ZGU2eU5hUlFXZ2RSUFdlU3BWcTZqQmZRUGM2cG9OMUVOZm5PbVlaZER4UVJCa3o2alEvV3dxbmpwa0FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDMwODEzCWZpbGU6RnVjay5Zb3UuRmxvdy5VcGRhdGUuMC45LjEyX2FtZDY0LmRlYgovWnd3M09BS0JqSDlqWHYvY0hzU1cyL242WlB2czJ4OFpJT1c3Y01aSzhickRhb01nc3ZkdjFFbXMvMDdVWHQ2TGFaUnFGZ2h2R3lyT2lUMmpjTHRDdz09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Update.0.9.12_amd64.deb"
-    },
-    "linux-x86_64-appimage": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWtBNVd1STFuNzZsTnNPaEozNzBQd2xjTDI4NEtCTVIveXZZS0pqNEJ2UjJ0ZjRSeXhIZThJcGJLTk5HVUM3cHg1SC9TRS9qTitGdkdwZW5CeFlnZXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDMwODE2CWZpbGU6RnVjay5Zb3UuRmxvdy4wLjkuMTJfYW1kNjQuQXBwSW1hZ2UKZ1VSN2ZnMGh3b3RjaUozRktJOHo1Q3NUakpIOXhKcXlFdk9RV2s2Mk9OSlNTOTBESUlGWW95ZGZMSk1jWUh2Q2dsWE5sam9pQTZLaDgxTVZPMm43QlE9PQo=",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.0.9.12_amd64.AppImage"
-    },
-    "linux-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWtBNVd1STFuNzZsTnNPaEozNzBQd2xjTDI4NEtCTVIveXZZS0pqNEJ2UjJ0ZjRSeXhIZThJcGJLTk5HVUM3cHg1SC9TRS9qTitGdkdwZW5CeFlnZXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDMwODE2CWZpbGU6RnVjay5Zb3UuRmxvdy4wLjkuMTJfYW1kNjQuQXBwSW1hZ2UKZ1VSN2ZnMGh3b3RjaUozRktJOHo1Q3NUakpIOXhKcXlFdk9RV2s2Mk9OSlNTOTBESUlGWW95ZGZMSk1jWUh2Q2dsWE5sam9pQTZLaDgxTVZPMm43QlE9PQo=",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.0.9.12_amd64.AppImage"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWxxSUE1T3hVeTZLTG9yRnNMSDc5S1ppUzhrTERscXNoSHg5REsvdElBamovY3BaRk5LZkpYS3N1Zk5HNzZpQ1hpVHA4MmZISnVCRkhOZDVTZHg4WEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNTk5MDUzCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTNfeDY0LXNldHVwLmV4ZQp4ekM4cHhZK0dVUm1PV2l5NlVhZlh5azFYYVlQdURWdmwxNzRyMkhIclVGUUNMQ21hYVJLNWFnTDgydTMzNDFyRnhDb1Z0YUpvU1ZKN1JoOGJLUEhBUT09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.13/Fuck.You.Flow.Update.0.9.13.exe"
     }
   }
 }

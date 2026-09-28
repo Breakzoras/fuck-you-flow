@@ -998,7 +998,14 @@ pub mod win {
         // more cannot double them. This is the only case where a second press is
         // safe, and why it was never done before the receipt existed (six copies
         // of one dictation on 5 September 2026 came from a blind retry).
-        if first == Receipt::NotRead {
+        // Chromium and Electron windows are the exception: they can take the
+        // words without asking (see `second_press_is_safe`).
+        let mut silent_weak = false;
+        if first == Receipt::NotRead && !second_press_is_safe(first, is_weak_receipt_class(&window_class(fg_at_send))) {
+            tracing::warn!("paste: nothing asked for the words {FIRST_WAIT_MS} ms after Ctrl+V, but a Chromium window can take them without asking; no second press, the words stay on the clipboard");
+            silent_weak = true;
+            verdict = Receipt::Unknown;
+        } else if first == Receipt::NotRead {
             let still_there = unsafe { GetForegroundWindow() } == fg_at_send;
             let still_ours = unsafe { GetClipboardOwner().ok() } == Some(hwnd());
             if still_there && still_ours {
@@ -1023,6 +1030,7 @@ pub mod win {
                 if pressed_twice { " (second press)" } else { "" }
             ),
             Receipt::NotRead => tracing::warn!("paste: nothing asked for the words after two presses of Ctrl+V; they stay on the clipboard"),
+            Receipt::Unknown if silent_weak => {}
             Receipt::Unknown => tracing::info!("paste: somebody else read the words first (before Ctrl+V: {}; after: {others}), so whether the target took them cannot be told", if early.is_empty() { "none".to_string() } else { early.join(", ") }),
         }
 
@@ -1297,7 +1305,8 @@ pub mod win {
     pub(crate) enum Receipt {
         /// The target asked for the words: they are in.
         Taken,
-        /// Nobody asked at all: nothing was pasted, and pressing again is safe.
+        /// Nobody asked at all: nothing was pasted, and pressing again is safe,
+        /// except in Chromium and Electron windows (`second_press_is_safe`).
         NotRead,
         /// Somebody else asked first, which spends the promise, so the
         /// target's own read, if any, left no trace.
@@ -1319,9 +1328,27 @@ pub mod win {
         }
     }
 
+    /// Whether Ctrl+V may be pressed once more after the first press. Only
+    /// when nobody asked for the words, and only outside Chromium and
+    /// Electron. On 27 September 2026 Claude took both presses of one
+    /// dictation without asking for the words either time, and the text came
+    /// out twice: there silence proves nothing. The words stay on the
+    /// clipboard, one Ctrl+V away.
+    pub(crate) fn second_press_is_safe(first: Receipt, weak_target: bool) -> bool {
+        first == Receipt::NotRead && !weak_target
+    }
+
     #[cfg(test)]
     mod receipt_tests {
         use super::*;
+
+        #[test]
+        fn a_chromium_window_that_did_not_ask_gets_no_second_press() {
+            assert!(!second_press_is_safe(Receipt::NotRead, true));
+            assert!(second_press_is_safe(Receipt::NotRead, false));
+            assert!(!second_press_is_safe(Receipt::Unknown, false));
+            assert!(!second_press_is_safe(Receipt::Taken, false));
+        }
 
         #[test]
         fn the_target_asking_is_proof() {

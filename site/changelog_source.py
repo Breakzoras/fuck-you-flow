@@ -27,6 +27,64 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.13",
+        "date": "2026-09-28",
+        "summary": (
+            "Send a problem or an idea from inside the app. Also cleaner punctuation, better short "
+            "endings, and one paste per dictation in Chromium and Electron apps.",
+            "Στείλε πρόβλημα ή ιδέα μέσα από την εφαρμογή. Επίσης πιο καθαρή στίξη, καλύτερα "
+            "σύντομα τελειώματα και μία επικόλληση ανά υπαγόρευση σε εφαρμογές Chromium και Electron.",
+        ),
+        "lines": [
+            ("added",
+             "Problem or idea? A new line in the menu opens a short form that reaches the maker. "
+             "You can add a reply address and the diagnostic log, which you can read before "
+             "sending. The log holds app events and errors. Your dictated words are never in it.",
+             "Πρόβλημα ή ιδέα; Μια νέα γραμμή στο μενού ανοίγει μια σύντομη φόρμα που φτάνει στον "
+             "δημιουργό. Μπορείς να προσθέσεις email για απάντηση και το αρχείο διάγνωσης, που το "
+             "διαβάζεις πριν το στείλεις. Το αρχείο έχει συμβάντα και σφάλματα της εφαρμογής. "
+             "Όσα υπαγορεύεις δεν μπαίνουν ποτέ."),
+            ("added",
+             "The menu now shows who makes the app, Luram AI Agency, with a link to its site.",
+             "Το μενού δείχνει πια ποιος φτιάχνει την εφαρμογή, τη Luram AI Agency, με σύνδεσμο "
+             "στη σελίδα της."),
+            ("improved",
+             "Short last words after a pause come out right: the engine hears them together with "
+             "the words before them.",
+             "Τα λίγα τελευταία λόγια μετά από παύση βγαίνουν σωστά: η μηχανή τα ακούει μαζί με "
+             "όσα ειπώθηκαν λίγο πριν."),
+            ("improved",
+             "Cleaner punctuation. A pause inside a sentence stays a pause, a sentence split between "
+             "two pieces joins without a stray stop, and a filler word at the start of a sentence "
+             "leaves without its comma.",
+             "Πιο καθαρή στίξη. Μια παύση μέσα στην πρόταση μένει παύση, μια πρόταση κομμένη σε δύο "
+             "κομμάτια ενώνεται χωρίς τελεία στη μέση και μια λέξη γεμίσματος στην αρχή φεύγει μαζί "
+             "με το κόμμα της."),
+            ("improved",
+             None,
+             "Το «Γιατί» στην αρχή πρότασης που σημαίνει «επειδή» (Γιατί άμα..., Γιατί σίγουρα..., "
+             "Γιατί νομίζω...) δεν παίρνει πια ερωτηματικό."),
+            ("improved",
+             "A learned rule that rewrites a word you keep as it is elsewhere is switched off.",
+             "Ένας μαθημένος κανόνας που αλλάζει λέξη την οποία κρατάς ίδια αλλού σβήνει μόνος του."),
+            ("fixed",
+             "In Chrome, Claude, Slack and other Chromium or Electron apps, each dictation is pasted "
+             "exactly once. If a window does not take it, the text waits on the clipboard.",
+             "Σε Chrome, Claude, Slack και άλλες εφαρμογές Chromium ή Electron, κάθε υπαγόρευση "
+             "επικολλάται ακριβώς μία φορά. Αν ένα παράθυρο δεν την πάρει, το κείμενο περιμένει "
+             "στο πρόχειρο."),
+            ("fixed",
+             "Smaller fixes: the Home \"today\" row shows today's time saved, the menu fits short "
+             "windows, and the memory panel hides on narrow windows.",
+             "Μικρότερες διορθώσεις: η γραμμή «σήμερα» της Αρχικής δείχνει τον σημερινό χρόνο που "
+             "κέρδισες, το μενού χωράει σε χαμηλά παράθυρα και το πλαίσιο μνήμης κρύβεται σε "
+             "στενά παράθυρα."),
+            ("known",
+             "This version is for Windows. Ubuntu Linux stays on 0.9.12 for now.",
+             "Αυτή η έκδοση είναι για Windows. Το Ubuntu Linux μένει προς το παρόν στην 0.9.12."),
+        ],
+    },
+    {
         "version": "0.9.12",
         "date": "2026-09-26",
         "summary": (

@@ -30,6 +30,24 @@ const TAGS_EL: &[&[&str]] = &[
 /// an exclamation ("Τι ωραία!"), never a question.
 const EXCL_TI_EL: &[&str] = &["ωραία", "ωραίο", "ωραίος", "όμορφα", "καλά", "κρίμα", "υπέροχα", "φοβερό", "χαρά", "βλακεία", "ντροπή", "θαυμάσια", "κι", "και"];
 const EXCL_POSO_EL: &[&str] = &["σε", "χαίρομαι", "μου", "ωραία", "όμορφα", "καλά", "πολύ", "λυπάμαι", "μάλλον"];
+/// G19: sentence-initial γιατί followed by one of these means "because"
+/// ("Γιατί άμα το δεις, θα καταλάβεις."). Only words that never open a
+/// real "why" question: clause openers, a first- or third-person opinion,
+/// and sentence adverbs of certainty or attitude ("Γιατί 100% θα το βρεις.").
+const BECAUSE_NEXT_EL: &[&str] = &[
+    "άμα", "αν", "εάν", "όταν", "όσο", "επειδή", "αλλιώς", "νομίζω", "θεωρώ", "νιώθω", "πιστεύω", "απλά", "απλώς", "πρακτικά",
+    "βασικά", "προφανώς", "νόμιζα", "νόμιζε", "νομίζει", "νομίζουμε", "πίστευα", "πιστεύει", "πιστεύουμε", "θεωρεί", "θεωρούμε",
+    "σίγουρα", "100%", "δυστυχώς", "ευτυχώς", "όντως", "ειλικρινά", "ξεκάθαρα", "μάλλον", "πιθανότατα", "πιθανώς", "λογικά",
+    "ουσιαστικά", "οποιοδήποτε", "οποιαδήποτε", "οποιοσδήποτε", "οποιονδήποτε",
+];
+/// Words a sentence cannot stop on: a pause mark after one of them simply goes
+/// ("από το; αρχείο" -> "από το αρχείο").
+const JOINERS_EL: &[&str] = &[
+    "ο", "η", "το", "οι", "τα", "τον", "την", "τη", "του", "της", "των", "τους", "τις", "ένα", "ένας", "μια", "μία", "ενός",
+    "μιας", "σε", "στο", "στον", "στη", "στην", "στα", "στους", "στις", "στου", "στης", "με", "για", "από", "προς", "ως",
+    "χωρίς", "οποίο", "οποία", "οποίος", "οποίοι", "οποίες", "οποίου", "οποίας", "οποίων", "να", "θα", "ότι", "που", "πως",
+    "και",
+];
 const IDIOMS_EL: &[&[&str]] = &[
     &["πού", "και", "πού"], &["πώς", "και", "πώς"], &["πού", "να", "ξέρω"], &["πού", "να", "το", "ξέρω"], &["πού", "να", "ξέρεις"],
     &["πού", "να", "σου", "τα", "λέω"], &["πού", "να", "σας", "τα", "λέω"], &["πώς", "όχι"],
@@ -76,6 +94,46 @@ pub fn spoken_marks(text: &str) -> String {
     .to_string()
 }
 
+/// Whisper also writes `;` for a pause inside a Greek sentence, with the next
+/// word in lower case ("το στέλνεις; να το ελέγχεις"). Capitalizing after it made a
+/// false question and a false new sentence (65 of 1037 real dictations, 27
+/// September 2026). Such a `;` stays only when the words before it make a
+/// question; otherwise it becomes a comma, or goes after a word a sentence
+/// cannot stop on. See docs/QUESTION-RULES.md, section 5.
+pub fn soften_inner_semicolons(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut sentence = String::new();
+    for (i, &c) in chars.iter().enumerate() {
+        let ends = matches!(c, '.' | '!' | '?' | ';') && (i + 1 == chars.len() || chars[i + 1].is_whitespace());
+        if c == ';' && ends {
+            let next_letter = chars[i + 1..].iter().find(|ch| !ch.is_whitespace());
+            if next_letter.map(|ch| ch.is_lowercase()).unwrap_or(false) && !is_question_so_far(&sentence) {
+                let last = words(&sentence).pop().unwrap_or_default();
+                if !JOINERS_EL.contains(&last.as_str()) {
+                    sentence.push(',');
+                }
+                continue;
+            }
+        }
+        sentence.push(c);
+        if ends {
+            out.push_str(&sentence);
+            sentence.clear();
+        }
+    }
+    out.push_str(&sentence);
+    out
+}
+
+/// A question by its words: the whole sentence so far, or the part after its
+/// last comma ("Δεν ξέρω τι λες, για ποιο αρχείο μιλάς"). A part that opens
+/// with γιατί after a comma is "because" (G17), so it does not count.
+fn is_question_so_far(sentence: &str) -> bool {
+    let tail = after_last_comma(sentence);
+    greek_question(&words(sentence), false) || (tail.first().map(|w| w != "γιατί").unwrap_or(false) && greek_question(&tail, false))
+}
+
 /// Adds a question mark to every sentence whose wording makes it a question.
 pub fn mark_questions(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 4);
@@ -98,7 +156,7 @@ pub fn mark_questions(text: &str) -> String {
 fn words(sentence: &str) -> Vec<String> {
     sentence
         .split_whitespace()
-        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric() && c != '\'' && c != '’').to_lowercase().replace('’', "'"))
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric() && c != '\'' && c != '’' && c != '%').to_lowercase().replace('’', "'"))
         .filter(|w| !w.is_empty())
         .collect()
 }
@@ -152,6 +210,10 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
     if let Some(at) = wh_at {
         let wh = w[at].as_str();
         let next = w.get(at + 1).map(|s| s.as_str());
+        // G19: "Γιατί άμα ..." / "Γιατί νομίζω ..." is "because"
+        if wh == "γιατί" && at == 0 && next.map(|n| BECAUSE_NEXT_EL.contains(&n)).unwrap_or(false) {
+            return false;
+        }
         // G14: exclamatives with τι / πόσο
         if wh == "τι" && (ends_with_bang || next.map(|n| EXCL_TI_EL.contains(&n)).unwrap_or(false)) {
             return false;
@@ -302,6 +364,36 @@ mod tests {
         }
         // the engine's own question mark is kept as is
         assert_eq!(q("Τι κάνεις;"), "Τι κάνεις;");
+    }
+
+    /// 27 September 2026: "Γιατί άμα το δεις από κοντά, ..." got a
+    /// question mark. γιατί opening a sentence is often "because".
+    #[test]
+    fn greek_because_is_not_why() {
+        for s in [
+            "Γιατί άμα το δεις από κοντά, θα καταλάβεις.", "Γιατί νομίζω ότι αργεί πολύ.", "Γιατί αλλιώς θα χαθεί η σειρά.",
+            "Και γιατί όταν τρέχει, κολλάει όλο το σύστημα.", "Γιατί απλά δεν υπάρχει χρόνος.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        assert_eq!(q("Γιατί δεν ήρθες χθες."), "Γιατί δεν ήρθες χθες;");
+        assert_eq!(q("Γιατί να το κάνω τώρα."), "Γιατί να το κάνω τώρα;");
+        assert_eq!(q("Γιατί το έστειλες έτσι."), "Γιατί το έστειλες έτσι;");
+    }
+
+    /// 28 September 2026: "Γιατί 100% θα ..." got a question mark. A word of
+    /// certainty, a past or third-person opinion, or "any" after γιατί is
+    /// "because" too. A plain number stays a question.
+    #[test]
+    fn greek_because_with_certainty_is_not_why() {
+        for s in [
+            "Γιατί 100% θα βρεις κι άλλα.", "Γιατί σίγουρα θα αργήσει λίγο.", "Γιατί δυστυχώς έκλεισε νωρίς.",
+            "Γιατί μάλλον θα βρέξει αύριο.", "Γιατί οποιοδήποτε άλλο θα κάνει το ίδιο.", "Γιατί νόμιζα ότι το είχες στείλει.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        assert_eq!(q("Γιατί 100 ευρώ για αυτό."), "Γιατί 100 ευρώ για αυτό;");
+        assert_eq!(q("Γιατί νόμιζες ότι έφυγα."), "Γιατί νόμιζες ότι έφυγα;");
     }
 
     #[test]

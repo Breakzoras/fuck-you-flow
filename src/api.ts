@@ -189,6 +189,9 @@ export const api = {
   debugModeSet: (on: boolean) => invoke<void>("debug_mode_set", { on }),
   debugEvents: (limit?: number) => invoke<string[]>("debug_events", { limit }),
   debugBundle: () => invoke<string>("debug_bundle"),
+  reportPreview: () => invoke<string>("report_preview"),
+  sendReport: (kind: "problem" | "idea", message: string, email: string, includeLog: boolean) =>
+    invoke<string>("send_report", { kind, message, email, includeLog }),
   recentKeys: () => invoke<SeenKey[]>("recent_keys"),
   foregroundApp: () => invoke<Record<string, unknown>>("current_foreground_app"),
   recordShortcut: () => invoke<string>("record_shortcut"),

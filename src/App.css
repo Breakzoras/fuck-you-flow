@@ -55,7 +55,7 @@ a { color: var(--accent); }
 .layout { display: grid; grid-template-columns: 220px 1fr 232px; height: 100%; }
 /* On a narrow window the rail is the first thing to go: the menu and the page
    itself both matter more than a number that only changes now and then. */
-@media (max-width: 1000px) { .layout { grid-template-columns: 220px 1fr; } .gauge { display: none; } }
+@media (max-width: 1000px) { .layout { grid-template-columns: 220px 1fr; } .layout > .gauge { display: none; } }
 .nav {
   background: var(--bg);
   border-right: 1px solid var(--line);
@@ -78,6 +78,39 @@ a { color: var(--accent); }
   outline: 2px solid var(--focus); outline-offset: 2px;
 }
 .nav .spacer { flex: 1; }
+/* The maker's credit at the foot of the menu, on every page and every skin. */
+.nav button.credit {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0;
+  background: transparent; text-transform: none; cursor: pointer;
+}
+.nav button.credit::before { content: none; }
+.credit-by { font-size: 14px; color: var(--fg-2); letter-spacing: 0.01em; line-height: 1.4; }
+.credit-by b { display: block; color: var(--fg); font-weight: 700; }
+.nav button.credit:hover .credit-by { color: var(--fg); }
+.credit-logo { width: 150px; height: auto; display: block; }
+.credit-logo.on-light { display: none; }
+:root[data-theme="light"] .credit-logo.on-dark { display: none; }
+:root[data-theme="light"] .credit-logo.on-light { display: block; }
+[data-skin="carbon"][data-theme="dark"] .nav button.credit { padding-left: 0; border-left: 0; }
+/* "report a problem or idea": a quiet line just above the credit. */
+.nav button.report-open { font-size: 14px; padding: 10px 0 0; color: var(--fg-2); }
+.nav button.report-open:hover { color: var(--accent); }
+.report-card { width: min(640px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; }
+.report-kind { display: flex; gap: 8px; margin: 4px 0 14px; }
+.report-kind button { font: inherit; font-size: 16px; padding: 8px 16px; border: 1px solid var(--line); background: transparent; color: var(--fg-2); cursor: pointer; }
+.report-kind button.on { border-color: var(--accent); color: var(--fg); font-weight: 700; }
+.report-text { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 10px; resize: vertical; background: var(--bg); color: var(--fg); border: 1px solid var(--line); }
+.report-field { display: block; margin: 14px 0 0; font-size: 16px; }
+.report-field span { display: block; color: var(--fg-2); margin-bottom: 4px; }
+.report-field input { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 8px 10px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); }
+.report-check { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0 0; font-size: 16px; cursor: pointer; }
+.report-check input { width: 18px; height: 18px; margin-top: 4px; accent-color: var(--accent); }
+.report-check small { display: block; color: var(--fg-2); font-size: 15px; }
+.report-peek { font: inherit; font-size: 15px; margin: 8px 0 0 28px; padding: 0; border: 0; background: transparent; color: var(--accent); cursor: pointer; text-decoration: underline; }
+.report-preview { max-height: 180px; overflow: auto; margin: 10px 0 0; padding: 10px; font-size: 12px; line-height: 1.4; white-space: pre-wrap; word-break: break-all; background: var(--bg); border: 1px solid var(--line); }
+.report-where { font-size: 15px; margin: 14px 0 0; }
+.update-actions button:disabled { opacity: 0.5; cursor: default; }
 .status-chip {
   margin: 8px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--fg-2);
   display: flex; align-items: center; gap: 8px;
@@ -381,3 +414,12 @@ th { font-size: 13px; color: var(--fg-2); font-weight: 700; text-transform: uppe
 :root[data-os="linux"] select option { background: var(--bg-2); color: var(--fg); }
 
 .update-bar .perm-cmd { display: block; width: 100%; font-size: 13px; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); white-space: pre-wrap; word-break: break-all; user-select: all; }
+/* A short window (the smallest is 620 px tall) still shows the whole menu,
+   the report line and the credit: the menu items sit closer together. */
+@media (max-height: 760px) {
+  .nav { padding-top: 18px; padding-bottom: 16px; }
+  .brand { padding-bottom: 14px; }
+  .nav button { padding-top: 6px; padding-bottom: 6px; }
+  .nav button.report-open { padding-top: 8px; }
+  .nav button.credit { margin-top: 8px; padding-top: 8px; }
+}

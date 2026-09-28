@@ -273,6 +273,20 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             Err(e) => tracing::warn!("learning: past edits not read again: {e}"),
         }
     }
+    // 0.9.13: rules the old learning made against words the user keeps (one
+    // History edit made "το -> αυτό" on 26 September 2026) are switched off,
+    // once, behind their own marker.
+    let kept_marker = crate::paths::local_dir().join("learning-v3.done");
+    if !kept_marker.exists() {
+        match crate::learning::switch_off_rules_against_kept_words(&db) {
+            Ok(n) => {
+                tracing::info!("learning: {n} learned rules switched off, they rewrote words the user keeps");
+                crate::journal::info("learning.rules_switched_off", serde_json::json!({ "rules": n }));
+                let _ = std::fs::write(&kept_marker, b"");
+            }
+            Err(e) => tracing::warn!("learning: learned rules not checked: {e}"),
+        }
+    }
     // A history an older build wrote under the old folder name, after the move.
     for orphan in crate::paths::take_orphan_histories() {
         match db.merge_from(&orphan) {
