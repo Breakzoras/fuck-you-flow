@@ -378,6 +378,49 @@ table.bill td:first-child{width:auto}
 .listen{right:0;bottom:-20px;transform:scale(.92);transform-origin:bottom right}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+/* The reel: on a phone the 26 second video plays muted in a small card at the right
+   edge, halfway down the screen, and a tap opens it large with sound (Lu, 27 September
+   2026). The script at the end of the page builds it on phones alone, so a computer
+   never fetches the video. The card is fixed and moves with transform only, so the
+   page never shifts under it, and it sits beneath the header, so the menu opens over
+   it. Inside the card the picture is always dark, so its controls keep their own dark
+   and green in both themes. The sound button sits on the lower edge of the picture,
+   which keeps the card short enough to fit between the headline and the download
+   button. */
+.reel{position:fixed;top:0;right:12px;z-index:40;display:flex;flex-direction:column;
+align-items:flex-end;gap:6px;pointer-events:none;
+transform:translateY(var(--reel-y,0px));opacity:0;visibility:hidden}
+.reel.reel-on{opacity:1;visibility:visible}
+.reel.reel-on>*{pointer-events:auto}
+.reel-box{position:relative;width:min(33vw,140px);aspect-ratio:9/16;background:#000;
+border:1px solid var(--line);border-radius:14px;overflow:hidden;
+box-shadow:0 14px 36px rgba(0,0,0,.55),0 20px 56px var(--glow)}
+html[data-theme="light"] .reel-box{box-shadow:0 14px 36px rgba(0,0,0,.28),0 20px 56px var(--glow)}
+.reel video{display:block;width:100%;height:100%;object-fit:cover;background:#000}
+.reel button{font:inherit;cursor:pointer;border:0;padding:0}
+.reel button:focus-visible{outline:3px solid #c8ff5a;outline-offset:-3px}
+.reel .reel-open,.reel .reel-x,.reel .reel-sound{position:absolute}
+.reel .reel-open{inset:0;width:100%;height:100%;background:none;border-radius:inherit}
+.reel .reel-sound{left:5px;right:5px;bottom:5px;min-height:44px;display:flex;align-items:center;
+justify-content:center;gap:6px;padding:5px 8px;font-size:14px;font-weight:700;line-height:1.15;
+text-align:center;color:#0c0c0c;background:#c8ff5a;border-radius:10px}
+.reel .reel-sound:focus-visible{outline-color:#0c0c0c;outline-offset:-5px}
+.reel-sound svg{flex:none}
+.reel-sound span{text-wrap:balance}
+.reel .reel-x{top:0;right:0;width:44px;height:44px;display:flex;align-items:center;
+justify-content:center;background:none;color:#f2f2f2}
+.reel-x i{display:flex;align-items:center;justify-content:center;width:30px;height:30px;
+border-radius:50%;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.3)}
+.reel-dim{position:fixed;inset:0;z-index:89;background:rgba(0,0,0,.84)}
+.reel.reel-big{z-index:90;top:50%;left:50%;right:auto;transform:translate(-50%,-50%)}
+.reel-big .reel-box{border-radius:12px;width:min(92vw,calc(86vh*9/16));width:min(92vw,calc(86svh*9/16))}
+.reel-big .reel-open,.reel-big .reel-sound{display:none}
+@media (prefers-reduced-motion:no-preference){
+.reel{translate:0 14px;transition:opacity .35s ease,translate .35s ease,visibility .35s}
+.reel.reel-on{translate:0 0}
+}
+@media print{.reel,.reel-dim{display:none}}
 </style>
 </head>
 <body>
@@ -1200,6 +1243,258 @@ table.bill td:first-child{width:auto}
   document.addEventListener("mouseout", function (e) { if (!e.relatedTarget) { px = py = -1; kick(); } });
   window.addEventListener("blur", function () { px = py = -1; kick(); });
   window.addEventListener("scroll", kick, { passive: true });
+})();
+</script>
+<script>
+/* The reel (Lu, 27 September 2026). On a phone, a second and a half after the page
+   has loaded, the 26 second video appears in a small card and plays muted, the only
+   way a browser lets a video start by itself. The green button on the card turns the
+   sound on in place. A tap on the picture opens it large, with sound and the browser's own
+   controls; Escape or a tap outside brings back the small card, and the cross closes
+   it for the rest of the visit. The card rests at the right edge, halfway down the
+   screen, and keeps clear of the headline and the download buttons: when one of them
+   reaches it, the card steps to the nearest free height, and it waits out of sight
+   (and silent) when no height is free. A computer or a wide window runs none of this
+   and never fetches the video. With reduced motion or data saver on, the
+   card shows the still picture and plays only when tapped. */
+(function () {
+  if (!window.matchMedia || !document.querySelector) return;
+  var KEY = "fyf-reel";
+  var T = { sound: "Tap for sound", play: "Tap to play", mute: "Mute", close: "Close video",
+            open: "Watch it larger, with sound", name: "FU Flow video" };
+  var phone = window.matchMedia("(max-width: 768px) and (pointer: coarse)");
+  var hdr = document.querySelector(".top");
+  // what the card must never cover: the headline and the two download buttons
+  var guards = [].slice.call(document.querySelectorAll("#h1, .hero .btn-acid, .linux-link"));
+  var card, video, dim, pill, openBtn, xBtn, raf = 0, due = false, big = false, still = false;
+
+  function shut() {
+    try { return sessionStorage.getItem(KEY) === "closed"; } catch (e) { return false; }
+  }
+  if (shut()) return;
+
+  function icon(fill, stroke) {
+    var ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "18");
+    svg.setAttribute("height", "18");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    if (fill) {
+      var f = document.createElementNS(ns, "path");
+      f.setAttribute("d", fill);
+      f.setAttribute("fill", "currentColor");
+      svg.appendChild(f);
+    }
+    if (stroke) {
+      var s = document.createElementNS(ns, "path");
+      s.setAttribute("d", stroke);
+      s.setAttribute("fill", "none");
+      s.setAttribute("stroke", "currentColor");
+      s.setAttribute("stroke-width", "2.2");
+      s.setAttribute("stroke-linecap", "round");
+      svg.appendChild(s);
+    }
+    return svg;
+  }
+  var SPEAKER = "M3 9v6h4l5 4V5L7 9H3z";
+
+  function button(cls, label) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = cls;
+    if (label) b.setAttribute("aria-label", label);
+    return b;
+  }
+
+  // The pill says what a tap on it will do next.
+  function label() {
+    if (!pill) return;
+    while (pill.firstChild) pill.removeChild(pill.firstChild);
+    var text = document.createElement("span");
+    if (still) {
+      pill.appendChild(icon("M8 5v14l11-7z"));
+      text.textContent = T.play;
+    } else if (video.muted) {
+      pill.appendChild(icon(SPEAKER, "M16 9.5l5 5M21 9.5l-5 5"));
+      text.textContent = T.sound;
+    } else {
+      pill.appendChild(icon(SPEAKER, "M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"));
+      text.textContent = T.mute;
+    }
+    pill.appendChild(text);
+  }
+
+  function play() {
+    var p = video.play();
+    // Low Power Mode on an iPhone refuses even a muted start. Then the card keeps
+    // the still picture and waits for a tap.
+    if (p && p.catch) p.catch(function (e) {
+      if (card && !big && e && e.name === "NotAllowedError") { still = true; label(); }
+    });
+  }
+
+  function kick() { if (!raf) raf = requestAnimationFrame(place); }
+
+  // Halfway down the screen when that height is free. Otherwise the free height
+  // nearest to it, between the header and the bottom edge. Each guard that shares
+  // the card's column rules out the heights where the two would touch; the best
+  // free height is then the middle itself or the edge of one of those bands.
+  function place() {
+    raf = 0;
+    if (!card || big) return;
+    if (!phone.matches) { card.classList.remove("reel-on"); return; }
+    var w = card.offsetWidth, h = card.offsetHeight, vh = window.innerHeight;
+    var right = document.documentElement.clientWidth - 12, left = right - w;
+    var lo = (hdr ? Math.max(0, hdr.getBoundingClientRect().bottom) : 0) + 12;
+    var hi = vh - 12 - h;
+    var want = Math.max(lo, Math.min(hi, (vh - h) / 2));
+    var bands = [], picks = [want], y = null, i, j;
+    for (i = 0; i < guards.length; i++) {
+      var r = guards[i].getBoundingClientRect();
+      if (!r.width || r.right <= left - 8 || r.left >= right + 8) continue;
+      bands.push([r.top - h - 8, r.bottom + 8]);
+      picks.push(r.top - h - 8, r.bottom + 8);
+    }
+    for (i = 0; i < picks.length; i++) {
+      var c = picks[i], free = c >= lo && c <= hi;
+      for (j = 0; free && j < bands.length; j++) if (c > bands[j][0] && c < bands[j][1]) free = false;
+      if (free && (y === null || Math.abs(c - want) < Math.abs(y - want))) y = c;
+    }
+    if (y === null) {
+      // Out of sight means out of hearing too: a hidden card cannot be muted by hand.
+      if (!video.muted) { video.muted = true; label(); }
+      card.classList.remove("reel-on");
+      return;
+    }
+    card.style.setProperty("--reel-y", Math.round(y) + "px");
+    card.classList.add("reel-on");
+  }
+
+  function grow() {
+    big = true;
+    video.muted = false;
+    video.controls = true;
+    video.removeAttribute("aria-hidden");
+    video.setAttribute("preload", "auto");
+    play();
+    card.classList.add("reel-big");
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    dim.hidden = false;
+    xBtn.focus();
+  }
+
+  function shrink() {
+    big = false;
+    video.controls = false;
+    video.muted = true;
+    video.setAttribute("aria-hidden", "true");
+    if (still) video.pause();
+    card.classList.remove("reel-big");
+    card.setAttribute("role", "region");
+    card.removeAttribute("aria-modal");
+    dim.hidden = true;
+    label();
+    place();
+    openBtn.focus();
+  }
+
+  function close() {
+    try { sessionStorage.setItem(KEY, "closed"); } catch (e) {}
+    var inside = card.contains(document.activeElement);
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+    card.parentNode.removeChild(card);
+    dim.parentNode.removeChild(dim);
+    window.removeEventListener("scroll", kick);
+    window.removeEventListener("resize", kick);
+    document.removeEventListener("keydown", keys);
+    card = null;
+    big = false;
+    if (inside && document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+
+  function keys(e) {
+    if (!big) return;
+    if (e.key === "Escape") { e.preventDefault(); shrink(); return; }
+    if (e.key === "Tab") {
+      var f = [video, xBtn], i = f.indexOf(document.activeElement);
+      e.preventDefault();
+      f[(i + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus();
+    }
+  }
+
+  function show() {
+    if (card || shut() || !phone.matches) return;
+    still = window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+            !!(navigator.connection && navigator.connection.saveData);
+    card = document.createElement("div");
+    card.className = "reel";
+    card.setAttribute("role", "region");
+    card.setAttribute("aria-label", T.name);
+    video = document.createElement("video");
+    // muted and playsinline go on as attributes before the source, or an iPhone
+    // opens the video full screen and refuses to start it.
+    video.setAttribute("muted", "");
+    video.muted = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("loop", "");
+    video.setAttribute("preload", "none");
+    video.setAttribute("aria-hidden", "true");
+    video.setAttribute("poster", "../assets/reel-poster.jpg");
+    if (!still) video.setAttribute("autoplay", "");
+    video.setAttribute("src", "../assets/reel.mp4");
+    openBtn = button("reel-open", T.open);
+    pill = button("reel-sound");
+    xBtn = button("reel-x", T.close);
+    var ring = document.createElement("i");
+    ring.appendChild(icon(null, "M7 7l10 10M17 7L7 17"));
+    xBtn.appendChild(ring);
+    var box = document.createElement("div");
+    box.className = "reel-box";
+    box.appendChild(video);
+    box.appendChild(openBtn);
+    box.appendChild(pill);
+    box.appendChild(xBtn);
+    card.appendChild(box);
+    dim = document.createElement("div");
+    dim.className = "reel-dim";
+    dim.hidden = true;
+    document.body.appendChild(dim);
+    document.body.appendChild(card);
+    label();
+
+    openBtn.addEventListener("click", grow);
+    pill.addEventListener("click", function () {
+      if (still) { grow(); return; }
+      video.muted = !video.muted;
+      if (video.paused) play();
+      label();
+    });
+    xBtn.addEventListener("click", close);
+    dim.addEventListener("click", shrink);
+    document.addEventListener("keydown", keys);
+    window.addEventListener("scroll", kick, { passive: true });
+    window.addEventListener("resize", kick);
+
+    place();
+    if (!still) { video.setAttribute("preload", "auto"); play(); }
+  }
+
+  // Phone turned sideways past the limit: hide and pause. Back upright: return.
+  function turn() {
+    if (!card) { if (due) show(); return; }
+    if (phone.matches) { if (!still && !big && video.paused) play(); kick(); }
+    else { if (big) shrink(); video.pause(); card.classList.remove("reel-on"); }
+  }
+  if (phone.addEventListener) phone.addEventListener("change", turn);
+  else if (phone.addListener) phone.addListener(turn);
+
+  function wait() { setTimeout(function () { due = true; show(); }, 1500); }
+  if (document.readyState === "complete") wait();
+  else window.addEventListener("load", wait);
 })();
 </script>
 <script>(function(){function go(){var b=document.getElementById('nav-btn'),n=document.getElementById('site-nav');if(!b||!n)return;b.addEventListener('click',function(){var o=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!o));n.classList.toggle('open',!o);});n.addEventListener('click',function(e){if(e.target.tagName==='A'){b.setAttribute('aria-expanded','false');n.classList.remove('open');}});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',go);}else{go();}})();</script>

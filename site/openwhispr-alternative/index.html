@@ -8,9 +8,9 @@
 <meta property="og:site_name" content="Fuck You Flow"><meta property="og:url" content="https://fuckyouflow.app/openwhispr-alternative/">
 <meta property="og:locale" content="en_US">
 <meta property="og:title" content="OpenWhispr Alternative for Windows: Local Dictation | FU Flow"><meta property="og:description" content="Compare FU Flow and OpenWhispr for free local dictation: Windows setup, Greek and English, model downloads, cloud cleanup and practical switching checks.">
-<meta property="og:image" content="https://fuckyouflow.app/assets/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image" content="https://fuckyouflow.app/assets/og-2026-09-27.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="FU Flow"><meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebPage", "@id": "https://fuckyouflow.app/openwhispr-alternative/#page", "url": "https://fuckyouflow.app/openwhispr-alternative/", "name": "OpenWhispr Alternative for Windows: Local Dictation", "headline": "OpenWhispr Alternative for Windows: Local Dictation", "description": "Compare FU Flow and OpenWhispr for free local dictation: Windows setup, Greek and English, model downloads, cloud cleanup and practical switching checks.", "inLanguage": "en", "dateModified": "2026-09-26", "image": "https://fuckyouflow.app/assets/og.png", "author": {"@type": "Organization", "name": "Luram AI Agency", "url": "https://luram.gr/"}, "about": {"@type": "SoftwareApplication", "@id": "https://fuckyouflow.app/#app", "name": "Fuck You Flow"}}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://fuckyouflow.app/"}, {"@type": "ListItem", "position": 2, "name": "OpenWhispr Alternative for Windows: Local Dictation", "item": "https://fuckyouflow.app/openwhispr-alternative/"}]}]}</script><script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebPage", "@id": "https://fuckyouflow.app/openwhispr-alternative/#page", "url": "https://fuckyouflow.app/openwhispr-alternative/", "name": "OpenWhispr Alternative for Windows: Local Dictation", "headline": "OpenWhispr Alternative for Windows: Local Dictation", "description": "Compare FU Flow and OpenWhispr for free local dictation: Windows setup, Greek and English, model downloads, cloud cleanup and practical switching checks.", "inLanguage": "en", "dateModified": "2026-09-26", "image": "https://fuckyouflow.app/assets/og-2026-09-27.png", "author": {"@type": "Organization", "name": "Luram AI Agency", "url": "https://luram.gr/"}, "about": {"@type": "SoftwareApplication", "@id": "https://fuckyouflow.app/#app", "name": "Fuck You Flow"}}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://fuckyouflow.app/"}, {"@type": "ListItem", "position": 2, "name": "OpenWhispr Alternative for Windows: Local Dictation", "item": "https://fuckyouflow.app/openwhispr-alternative/"}]}]}</script><script>
 (function(){var r=document.documentElement,s=null;try{s=localStorage.getItem("fyf-theme")}catch(e){}
 var sys=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";
 r.setAttribute("data-theme",s||sys);
@@ -377,6 +377,49 @@ table.bill td:first-child{width:auto}
 .listen{right:0;bottom:-20px;transform:scale(.92);transform-origin:bottom right}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+/* The reel: on a phone the 26 second video plays muted in a small card at the right
+   edge, halfway down the screen, and a tap opens it large with sound (Lu, 27 September
+   2026). The script at the end of the page builds it on phones alone, so a computer
+   never fetches the video. The card is fixed and moves with transform only, so the
+   page never shifts under it, and it sits beneath the header, so the menu opens over
+   it. Inside the card the picture is always dark, so its controls keep their own dark
+   and green in both themes. The sound button sits on the lower edge of the picture,
+   which keeps the card short enough to fit between the headline and the download
+   button. */
+.reel{position:fixed;top:0;right:12px;z-index:40;display:flex;flex-direction:column;
+align-items:flex-end;gap:6px;pointer-events:none;
+transform:translateY(var(--reel-y,0px));opacity:0;visibility:hidden}
+.reel.reel-on{opacity:1;visibility:visible}
+.reel.reel-on>*{pointer-events:auto}
+.reel-box{position:relative;width:min(33vw,140px);aspect-ratio:9/16;background:#000;
+border:1px solid var(--line);border-radius:14px;overflow:hidden;
+box-shadow:0 14px 36px rgba(0,0,0,.55),0 20px 56px var(--glow)}
+html[data-theme="light"] .reel-box{box-shadow:0 14px 36px rgba(0,0,0,.28),0 20px 56px var(--glow)}
+.reel video{display:block;width:100%;height:100%;object-fit:cover;background:#000}
+.reel button{font:inherit;cursor:pointer;border:0;padding:0}
+.reel button:focus-visible{outline:3px solid #c8ff5a;outline-offset:-3px}
+.reel .reel-open,.reel .reel-x,.reel .reel-sound{position:absolute}
+.reel .reel-open{inset:0;width:100%;height:100%;background:none;border-radius:inherit}
+.reel .reel-sound{left:5px;right:5px;bottom:5px;min-height:44px;display:flex;align-items:center;
+justify-content:center;gap:6px;padding:5px 8px;font-size:14px;font-weight:700;line-height:1.15;
+text-align:center;color:#0c0c0c;background:#c8ff5a;border-radius:10px}
+.reel .reel-sound:focus-visible{outline-color:#0c0c0c;outline-offset:-5px}
+.reel-sound svg{flex:none}
+.reel-sound span{text-wrap:balance}
+.reel .reel-x{top:0;right:0;width:44px;height:44px;display:flex;align-items:center;
+justify-content:center;background:none;color:#f2f2f2}
+.reel-x i{display:flex;align-items:center;justify-content:center;width:30px;height:30px;
+border-radius:50%;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.3)}
+.reel-dim{position:fixed;inset:0;z-index:89;background:rgba(0,0,0,.84)}
+.reel.reel-big{z-index:90;top:50%;left:50%;right:auto;transform:translate(-50%,-50%)}
+.reel-big .reel-box{border-radius:12px;width:min(92vw,calc(86vh*9/16));width:min(92vw,calc(86svh*9/16))}
+.reel-big .reel-open,.reel-big .reel-sound{display:none}
+@media (prefers-reduced-motion:no-preference){
+.reel{translate:0 14px;transition:opacity .35s ease,translate .35s ease,visibility .35s}
+.reel.reel-on{translate:0 0}
+}
+@media print{.reel,.reel-dim{display:none}}
 
 /* the changelog list */
 .rel{border-top:1px solid var(--line);padding:34px 0}

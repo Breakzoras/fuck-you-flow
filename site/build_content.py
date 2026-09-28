@@ -7,7 +7,7 @@ import re
 from build_changelog import head_bits
 import site_nav
 from guides_source import GUIDES
-from site_data import BASE, REPO, VERSION, SIZE, SIZE_EL, DL, CONTENT_DATE
+from site_data import BASE, REPO, VERSION, SIZE, SIZE_EL, DL, CONTENT_DATE, OG_IMAGE
 from workflows_source import WORKFLOWS, PRIVACY
 from comparisons_source import COMPARISONS
 from comparison_greek_source import WISPR_EL
@@ -94,7 +94,7 @@ def page(path, lang, title, desc, lead, body, paired=True, article=False, faq=No
     schema = {'@context': 'https://schema.org', '@graph': [
         {'@type': 'Article' if article else 'WebPage', '@id': url + '#page', 'url': url,
          'name': title, 'headline': title, 'description': desc, 'inLanguage': lang,
-         'dateModified': CONTENT_DATE, 'image': BASE + '/assets/og.png',
+         'dateModified': CONTENT_DATE, 'image': OG_IMAGE,
          'author': {'@type': 'Organization', 'name': 'Luram AI Agency', 'url': 'https://luram.gr/'},
          'about': {'@type': 'SoftwareApplication', '@id': BASE + '/#app', 'name': 'Fuck You Flow'}},
         {'@type': 'BreadcrumbList', 'itemListElement': [
@@ -117,7 +117,7 @@ def page(path, lang, title, desc, lead, body, paired=True, article=False, faq=No
 <meta property="og:site_name" content="Fuck You Flow"><meta property="og:url" content="{url}">
 <meta property="og:locale" content="{'el_GR' if lang == 'el' else 'en_US'}">
 <meta property="og:title" content="{escape(title, quote=True)} | FU Flow"><meta property="og:description" content="{escape(desc, quote=True)}">
-<meta property="og:image" content="{BASE}/assets/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image" content="{OG_IMAGE}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="FU Flow"><meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{json.dumps(schema, ensure_ascii=False).replace('</', '<\\/')}</script>{script}{css}
 </head><body><a class="skip" href="#main">{words[4]}</a>

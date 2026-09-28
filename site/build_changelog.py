@@ -20,7 +20,7 @@ import sys
 
 import changelog_source
 import site_nav
-from site_data import DL
+from site_data import DL, OG_IMAGE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "variants", "v4-coral.html")
@@ -162,7 +162,9 @@ def page(lang, script, css):
 <meta property="og:url" content="%(canon)s">
 <meta property="og:title" content="%(title)s">
 <meta property="og:description" content="%(desc)s">
-<meta property="og:image" content="%(base)s/assets/og.png">
+<meta property="og:image" content="%(og)s">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 %(script)s
 %(css)s
@@ -210,6 +212,7 @@ def page(lang, script, css):
         "desc": esc(w["desc"]),
         "canon": canon,
         "base": BASE,
+        "og": OG_IMAGE,
         "script": script,
         "css": css,
         "skip": esc(w["skip"]),

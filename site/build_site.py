@@ -17,7 +17,7 @@ import sys
 
 import llms_source
 import site_nav
-from site_data import BASE, VERSION, DL, SIZE, SIZE_BYTES, RELEASE_DATE, CONTENT_DATE, release_tokens
+from site_data import BASE, VERSION, DL, SIZE, SIZE_BYTES, RELEASE_DATE, CONTENT_DATE, OG_IMAGE, OG_ALT, release_tokens
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "variants", "v4-coral.html")
@@ -40,11 +40,11 @@ COMMON_LINKS = """<link rel="icon" href="/assets/favicon.ico" sizes="48x48">
 <meta name="msvalidate.01" content="A79AFD627767F90B3097E8DF8FE5CAD5">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Fuck You Flow">
-<meta property="og:image" content="{base}/assets/og.png">
+<meta property="og:image" content="{og}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="A matte black sculptural hand lit with acid green, beside the words Fuck You Flow, free dictation for Windows.">
-<meta name="twitter:card" content="summary_large_image">""".format(base=BASE)
+<meta property="og:image:alt" content="{og_alt}">
+<meta name="twitter:card" content="summary_large_image">""".format(base=BASE, og=OG_IMAGE, og_alt=OG_ALT)
 
 HEAD_EN = """<title>Free Voice to Text for Windows: Offline Dictation | FU Flow</title>
 <meta name="description" content="Free voice to text for Windows 10 and 11. Talk and it types in any app: offline speech to text and voice typing with local Whisper. No subscription or word limit.">
@@ -108,7 +108,7 @@ def jsonld(lang):
       "downloadUrl": "%(dl)s",
       "installUrl": "https://github.com/Breakzoras/fuck-you-flow/releases",
       "fileSize": "%(bytes)s B",
-      "image": "%(base)s/assets/og.png",
+      "image": "%(og)s",
       "license": "https://opensource.org/licenses/MIT",
       "isAccessibleForFree": true,
       "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR",
@@ -178,7 +178,7 @@ def jsonld(lang):
 </script>""" % {"base": BASE, "ver": VERSION, "desc": jstr(desc), "url": url, "dl": DL,
                 "pub": pub, "lang": lang, "q": ",".join(q),
                 "today": RELEASE_DATE, "bytes": SIZE_BYTES,
-                "howto_name": jstr(howto_name), "steps": steps}
+                "howto_name": jstr(howto_name), "steps": steps, "og": OG_IMAGE}
 
 
 def jstr(s):
@@ -559,7 +559,14 @@ TR = [('Skip to content', 'Στο περιεχόμενο'),
  ('All dictation guides', 'Όλοι οι οδηγοί υπαγόρευσης'),
  ('href="/guides/', 'href="/el/guides/'),
  ('href="/wispr-flow-alternative/"', 'href="/el/wispr-flow-alternative/"'),
- ('href="/privacy/"', 'href="/el/privacy/"')]
+ ('href="/privacy/"', 'href="/el/privacy/"'),
+ # the words on the phone video card, which its script writes into the page
+ ('"Tap for sound"', '"Πατήστε για ήχο"'),
+ ('"Tap to play"', '"Πατήστε για προβολή"'),
+ ('"Mute"', '"Σίγαση"'),
+ ('"Close video"', '"Κλείσιμο βίντεο"'),
+ ('"Watch it larger, with sound"', '"Δείτε το σε μεγάλο μέγεθος, με ήχο"'),
+ ('"FU Flow video"', '"Βίντεο FU Flow"')]
 
 
 def put_nav(html, lang):
