@@ -1,9 +1,11 @@
 # Fuck You Flow
 
-Free, open-source dictation for Windows 10 and 11, and now for Ubuntu Linux 22.04
+Free, open-source Wispr Flow alternative for Windows 10 and 11 and Ubuntu Linux 22.04
 or newer. English, Greek and 97 more languages, detected automatically, or locked to your own language in Settings.
 Press Right Alt, speak, then press it again to insert text into a compatible
 Windows text field. The default Whisper engine processes speech on your own PC.
+A cleanup step, on by default, removes hesitation sounds such as “um” and “uh”
+and applies spoken self-corrections before the text lands.
 
 Local dictation works offline after setup, with no account, subscription or word
 cap. An optional remote speech provider sends audio to the provider you configure;
