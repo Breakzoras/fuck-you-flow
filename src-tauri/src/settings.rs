@@ -193,6 +193,17 @@ pub struct InsertionSettings {
     pub paste_settle_ms: u64,
     /// Add a trailing space after inserted text (useful for chat apps).
     pub trailing_space: bool,
+    /// Open the notepad window when the words could not reach their target.
+    /// On by default, because a first tester lost a whole dictation to the
+    /// clipboard without knowing it on 7 September 2026. Off for anyone who
+    /// finds a window appearing mid-work more disruptive than the loss, which
+    /// Lu did the same evening: the clipboard alone is then the fallback.
+    #[serde(default = "yes")]
+    pub notepad_when_lost: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl Default for InsertionSettings {
@@ -204,6 +215,7 @@ impl Default for InsertionSettings {
             // 2 to 3 ms after Ctrl+V. 60 ms of quiet is plenty; 180 was dead time.
             paste_settle_ms: 60,
             trailing_space: true,
+            notepad_when_lost: true,
         }
     }
 }
@@ -280,6 +292,12 @@ pub struct GeneralSettings {
     /// five times; nothing in the normal interface mentions it.
     #[serde(default)]
     pub debug_mode: bool,
+    /// The user chose the graphics-card switch or the acceleration themselves.
+    /// Until they do, the app is allowed to correct a machine that ended up on
+    /// the processor while a usable card sits in it, which is what happened to
+    /// the first AMD tester on 7 September 2026.
+    #[serde(default)]
+    pub gpu_choice_by_user: bool,
 }
 
 impl Default for GeneralSettings {
@@ -292,6 +310,7 @@ impl Default for GeneralSettings {
             play_sounds: true,
             machine_profiled: false,
             debug_mode: false,
+            gpu_choice_by_user: false,
         }
     }
 }
@@ -327,16 +346,57 @@ impl Settings {
         match std::fs::read_to_string(path) {
             // Notepad and PowerShell write UTF-8 with a byte-order mark, which
             // serde_json rejects as "expected value at line 1 column 1".
-            Ok(text) => match serde_json::from_str::<Settings>(text.trim_start_matches('\u{feff}')) {
-                Ok(s) => s,
-                Err(e) => {
-                    tracing::warn!("settings.json unreadable ({e}); using defaults and keeping a backup");
-                    let _ = std::fs::copy(path, path.with_extension("json.bak"));
-                    Settings::default()
+            Ok(text) => {
+                let text = text.trim_start_matches('\u{feff}');
+                match serde_json::from_str::<Settings>(text) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        tracing::warn!("settings.json has something the app cannot read ({e}); keeping every part that still makes sense");
+                        let _ = std::fs::copy(path, path.with_extension("json.bak"));
+                        Settings::salvage(text)
+                    }
                 }
-            },
+            }
             Err(_) => Settings::default(),
         }
+    }
+
+    /// Read the file one section at a time, keeping everything that still works.
+    ///
+    /// A single word the app does not recognise, a hand edit gone wrong or a
+    /// setting removed by a later version used to fail the whole file, and the
+    /// user came back to a program that had forgotten their shortcut, their
+    /// language, their microphone and everything else they had ever chosen.
+    /// Now only the part that is actually broken goes back to its default.
+    fn salvage(text: &str) -> Self {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else {
+            tracing::warn!("settings.json is not readable as a file at all; starting from the defaults");
+            return Settings::default();
+        };
+        let Some(obj) = value.as_object() else {
+            return Settings::default();
+        };
+        let mut out = Settings::default();
+        macro_rules! part {
+            ($name:literal, $field:ident) => {
+                if let Some(v) = obj.get($name) {
+                    match serde_json::from_value(v.clone()) {
+                        Ok(parsed) => out.$field = parsed,
+                        Err(e) => tracing::warn!("the {} settings could not be read ({e}); that part went back to its defaults", $name),
+                    }
+                }
+            };
+        }
+        part!("general", general);
+        part!("hotkeys", hotkeys);
+        part!("audio", audio);
+        part!("language", language);
+        part!("asr", asr);
+        part!("cleanup", cleanup);
+        part!("insertion", insertion);
+        part!("overlay", overlay);
+        part!("privacy", privacy);
+        out
     }
 
     pub fn save(&self, path: &Path) -> anyhow::Result<()> {
@@ -353,6 +413,31 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// One word the app does not know must not cost the user everything else
+    /// they ever set. Before this, a single bad value reset the shortcut, the
+    /// language, the microphone and every other choice at once.
+    #[test]
+    fn a_broken_section_does_not_take_the_others_with_it() {
+        let text = r#"{
+            "general": { "ui_language": "en" },
+            "hotkeys": { "push_to_talk": "Mouse4" },
+            "audio": { "preroll_ms": "not a number" },
+            "insertion": { "paste_settle_ms": 120 }
+        }"#;
+        // The whole file cannot be read, which is the case that used to wipe everything.
+        assert!(serde_json::from_str::<Settings>(text).is_err(), "this file must be the broken kind");
+
+        let s = Settings::salvage(text);
+        assert_eq!(s.general.ui_language, "en", "the language survives");
+        assert_eq!(s.hotkeys.push_to_talk, "Mouse4", "the shortcut survives");
+        assert_eq!(s.insertion.paste_settle_ms, 120, "the paste setting survives");
+        assert_eq!(
+            s.audio.preroll_ms,
+            Settings::default().audio.preroll_ms,
+            "only the broken part goes back to its default"
+        );
+    }
 
     #[test]
     fn defaults_round_trip() {

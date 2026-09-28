@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Fuck You Flow",
-  "version": "0.9.1",
+  "mainBinaryName": "fuckyouflow",
+  "version": "0.9.5",
   "identifier": "gr.luram.lalia",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -26,8 +27,8 @@
         "label": "overlay",
         "title": "Fuck You Flow overlay",
         "url": "overlay.html",
-        "width": 260,
-        "height": 84,
+        "width": 340,
+        "height": 150,
         "resizable": false,
         "decorations": false,
         "transparent": true,
@@ -38,6 +39,18 @@
         "focusable": false,
         "visible": false,
         "visibleOnAllWorkspaces": true
+      },
+      {
+        "label": "scratch",
+        "title": "Fuck You Flow notes",
+        "url": "scratch.html",
+        "width": 520,
+        "height": 360,
+        "minWidth": 360,
+        "minHeight": 240,
+        "alwaysOnTop": true,
+        "visible": false,
+        "center": true
       }
     ],
     "security": {
@@ -66,7 +79,8 @@
         "displayLanguageSelector": false,
         "installerIcon": "icons/icon.ico",
         "headerImage": "icons/nsis-header.bmp",
-        "sidebarImage": "icons/nsis-sidebar.bmp"
+        "sidebarImage": "icons/nsis-sidebar.bmp",
+        "compression": "none"
       },
       "webviewInstallMode": {
         "type": "embedBootstrapper",
@@ -75,6 +89,18 @@
     },
     "resources": [
       "bundled/**/*"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQyQUM1NTY3QUNBNTg3QTMKUldTamg2V3NaMVdzUXA2b1FzZHRIZFVCK2psT2kvQStqY1BqaEw0VDl5YmdXYVg3MXBNdVFUbUkK",
+      "endpoints": [
+        "https://fuckyouflow.app/updates/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

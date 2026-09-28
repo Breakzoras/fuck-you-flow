@@ -246,6 +246,13 @@ impl WhisperServer {
         self.inner.lock().status == EngineStatus::Ready
     }
 
+    /// The child's process id, so its graphics memory can be read. The model
+    /// lives in this process, not in ours, so "is the model still on the card"
+    /// is a question about this number.
+    pub fn pid(&self) -> Option<u32> {
+        self.inner.lock().child.as_ref().and_then(|c| c.id())
+    }
+
     /// True when the child process is still alive.
     pub fn is_alive(&self) -> bool {
         let mut g = self.inner.lock();
@@ -290,12 +297,18 @@ impl TranscriptionProvider for WhisperServer {
         if let Some(p) = req.prompt.filter(|p| !p.trim().is_empty()) {
             form = form.text("prompt", p);
         }
-        // Inference time grows with the recording. Measured on the RTX 3070 with
-        // large-v3-q5_0: about 0.09 s per second of audio, so a ten-minute
-        // recording needs close to a minute. Allow half a second per audio second
-        // plus a fixed margin, never less than the client default.
+        // Inference time grows with the recording, and how fast depends entirely
+        // on the machine. Measured on an RTX 3070 with large-v3-q5_0: about
+        // 0.09 s per second of audio. A machine with no usable graphics card
+        // runs the same model at 1 to 3 s per audio second, thirty times slower,
+        // and the old half-a-second budget killed every dictation over about
+        // forty seconds there and threw the words away with it.
+        //
+        // Four seconds per audio second covers the slow case with room to spare.
+        // A fast machine never reaches it, so nobody waits longer than before
+        // for anything that was going to work.
         let audio_secs = wav_len as u64 / 32_000;
-        let timeout = Duration::from_secs((20 + audio_secs / 2).max(65));
+        let timeout = Duration::from_secs((30 + audio_secs * 4).max(120));
         let resp = self
             .http
             .post(format!("{}/inference", self.base_url()))

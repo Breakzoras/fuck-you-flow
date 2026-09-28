@@ -20,7 +20,7 @@ export interface Settings {
     auto_capitalize: boolean; llm_enabled: boolean; llm_model_path: string | null; cloud_cleanup_enabled: boolean;
     intonation_questions?: boolean;
   };
-  insertion: { method: InsertionMethod; restore_clipboard: boolean; paste_settle_ms: number; trailing_space: boolean };
+  insertion: { method: InsertionMethod; restore_clipboard: boolean; paste_settle_ms: number; trailing_space: boolean; notepad_when_lost: boolean };
   overlay: { position: OverlayPosition; custom_x: number; custom_y: number; monitor_name: string | null; hide_when_idle: boolean; scale: number; style: "full" | "minimal" };
   privacy: {
     keep_history: boolean; retention_days: number | null; keep_audio: boolean; context_awareness: boolean;
@@ -70,13 +70,42 @@ export interface EngineInfo { status: "missing" | "starting" | "ready" | "failed
 
 export interface ModelStatus {
   id: string; file_name: string; display_name: string; url: string; sha256: string; size_bytes: number; vram_mb: number;
-  ram_mb: number; languages_key: string; notes_key: string; recommended: boolean; installed: boolean; verified: boolean; path: string | null;
+  ram_mb: number; greek_errors_pct: number | null; median_ms: number | null;
+  languages_key: string; notes_key: string; recommended: boolean; installed: boolean; verified: boolean; path: string | null;
+}
+
+export interface GpuMemory { total_mb: number; used_mb: number; free_mb: number }
+
+/// What the sidebar gauge draws. Every number is measured at the moment of the
+/// call: a card with room in the morning can be full by the afternoon.
+export interface GpuGaugeInfo {
+  card: GpuMemory | null;
+  model_id: string;
+  model_name: string;
+  needs_mb: number;
+  greek_errors_pct: number | null;
+  median_ms: number | null;
+  on_card_mb: number | null;
+  pushed_out_mb: number | null;
+  state: "ok" | "tight" | "spilled";
+  fits_instead: string | null;
+  fits_instead_name: string | null;
 }
 
 export interface DeviceInfo { name: string; is_default: boolean }
 export interface PipelineSnapshot { phase: "idle" | "recording" | "processing"; hands_free: boolean; last_error: string | null; last_transcript: string | null; mic_open: boolean }
 export interface RuntimeStatus { installed: boolean; cuda_driver: boolean; vad_model: boolean; spec: { url: string; sha256: string; size_bytes: number; version: string } }
 export interface DownloadProgress { id: string; received: number; total: number; phase: string; message: string | null }
+
+/// What the update server says. `small_download` is false when the models are
+/// still inside the install folder, which turns a 68 MB update into 1.6 GB.
+export interface UpdateInfo {
+  available: boolean; version: string; current: string;
+  notes: string | null; date: string | null; small_download: boolean;
+}
+
+/// One modifier key event as the keyboard hook saw it (src-tauri/src/hotkey.rs).
+export interface SeenKey { at_ms: number; key: string; down: boolean; injected: boolean }
 
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
@@ -87,6 +116,10 @@ export const api = {
   retry: () => invoke<void>("pipeline_retry"),
   pasteLast: () => invoke<void>("paste_last"),
   pasteHistory: (id: string) => invoke<void>("paste_history", { id }),
+  // A recording the user already has, turned into text. The picker is native
+  // and lives in Rust, so no extra package is needed here.
+  pickAudioFile: () => invoke<string | null>("pick_audio_file"),
+  transcribeAudioFile: (path: string) => invoke<string>("transcribe_audio_file", { path }),
   microphones: () => invoke<DeviceInfo[]>("list_microphones"),
   micLevel: () => invoke<{ level: number; open: boolean; alive: boolean; device: string | null }>("mic_level"),
   micTestOpen: () => invoke<number>("mic_test_open"),
@@ -94,6 +127,7 @@ export const api = {
   engineRestart: () => invoke<void>("engine_restart"),
   models: () => invoke<ModelStatus[]>("list_models"),
   runtimeStatus: () => invoke<RuntimeStatus>("runtime_status"),
+  gpuGauge: () => invoke<GpuGaugeInfo>("gpu_gauge"),
   downloadModel: (id: string) => invoke<void>("download_model", { id }),
   installRuntime: () => invoke<void>("install_runtime"),
   removeModel: (id: string) => invoke<void>("remove_model", { id }),
@@ -131,8 +165,13 @@ export const api = {
   debugModeSet: (on: boolean) => invoke<void>("debug_mode_set", { on }),
   debugEvents: (limit?: number) => invoke<string[]>("debug_events", { limit }),
   debugBundle: () => invoke<string>("debug_bundle"),
+  recentKeys: () => invoke<SeenKey[]>("recent_keys"),
   foregroundApp: () => invoke<Record<string, unknown>>("current_foreground_app"),
   recordShortcut: () => invoke<string>("record_shortcut"),
+  // Updates: the check only asks, the install is a separate yes.
+  appVersion: () => invoke<string>("app_version"),
+  checkForUpdate: () => invoke<UpdateInfo>("check_for_update"),
+  installUpdate: () => invoke<void>("install_update"),
   quit: () => invoke<void>("quit_app"),
 };
 
