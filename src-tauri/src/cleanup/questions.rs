@@ -31,10 +31,14 @@ const TAGS_EL: &[&[&str]] = &[
 const EXCL_TI_EL: &[&str] = &["ωραία", "ωραίο", "ωραίος", "όμορφα", "καλά", "κρίμα", "υπέροχα", "φοβερό", "χαρά", "βλακεία", "ντροπή", "θαυμάσια", "κι", "και"];
 const EXCL_POSO_EL: &[&str] = &["σε", "χαίρομαι", "μου", "ωραία", "όμορφα", "καλά", "πολύ", "λυπάμαι", "μάλλον"];
 /// G19: sentence-initial γιατί followed by one of these means "because"
-/// ("Γιατί άμα το δεις, θα καταλάβεις.").
+/// ("Γιατί άμα το δεις, θα καταλάβεις."). Only words that never open a
+/// real "why" question: clause openers, a first- or third-person opinion,
+/// and sentence adverbs of certainty or attitude ("Γιατί 100% θα το βρεις.").
 const BECAUSE_NEXT_EL: &[&str] = &[
     "άμα", "αν", "εάν", "όταν", "όσο", "επειδή", "αλλιώς", "νομίζω", "θεωρώ", "νιώθω", "πιστεύω", "απλά", "απλώς", "πρακτικά",
-    "βασικά", "προφανώς",
+    "βασικά", "προφανώς", "νόμιζα", "νόμιζε", "νομίζει", "νομίζουμε", "πίστευα", "πιστεύει", "πιστεύουμε", "θεωρεί", "θεωρούμε",
+    "σίγουρα", "100%", "δυστυχώς", "ευτυχώς", "όντως", "ειλικρινά", "ξεκάθαρα", "μάλλον", "πιθανότατα", "πιθανώς", "λογικά",
+    "ουσιαστικά", "οποιοδήποτε", "οποιαδήποτε", "οποιοσδήποτε", "οποιονδήποτε",
 ];
 /// Words a sentence cannot stop on: a pause mark after one of them simply goes
 /// ("από το; αρχείο" -> "από το αρχείο").
@@ -152,7 +156,7 @@ pub fn mark_questions(text: &str) -> String {
 fn words(sentence: &str) -> Vec<String> {
     sentence
         .split_whitespace()
-        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric() && c != '\'' && c != '’').to_lowercase().replace('’', "'"))
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric() && c != '\'' && c != '’' && c != '%').to_lowercase().replace('’', "'"))
         .filter(|w| !w.is_empty())
         .collect()
 }
@@ -375,6 +379,21 @@ mod tests {
         assert_eq!(q("Γιατί δεν ήρθες χθες."), "Γιατί δεν ήρθες χθες;");
         assert_eq!(q("Γιατί να το κάνω τώρα."), "Γιατί να το κάνω τώρα;");
         assert_eq!(q("Γιατί το έστειλες έτσι."), "Γιατί το έστειλες έτσι;");
+    }
+
+    /// 28 September 2026: "Γιατί 100% θα ..." got a question mark. A word of
+    /// certainty, a past or third-person opinion, or "any" after γιατί is
+    /// "because" too. A plain number stays a question.
+    #[test]
+    fn greek_because_with_certainty_is_not_why() {
+        for s in [
+            "Γιατί 100% θα βρεις κι άλλα.", "Γιατί σίγουρα θα αργήσει λίγο.", "Γιατί δυστυχώς έκλεισε νωρίς.",
+            "Γιατί μάλλον θα βρέξει αύριο.", "Γιατί οποιοδήποτε άλλο θα κάνει το ίδιο.", "Γιατί νόμιζα ότι το είχες στείλει.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        assert_eq!(q("Γιατί 100 ευρώ για αυτό."), "Γιατί 100 ευρώ για αυτό;");
+        assert_eq!(q("Γιατί νόμιζες ότι έφυγα."), "Γιατί νόμιζες ότι έφυγα;");
     }
 
     #[test]
