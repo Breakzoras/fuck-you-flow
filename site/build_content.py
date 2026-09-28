@@ -151,15 +151,15 @@ WISPR_FAQ_EN = [
 def comparison():
     body = f'<div class="cta"><a class="btn btn-acid" href="{DL}">Download free for Windows</a><a class="btn btn-coral" href="{REPO}">Read the source</a></div><p class="fine">Version {VERSION} beta · {SIZE} · Models included</p>'
     body += '''<h2>The short answer</h2>
-<p>FU Flow is a free Wispr Flow alternative for Windows 10 and 11. It types what you say into any application with a Whisper speech model running on your own PC, with no weekly word limit, no account and no subscription. The installer carries the speech models, and the app is open source under the MIT licence, with the code on GitHub.</p>
-<p>FU Flow is an independent Windows beta built by Luram AI Agency. The comparison below covers dictation, and the two products differ in scope. Product details were checked on 8 September 2026.</p>
+<p>FU Flow is a free Wispr Flow alternative for Windows 10 and 11 and Ubuntu Linux 22.04 or newer. It types what you say into any application with a Whisper speech model running on your own PC, with no weekly word limit, no account and no subscription. A cleanup step, on by default, removes hesitation sounds such as “um” and “uh”, applies spoken self-corrections and fixes punctuation before the text lands. The installer carries the speech models, and the app is open source under the MIT licence, with the code on GitHub.</p>
+<p>FU Flow is an independent beta for Windows and Ubuntu built by Luram AI Agency. The comparison below covers dictation, and the two products differ in scope. Product details were checked on 8 September 2026.</p>
 <h2>FU Flow compared with Wispr Flow</h2>
 <div class="tbl"><table class="bill"><thead><tr><th scope="col">Dictation feature</th><th scope="col">Wispr Flow</th><th scope="col">FU Flow</th></tr></thead><tbody>
 <tr><td>Windows price</td><td>Free desktop plan; paid Pro for unlimited use</td><td>Free local dictation, MIT licensed</td></tr>
 <tr><td>Weekly words on Windows</td><td>2,000 free; unlimited on Pro</td><td>No word cap</td></tr>
 <tr><td>Speech processing</td><td>Cloud processing</td><td>On your PC by default</td></tr>
 <tr><td>Offline dictation</td><td>Internet required for cloud processing</td><td>Works with the bundled local models</td></tr>
-<tr><td>Platforms</td><td>Windows, macOS, iPhone and Android</td><td>Windows 10 and 11</td></tr>
+<tr><td>Platforms</td><td>Windows, macOS, iPhone and Android</td><td>Windows 10 and 11, Ubuntu Linux 22.04 or newer</td></tr>
 <tr><td>Languages</td><td>100+ languages</td><td>99 languages, Greek and English the most tested</td></tr>
 <tr><td>Account for local dictation</td><td>Wispr account</td><td>No account or API key</td></tr>
 <tr><td>Product scope</td><td>Dictation, team features and a Mac notetaker</td><td>Dictation, local history, dictionary and snippets</td></tr>
@@ -173,14 +173,14 @@ def comparison():
 <h2>Speed depends on your computer</h2>
 <p>Our homepage reports four RTX 3070 observations with waits of 0.17 to 0.88 seconds after finishing dictation. These are our own measurements on our own machine. An independent benchmark or a head-to-head Wispr Flow run would be a separate exercise. Models, speech, drivers and available GPU memory affect results. <a href="/guides/card-memory/">See model and memory troubleshooting</a>.</p>
 <h2>Who should consider switching?</h2>
-<p>FU Flow fits Windows users who want local Greek or English dictation without a subscription or weekly cap and are comfortable testing a beta. Wispr Flow remains an option for people needing its phone apps, broader language range, team administration or Mac meeting notes. FU Flow has a CPU fallback, but performance on a low-power PC may be slower.</p>
+<p>FU Flow fits Windows and Ubuntu users who want local Greek or English dictation without a subscription or weekly cap and are comfortable testing a beta. Wispr Flow remains an option for people needing its phone apps, broader language range, team administration or Mac meeting notes. FU Flow has a CPU fallback, but performance on a low-power PC may be slower.</p>
 <h2>How to try FU Flow alongside Wispr Flow</h2>
 <ol><li>Download the current Windows installer below. The speech models are included. Check the release notes and published checksum.</li><li>Open FU Flow, select your microphone and keep the local speech engine. Set the language you use most.</li><li>Put the cursor in a text editor. Press right Alt, speak a short sentence, then press right Alt again.</li><li>Review the result, test your everyday apps and add difficult names to the dictionary. If both dictation apps use the same hotkey, change one of them in Settings.</li></ol>
 <p>You can test before changing your existing subscription. There is no automatic account migration or import of a Wispr dictionary. <a href="/guides/the-key/">Hotkey guide</a> · <a href="/guides/words-it-gets-wrong/">Dictionary guide</a>.</p>
 '''
     body += '<h2>Compare other local dictation options</h2><p>OpenWhispr and Handy also offer free local speech recognition. Compare the setup, platforms and cloud options in our <a href="/free-offline-dictation-alternatives/">free and offline dictation alternatives guide</a>, or read the detailed <a href="/openwhispr-alternative/">FU Flow vs OpenWhispr comparison</a>.</p>'
     return page('/wispr-flow-alternative/', 'en', 'Free Wispr Flow Alternative for Windows',
-                'FU Flow is a free Wispr Flow alternative for Windows: unlimited local dictation, no weekly word limit, no account, no subscription. Offline Whisper voice typing in any app.',
+                'FU Flow is a free, open-source Wispr Flow alternative for Windows and Ubuntu: offline Whisper dictation into any app, with no word limit or subscription.',
                 'Say goodbye to the dictation subscription. Try FU Flow for free local voice typing in Greek and English, with no weekly word limit.', body,
                 faq=WISPR_FAQ_EN)
 
