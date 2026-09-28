@@ -505,6 +505,7 @@ TR = [('Skip to content', 'Στο περιεχόμενο'),
  ('Code on GitHub', 'Κώδικας στο GitHub'),
  ('All releases', 'Όλες οι εκδόσεις'),
  ('Known limits', 'Γνωστά όρια'),
+ ('Listed on Open Source Alternatives', 'Στον κατάλογο Open Source Alternatives'),
  ('MIT license. The whisper.cpp engine and the models carry their own licenses. Wispr Flow is a trademark of '
   'Wispr AI, Inc. We have no relationship with them. The key is yours.',
   'Άδεια MIT. Η μηχανή whisper.cpp και τα μοντέλα έχουν τις δικές τους άδειες. Το Wispr Flow είναι σήμα '
