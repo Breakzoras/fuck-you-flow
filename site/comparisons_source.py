@@ -17,7 +17,7 @@ COMPARISONS = [
 <p>We make FU Flow at Luram AI Agency in Thessaloniki. This comparison uses our application source and OpenWhispr's official documentation, checked on 8 September 2026. Competitor details come from those documents alone.</p>
 <h2>What changes if you choose FU Flow?</h2>
 <div class="tbl"><table class="bill"><thead><tr><th scope="col">Decision</th><th scope="col">FU Flow</th><th scope="col">OpenWhispr</th></tr></thead><tbody>
-<tr><td>Desktop systems</td><td>Windows 10 and 11</td><td>Windows, macOS and Linux</td></tr>
+<tr><td>Desktop systems</td><td>Windows 10 and 11, Ubuntu Linux 22.04 or newer</td><td>Windows, macOS and Linux</td></tr>
 <tr><td>Free local dictation</td><td>Unlimited, MIT licensed</td><td>Unlimited, MIT licensed</td></tr>
 <tr><td>Speech models</td><td>Whisper models included in the {SIZE} installer</td><td>Whisper and Parakeet models selected and downloaded during setup</td></tr>
 <tr><td>Main workflow</td><td>Greek and English dictation, dictionary, snippets and local history</td><td>Dictation plus meetings, notes and agent workflows</td></tr>
@@ -35,7 +35,7 @@ COMPARISONS = [
 <p>Use the <a href="/guides/greek-and-english/">Greek and English guide</a>, <a href="/guides/word-dictation/">Word workflow</a> and <a href="/guides/words-it-gets-wrong/">dictionary guide</a> to make that trial repeatable. Local model speed depends on the model and computer; we have no controlled FU Flow versus OpenWhispr accuracy or speed result.</p>
 <p>Spoken punctuation is one useful detail to include. FU Flow's <a href="{REPO}/blob/main/src-tauri/src/cleanup/questions.rs">documented cleanup examples</a> convert <span lang="el">«Είσαι σίγουρος ερωτηματικό Πάμε.»</span> into <span lang="el">«Είσαι σίγουρος; Πάμε.»</span>, and “Are you sure question mark” into “Are you sure?”. These illustrate the text-cleanup rules. Recognition depends on your voice and microphone. Test whether your own speech produces the expected words and punctuation.</p>
 <h2>When to keep OpenWhispr, and when to try FU Flow</h2>
-<p>Keep OpenWhispr on your shortlist if you need macOS or Linux, prefer its model choices, or use its meeting, note and agent features. Try FU Flow if you want a Windows beta with bundled models and documented Greek and English dictation workflows. Test the everyday applications you depend on before replacing a working setup.</p>
+<p>Keep OpenWhispr on your shortlist if you need macOS or a Linux distribution other than Ubuntu, prefer its model choices, or use its meeting, note and agent features. Try FU Flow if you want a Windows or Ubuntu beta with bundled models and documented Greek and English dictation workflows. Test the everyday applications you depend on before replacing a working setup.</p>
 <p>Read the <a href="{REPO}">FU Flow source and release notes</a>, compare <a href="/wispr-flow-alternative/">Wispr Flow separately</a>, or explore the wider <a href="/free-offline-dictation-alternatives/">offline dictation alternatives</a>.</p>''',
     },
     {
@@ -47,7 +47,7 @@ COMPARISONS = [
         "body": f'''<p>This guide is published by Luram AI Agency, the maker of FU Flow. We checked the linked official product documentation on 8 September 2026. These are the capabilities and purchase conditions each vendor documents.</p>
 <h2>Which alternatives actually fit Windows and offline use?</h2>
 <div class="tbl"><table class="bill"><thead><tr><th scope="col">Product</th><th scope="col">Windows</th><th scope="col">Local speech recognition</th><th scope="col">Cost distinction</th></tr></thead><tbody>
-<tr><td><a href="/">FU Flow</a></td><td>Windows 10 and 11 beta</td><td>Default, bundled Whisper models</td><td>Free local dictation, no word cap</td></tr>
+<tr><td><a href="/">FU Flow</a></td><td>Windows 10 and 11 beta, also Ubuntu Linux</td><td>Default, bundled Whisper models</td><td>Free local dictation, no word cap</td></tr>
 <tr><td><a href="https://openwhispr.com/pricing">OpenWhispr</a></td><td>Yes, also macOS and Linux</td><td>Local model option</td><td>Unlimited free local use; separate cloud plans</td></tr>
 <tr><td><a href="https://handy.computer/">Handy</a></td><td>Yes, also macOS and Linux</td><td>Offline models</td><td>Free, MIT licensed</td></tr>
 <tr><td><a href="https://support.microsoft.com/en-us/windows/use-voice-typing-to-talk-instead-of-type-on-your-pc-fec94565-c4bd-329d-e59a-af033fa5689f">Windows voice typing</a> (Windows key + H)</td><td>Built into Windows 10 and 11</td><td>Online: Microsoft says it needs an internet connection</td><td>Included with Windows</td></tr>
@@ -58,7 +58,7 @@ COMPARISONS = [
 <tr><td><a href="https://tryvoiceink.com/">VoiceInk by Pax</a></td><td>No Windows release listed</td><td>Local default on its Mac product</td><td>Mac licenses sold as a one-time purchase</td></tr>
 </tbody></table></div>
 <h2>Three free local options to try on Windows</h2>
-<p><strong>FU Flow</strong> focuses on Greek and English dictation, with a local dictionary, snippets and transcript history. Version {VERSION} is a Windows beta; the {SIZE} installer includes models. Local use needs no account or API key. It suits people willing to test a beta in their own applications. Start with <a href="/guides/word-dictation/">dictation in Word</a> or <a href="/guides/ai-prompts/">speaking an AI prompt</a>.</p>
+<p><strong>FU Flow</strong> focuses on Greek and English dictation, with a local dictionary, snippets and transcript history. Version {VERSION} is a beta for Windows and, since 26 September 2026, for Ubuntu Linux 22.04 or newer; the {SIZE} Windows installer includes models. A cleanup step, on by default, removes hesitation sounds such as “um” and applies spoken self-corrections before the text lands. Local use needs no account or API key. It suits people willing to test a beta in their own applications. Start with <a href="/guides/word-dictation/">dictation in Word</a> or <a href="/guides/ai-prompts/">speaking an AI prompt</a>.</p>
 <p>For a Greek and English trial, say <span lang="el">«Στείλε το brief στο Slack για review.»</span> into a blank document and check the Greek text and English names. This is an example to try; your result depends on your voice and microphone. Add a dictionary correction if a recurring name is misheard.</p>
 <p><strong>OpenWhispr</strong> offers free unlimited local dictation and a broader cross-platform app with meetings, notes and agent features. It supports local Whisper and Parakeet engines as well as cloud services. Download the models you want and check both transcription and cleanup settings. Our <a href="/openwhispr-alternative/">FU Flow versus OpenWhispr comparison</a> explains the separate local and cloud choices.</p>
 <p><strong>Handy</strong> is another free, MIT-licensed desktop app, with Windows, macOS and Linux builds. Its documented workflow is to press a shortcut, speak and put the transcription into the active text field. The <a href="https://github.com/cjpais/Handy">official repository</a> lists Whisper and Parakeet model options. It belongs on the shortlist if you want an open-source offline tool without requiring FU Flow's particular interface or language workflow.</p>
