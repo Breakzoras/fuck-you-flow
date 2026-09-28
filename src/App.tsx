@@ -14,6 +14,10 @@ import SettingsPage from "./pages/SettingsPage";
 import Diagnostics from "./pages/Diagnostics";
 import GpuGauge from "./GpuGauge";
 import { withTimeout } from "./async";
+import logoOnDark from "./assets/luram-logo-on-dark.png";
+import logoOnLight from "./assets/luram-logo-on-light.png";
+
+const LURAM_URL = "https://luram.gr/?utm_source=fuflow&utm_medium=app&utm_campaign=credits";
 
 // The same rule the .deb installs, for the AppImage or a missed step.
 const PERM_CMD = "printf '%s\\n' 'KERNEL==\"uinput\", SUBSYSTEM==\"misc\", TAG+=\"uaccess\", OPTIONS+=\"static_node=uinput\"' 'SUBSYSTEM==\"input\", KERNEL==\"event*\", ENV{ID_INPUT_KEYBOARD}==\"1\", TAG+=\"uaccess\"' 'SUBSYSTEM==\"input\", KERNEL==\"event*\", ENV{ID_INPUT_MOUSE}==\"1\", TAG+=\"uaccess\"' | sudo tee /etc/udev/rules.d/70-fuckyouflow.rules && sudo modprobe uinput && sudo udevadm control --reload-rules && sudo udevadm trigger";
@@ -260,6 +264,13 @@ export default function App() {
             <span className="dot" />
             <span>{snap?.phase && snap.phase !== "idle" ? phaseLabel : engineLabel}</span>
           </div>
+          {/* The maker's credit, on every page. The link carries utm tags so the
+              agency site can count the visitors that came from the app. */}
+          <button type="button" className="credit" title="luram.gr" onClick={() => { openUrl(LURAM_URL).catch(() => {}); }}>
+            <span className="credit-by">Developed by<b>Luram AI Agency</b></span>
+            <img className="credit-logo on-dark" src={logoOnDark} alt="Luram" />
+            <img className="credit-logo on-light" src={logoOnLight} alt="Luram" />
+          </button>
         </nav>
         <main className="main">
           {inputMissing && (
