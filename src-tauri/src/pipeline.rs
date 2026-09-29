@@ -164,6 +164,12 @@ fn apply_intonation(text: &str, pitch: Option<(f32, f32)>, enabled: bool) -> Str
     if t.contains(',') && last_chunk.split_whitespace().count() <= 2 {
         return t.to_string();
     }
+    // A reported question ("Δεν ξέρω ακόμα πού θα πάμε.") keeps its full stop
+    // even when the voice rises at the end (G10 in docs/QUESTION-RULES.md).
+    if crate::cleanup::questions::reported_question(t) {
+        tracing::info!("intonation: no mark, the sentence reports a question (peak {peak:+.1} st, end {end:+.1} st)");
+        return t.to_string();
+    }
     let body = t.trim_end_matches(|c: char| matches!(c, '.' | '!' | '…'));
     let mark = if crate::cleanup::deterministic::looks_greek(body) { ';' } else { '?' };
     tracing::info!("intonation: question mark added (peak {peak:+.1} st, end {end:+.1} st)");
@@ -1365,6 +1371,19 @@ mod tests {
         assert_eq!(apply_intonation("Are you sure.", q, true), "Are you sure?");
         assert_eq!(apply_intonation("Πάμε.", Some((2.0, -3.0)), true), "Πάμε.");
         assert_eq!(apply_intonation("Πάμε.", q, false), "Πάμε.");
+    }
+
+    #[test]
+    fn intonation_leaves_reported_questions_with_a_full_stop() {
+        let q = Some((13.0, 6.0));
+        // G10: a negated or first-person verb of knowing, then a question word
+        assert_eq!(apply_intonation("Δεν ξέρω ακόμα πού θα πάμε το Σάββατο.", q, true), "Δεν ξέρω ακόμα πού θα πάμε το Σάββατο.");
+        assert_eq!(apply_intonation("Έστειλα το αρχείο. Αναρωτιέμαι αν το άνοιξε.", q, true), "Έστειλα το αρχείο. Αναρωτιέμαι αν το άνοιξε.");
+        assert_eq!(apply_intonation("Λοιπόν δεν θυμάμαι πότε κλείνει το μαγαζί.", q, true), "Λοιπόν δεν θυμάμαι πότε κλείνει το μαγαζί.");
+        // a real question after the comma, or no question word at all: the voice decides
+        assert_eq!(apply_intonation("Δεν ξέρω, θες να πάμε για καφέ.", q, true), "Δεν ξέρω, θες να πάμε για καφέ;");
+        assert_eq!(apply_intonation("Δεν ξέρω.", q, true), "Δεν ξέρω;");
+        assert_eq!(apply_intonation("Δεν ξέρεις πού είναι το κλειδί.", q, true), "Δεν ξέρεις πού είναι το κλειδί;");
     }
 
     #[test]

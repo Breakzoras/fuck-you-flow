@@ -22,6 +22,13 @@ const MATRIX_2P_PHRASES_EL: &[&[&str]] = &[
     &["μου", "λες"], &["μου", "λέτε"], &["μπορείς", "να", "μου", "πεις"], &["μπορείτε", "να", "μου", "πείτε"],
     &["θέλεις", "να", "μάθεις"], &["έχεις", "ιδέα"], &["έχεις", "καταλάβει"],
 ];
+/// G10 matrices: a first- or third-person or negated verb of knowing or
+/// asking. The question after one of them is reported, and the sentence ends
+/// with a full stop (docs/QUESTION-RULES.md, section 1.8).
+const REPORTING_EL: &[&[&str]] = &[
+    &["δεν", "ξέρω"], &["δε", "ξέρω"], &["ξέρω"], &["δεν", "θυμάμαι"], &["δε", "θυμάμαι"], &["αναρωτιέμαι"], &["απορώ"],
+    &["μου", "είπε"], &["με", "ρώτησε"], &["είναι", "ζήτημα"], &["εξαρτάται"], &["δεν", "έχει", "σημασία"], &["δε", "έχει", "σημασία"],
+];
 const TAGS_EL: &[&[&str]] = &[
     &["έτσι", "δεν", "είναι"], &["δεν", "είναι", "έτσι"], &["ή", "όχι"], &["δεν", "νομίζεις"], &["δε", "νομίζεις"],
     &["δεν", "συμφωνείς"], &["δε", "συμφωνείς"],
@@ -124,6 +131,34 @@ pub fn soften_inner_semicolons(text: &str) -> String {
     }
     out.push_str(&sentence);
     out
+}
+
+/// G10 for the voice: true when the last sentence of `text`, or the part of it
+/// after its last comma, opens with a reporting verb ("δεν ξέρω", "αναρωτιέμαι")
+/// and a question word or αν follows within four words ("Δεν ξέρω ακόμα πού
+/// θα πάμε."). A rising voice at the end of such a sentence does not make it a
+/// question. Without a question word after it ("Δεν ξέρω;") nothing is decided
+/// here.
+pub fn reported_question(text: &str) -> bool {
+    let body = text.trim().trim_end_matches(|c: char| matches!(c, '.' | '!' | '?' | ';' | '…'));
+    let chars: Vec<(usize, char)> = body.char_indices().collect();
+    let start = chars
+        .windows(2)
+        .filter(|w| matches!(w[0].1, '.' | '!' | '?' | ';') && w[1].1.is_whitespace())
+        .map(|w| w[1].0)
+        .last()
+        .unwrap_or(0);
+    let sentence = &body[start..];
+    let clause = sentence.rfind(',').map(|at| &sentence[at + 1..]).unwrap_or(sentence);
+    let all = words(clause);
+    let mut skip = 0;
+    while skip < 2 && skip + 1 < all.len() && OPENERS_EL.contains(&all[skip].as_str()) {
+        skip += 1;
+    }
+    let w = &all[skip..];
+    REPORTING_EL
+        .iter()
+        .any(|p| starts_with_phrase(w, p) && w.iter().skip(p.len()).take(4).any(|t| t == "αν" || WH_EL.contains(&t.as_str())))
 }
 
 /// A question by its words: the whole sentence so far, or the part after its
@@ -439,5 +474,18 @@ mod tests {
         assert_eq!(q("You do care, don't you."), "You do care, don't you?");
         assert_eq!(q("It was late, wasn't it."), "It was late, wasn't it?");
         assert_eq!(q("Well, she is here, isn't she."), "Well, she is here, isn't she?");
+    }
+
+    #[test]
+    fn reported_questions_are_found_in_the_last_sentence_or_after_the_last_comma() {
+        assert!(reported_question("Δεν ξέρω ακόμα πού θα πάμε."));
+        assert!(reported_question("Το έστειλα χθες. Δεν ξέρω αν το είδε."));
+        assert!(reported_question("Καλά, αναρωτιέμαι γιατί άργησε τόσο."));
+        assert!(reported_question("Μου είπε πότε ανοίγει το γραφείο."));
+        assert!(!reported_question("Δεν ξέρω."));
+        assert!(!reported_question("Δεν ξέρω, πού πάμε μετά;"));
+        assert!(!reported_question("Δεν ξέρω αν έρχεται. Εσύ θα έρθεις."));
+        assert!(!reported_question("Ξέρεις πού είναι;"));
+        assert!(!reported_question("I don't know where it is."));
     }
 }

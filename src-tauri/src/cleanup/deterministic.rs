@@ -129,6 +129,13 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
         if text != before {
             applied.push("capitalized".into());
         }
+        if looks_greek(&text) {
+            let before = text.clone();
+            text = lower_inner_function_words(&text);
+            if text != before {
+                applied.push("lower case inside a sentence".into());
+            }
+        }
     }
 
     if o.auto_punctuate {
@@ -283,6 +290,35 @@ fn capitalize_sentences(text: &str) -> String {
         out.push(c);
     }
     out
+}
+
+/// Greek articles, prepositions, conjunctions and particles. None of them is
+/// ever a name, so inside a sentence they are always written in lower case.
+/// One-letter words (ο, η) are left out: a capital one can be a label.
+const INNER_LOWER_EL: &[&str] = &[
+    "το", "τα", "τον", "την", "τη", "του", "της", "των", "τους", "τις", "οι", "ένα", "ένας", "μια", "μία", "με", "σε", "στο",
+    "στον", "στη", "στην", "στα", "στους", "στις", "για", "από", "προς", "και", "κι", "αλλά", "να", "θα", "δεν", "δε", "μην",
+    "μη", "που", "πως", "ότι", "αν", "άμα", "όταν", "αυτό", "αυτά", "αυτή", "όμως", "έτσι",
+];
+
+/// A long dictation is heard in pieces, and a piece can open with a capital
+/// although the sentence goes on ("θα το δούμε αύριο αλλά Για την ώρα ...").
+/// A word of the list above with a capital right after a lower-case letter or
+/// a comma goes back to lower case (14 of 1142 real dictations, 29 September
+/// 2026). After a full stop or a question mark nothing changes.
+fn lower_inner_function_words(text: &str) -> String {
+    static INNER: Lazy<Regex> = Lazy::new(|| {
+        let caps: Vec<String> = INNER_LOWER_EL
+            .iter()
+            .map(|w| {
+                let mut c = w.chars();
+                let first: String = c.next().map(|f| f.to_uppercase().collect()).unwrap_or_default();
+                fancy_regex::escape(&format!("{first}{}", c.as_str())).into_owned()
+            })
+            .collect();
+        Regex::new(&format!(r"(?<=[\p{{Ll}},]) ({})(?!\p{{L}})", caps.join("|"))).unwrap()
+    });
+    super::replace_all_or_keep(&INNER, text, |c: &fancy_regex::Captures<'_, str>| format!(" {}", c[1].to_lowercase())).to_string()
 }
 
 pub fn looks_greek(text: &str) -> bool {
@@ -507,6 +543,18 @@ mod tests {
         }
         assert_eq!(clean("Τρίτη, διόρθωση, Παρασκευή", &opts(CleanupIntensity::Normal)).text, "Παρασκευή");
         assert_eq!(clean("  γεια?  ", &opts(CleanupIntensity::Off)).text, "γεια?");
+    }
+
+    #[test]
+    fn a_function_word_inside_a_sentence_loses_its_capital() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("Θα το στείλω σήμερα αλλά Για την ώρα περιμένουμε.", &o).text, "Θα το στείλω σήμερα αλλά για την ώρα περιμένουμε.");
+        assert_eq!(clean("Φέραμε τα ποτήρια, Τα πιάτα και το ψωμί.", &o).text, "Φέραμε τα ποτήρια, τα πιάτα και το ψωμί.");
+        assert_eq!(clean("Άνοιξε το report Και πες μου τι βλέπεις.", &o).text, "Άνοιξε το report και πες μου τι βλέπεις.");
+        // names, sentence starts and one-letter words keep their capital
+        for text in ["Πήγαμε στη Θεσσαλονίκη με τον Νίκο.", "Τελείωσε. Και μετά φύγαμε.", "Το σχέδιο τύπου Α δουλεύει.", "Έφτασε; Για πόσο θα μείνει;"] {
+            assert_eq!(clean(text, &o).text, text);
+        }
     }
 
     /// Replays real dictations kept outside the repository. FYF_REPLAY_IN holds

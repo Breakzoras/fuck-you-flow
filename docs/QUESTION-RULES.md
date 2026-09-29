@@ -347,6 +347,15 @@ Otherwise it becomes a comma, or nothing after an article or preposition
 ("από το; αρχείο" becomes "από το αρχείο"). In real dictations (27 September 2026)
 this was 65 of 1037 dictations.
 
+The app also adds a mark when the voice rises at the end of a piece
+(`apply_intonation` in `pipeline.rs`). That mark obeys the G10 blocker: when
+the last sentence of the piece, or its part after the last comma, opens with a
+first-person, third-person or negated verb of knowing or asking and a question
+word or αν follows within four words ("Δεν ξέρω ακόμα πού θα πάμε."), the full
+stop stays. Without a question word after the verb ("Δεν ξέρω.") the voice
+still decides. Found on 29 September 2026: in two real dictations the rising
+voice had turned such a sentence into a question.
+
 ---
 
 ## Sources
