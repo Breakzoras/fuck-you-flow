@@ -161,6 +161,36 @@ pub fn reported_question(text: &str) -> bool {
         .any(|p| starts_with_phrase(w, p) && w.iter().skip(p.len()).take(4).any(|t| t == "αν" || WH_EL.contains(&t.as_str())))
 }
 
+/// G20 for the voice: true when the last sentence of `text` corrects itself
+/// ("Δεν είναι η Τρίτη, είναι η Τετάρτη."): the part after its last comma
+/// opens, after at most two openers, with the same word that follows δεν or δε
+/// in the part just before it. The voice rises on the corrected word for
+/// emphasis, and the sentence is a statement. Found on 29 September 2026: the
+/// only two sentences of this shape among 145 marks the voice had added in
+/// six days were both statements.
+pub fn corrective_contrast(text: &str) -> bool {
+    let body = text.trim().trim_end_matches(|c: char| matches!(c, '.' | '!' | '?' | ';' | '…'));
+    let chars: Vec<(usize, char)> = body.char_indices().collect();
+    let start = chars
+        .windows(2)
+        .filter(|w| matches!(w[0].1, '.' | '!' | '?' | ';') && w[1].1.is_whitespace())
+        .map(|w| w[1].0)
+        .last()
+        .unwrap_or(0);
+    let parts: Vec<&str> = body[start..].split(',').collect();
+    if parts.len() < 2 {
+        return false;
+    }
+    let last = words(parts[parts.len() - 1]);
+    let before = words(parts[parts.len() - 2]);
+    let mut skip = 0;
+    while skip < 2 && skip + 1 < last.len() && OPENERS_EL.contains(&last[skip].as_str()) {
+        skip += 1;
+    }
+    let Some(verb) = last.get(skip) else { return false };
+    before.windows(2).any(|w| (w[0] == "δεν" || w[0] == "δε") && &w[1] == verb)
+}
+
 /// A question by its words: the whole sentence so far, or the part after its
 /// last comma ("Δεν ξέρω τι λες, για ποιο αρχείο μιλάς"). A part that opens
 /// with γιατί after a comma is "because" (G17), so it does not count.
@@ -487,5 +517,17 @@ mod tests {
         assert!(!reported_question("Δεν ξέρω αν έρχεται. Εσύ θα έρθεις."));
         assert!(!reported_question("Ξέρεις πού είναι;"));
         assert!(!reported_question("I don't know where it is."));
+    }
+
+    #[test]
+    fn a_sentence_that_corrects_itself_is_found_by_the_repeated_word() {
+        assert!(corrective_contrast("Δεν είναι η Τρίτη που είπαμε, είναι η Τετάρτη το πρωί."));
+        assert!(corrective_contrast("Λοιπόν, δεν θέλω το μπλε πουκάμισο, θέλω το άσπρο με τις ρίγες."));
+        assert!(corrective_contrast("Το είπα ήδη. Δε μένει στην Αθήνα, αλλά μένει στη Λάρισα με τους γονείς του."));
+        // different words, one part only, or the negation in an earlier sentence
+        assert!(!corrective_contrast("Δεν σου αρέσει το φαγητό εδώ, θέλεις να πάμε κάπου αλλού."));
+        assert!(!corrective_contrast("Δεν είναι η Τρίτη που είπαμε."));
+        assert!(!corrective_contrast("Δεν είναι η Τρίτη. Μετά, είναι η Τετάρτη το πρωί."));
+        assert!(!corrective_contrast("Είναι η Τρίτη, είναι η Τετάρτη."));
     }
 }

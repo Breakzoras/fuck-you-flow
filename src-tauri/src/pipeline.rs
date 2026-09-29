@@ -170,6 +170,12 @@ fn apply_intonation(text: &str, pitch: Option<(f32, f32)>, enabled: bool) -> Str
         tracing::info!("intonation: no mark, the sentence reports a question (peak {peak:+.1} st, end {end:+.1} st)");
         return t.to_string();
     }
+    // A sentence that corrects itself ("Δεν είναι η Τρίτη, είναι η Τετάρτη.")
+    // rises on the corrected word for emphasis (G20 in docs/QUESTION-RULES.md).
+    if crate::cleanup::questions::corrective_contrast(t) {
+        tracing::info!("intonation: no mark, the sentence corrects itself (peak {peak:+.1} st, end {end:+.1} st)");
+        return t.to_string();
+    }
     let body = t.trim_end_matches(|c: char| matches!(c, '.' | '!' | '…'));
     let mark = if crate::cleanup::deterministic::looks_greek(body) { ';' } else { '?' };
     tracing::info!("intonation: question mark added (peak {peak:+.1} st, end {end:+.1} st)");
@@ -1384,6 +1390,17 @@ mod tests {
         assert_eq!(apply_intonation("Δεν ξέρω, θες να πάμε για καφέ.", q, true), "Δεν ξέρω, θες να πάμε για καφέ;");
         assert_eq!(apply_intonation("Δεν ξέρω.", q, true), "Δεν ξέρω;");
         assert_eq!(apply_intonation("Δεν ξέρεις πού είναι το κλειδί.", q, true), "Δεν ξέρεις πού είναι το κλειδί;");
+    }
+
+    #[test]
+    fn intonation_leaves_a_sentence_that_corrects_itself_with_a_full_stop() {
+        let q = Some((13.0, 1.0));
+        // G20: "δεν X ..., X ..." is a correction, the rise is emphasis
+        assert_eq!(apply_intonation("Δεν είναι η Τρίτη που είπαμε, είναι η Τετάρτη το πρωί.", q, true), "Δεν είναι η Τρίτη που είπαμε, είναι η Τετάρτη το πρωί.");
+        assert_eq!(apply_intonation("Λοιπόν, δεν θέλω το μπλε πουκάμισο, θέλω το άσπρο με τις ρίγες.", q, true), "Λοιπόν, δεν θέλω το μπλε πουκάμισο, θέλω το άσπρο με τις ρίγες.");
+        // without the repeated word the voice still decides
+        assert_eq!(apply_intonation("Είναι η Τετάρτη το πρωί.", q, true), "Είναι η Τετάρτη το πρωί;");
+        assert_eq!(apply_intonation("Δεν σου αρέσει το φαγητό εδώ, θέλεις να πάμε κάπου αλλού.", q, true), "Δεν σου αρέσει το φαγητό εδώ, θέλεις να πάμε κάπου αλλού;");
     }
 
     #[test]

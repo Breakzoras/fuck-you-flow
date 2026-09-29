@@ -317,6 +317,7 @@ Confidence: High (enable by default), Medium (opt-in), Low (leave off).
 | G17 | Blocker: wh-token that is neither sentence-initial (after G2/1.7 openers) nor governed by a G9 matrix | High | (none) | Δεν ήρθα γιατί έβρεχε. Έμαθα πότε φεύγει. | On |
 | G18 | τάχα as question particle | Low | Τάχα θα έρθει; | Ήταν τάχα άρρωστος. | Off |
 | G19 | Blocker: sentence-initial Γιατί meaning "because", told by the next word: a clause opener (άμα, αν, εάν, όταν, όσο, επειδή, αλλιώς) or an opinion or hedge word in the first or third person (νομίζω, νόμιζα, θεωρώ, νιώθω, πιστεύω, πίστευα, απλά, απλώς, πρακτικά, βασικά, προφανώς), a sentence adverb of certainty or attitude (100%, σίγουρα, δυστυχώς, ευτυχώς, όντως, μάλλον, λογικά) or "any" (οποιοδήποτε) | High | Γιατί δεν ήρθες; Γιατί νόμιζες ότι έφυγα; Γιατί 100 ευρώ; | Γιατί άμα το δεις, θα καταλάβεις. Γιατί 100% θα το βρεις. | On |
+| G20 | Blocker for the voice mark only: a sentence that corrects itself, where the part after the last comma opens (after at most two openers) with the same word that follows δεν/δε in the part just before it | High | Δεν σου αρέσει εδώ, θέλεις να πάμε αλλού; | Δεν είναι η Τρίτη που είπαμε, είναι η Τετάρτη το πρωί. | On |
 | E1 | Sentence-initial wh-word (4.1 list) with one or more following tokens, after E6/E7 | High | What time is it? | What a mess. | On |
 | E2 | Sentence-initial preposition + wh-word | High | To whom did you send it? | To the man who called. | On |
 | E3 | Sentence-initial auxiliary/modal (incl. negated contractions) + pronoun/there/this/that | High | Do you have a minute? Isn't it late? | Do it now. Have a seat. | On |
@@ -355,6 +356,13 @@ word or αν follows within four words ("Δεν ξέρω ακόμα πού θα 
 stop stays. Without a question word after the verb ("Δεν ξέρω.") the voice
 still decides. Found on 29 September 2026: in two real dictations the rising
 voice had turned such a sentence into a question.
+
+The voice mark also obeys G20. A sentence that corrects itself ("Δεν είναι η
+Τρίτη που είπαμε, είναι η Τετάρτη το πρωί.") rises on the corrected word for
+emphasis, and the full stop stays. The sign is the repeated word: the part
+after the last comma opens with the word that follows δεν or δε in the part
+before it. Found on 29 September 2026: of 145 marks the voice had added in six
+days, the two sentences of this shape were both statements.
 
 ---
 
