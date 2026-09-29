@@ -117,12 +117,14 @@ impl DictionaryEngine {
     /// Correct terms to bias the recognizer, most recently used first.
     ///
     /// Rules the user typed in count as they are. A rule learned from one edit
-    /// in History counts only when its correct form looks like a name (a capital
-    /// or a digit, at most two words): the prompt is there for names, and an
-    /// ordinary word or a corrected sentence only pulls the recognizer off course.
+    /// in History counts only when its correct form looks like a name (at most
+    /// two words, a capital or a digit in each): the prompt is there for names,
+    /// and an ordinary word or a corrected sentence only pulls the recognizer off
+    /// course. Two words with a capital on the first alone open a sentence.
     pub fn hint_terms(&self, max: usize) -> Vec<String> {
         fn looks_like_a_name(t: &str) -> bool {
-            t.split_whitespace().count() <= 2 && t.chars().any(|c| c.is_uppercase() || c.is_ascii_digit())
+            let words: Vec<&str> = t.split_whitespace().collect();
+            !words.is_empty() && words.len() <= 2 && words.iter().all(|w| w.chars().any(|c| c.is_uppercase() || c.is_ascii_digit()))
         }
         let mut rules: Vec<&DictionaryRule> = self
             .rules
@@ -161,9 +163,33 @@ fn preserve_case(matched: &str, correct: &str) -> String {
     correct.to_string()
 }
 
+/// What the names in one prompt may cost, in engine tokens. The engine keeps
+/// the last 223 tokens of a prompt and drops the front without a word, and the
+/// front is where the most used names stand. Of those 223 the label and the
+/// exemplar take about 40, and the 200 characters of earlier speech that
+/// `join_prompt` adds took up to 119 in Greek.
+const HINT_TOKEN_BUDGET: usize = 60;
+
+/// A cautious guess at what a term costs. Against the engine's own vocabulary a
+/// Latin letter came to half a token, a Greek letter to 0.8 and a Greek capital
+/// to a whole one; the comma in front of the term is one more.
+fn hint_cost(term: &str) -> usize {
+    let greek = |c: char| ('\u{0370}'..='\u{03FF}').contains(&c) || ('\u{1F00}'..='\u{1FFF}').contains(&c);
+    let tenths: usize = term
+        .chars()
+        .map(|c| match c {
+            c if greek(c) && c.is_uppercase() => 10,
+            c if greek(c) => 8,
+            _ => 5,
+        })
+        .sum();
+    1 + tenths.div_ceil(10)
+}
+
 /// Build the recognition prompt: dictionary terms joined as a natural phrase list.
 /// Whisper treats the prompt as preceding text, so a comma list of names works
-/// well and stays under the 224-token context.
+/// well. The terms arrive most used first and are taken for as long as
+/// `HINT_TOKEN_BUDGET` lasts.
 /// `language` is what the engine is told ("el", "en" or "auto"); `primary` is
 /// the user's own language, which decides the exemplar when the engine is
 /// left to guess. A Greek exemplar in front of a Turkish speaker would pull the
@@ -177,11 +203,19 @@ pub fn build_hint_prompt(terms: &[String], language: &str, primary: &str) -> Opt
         "auto" if greek_mixed => "Τι λες; Πώς σου φαίνεται; What do you think? Fine, let's go.",
         _ => "What do you think? How does it look? Fine, let's go.",
     };
-    if terms.is_empty() {
+    let mut spent = 0;
+    let kept: Vec<&str> = terms
+        .iter()
+        .map(String::as_str)
+        .take_while(|t| {
+            spent += hint_cost(t);
+            spent <= HINT_TOKEN_BUDGET
+        })
+        .collect();
+    if kept.is_empty() {
         return Some(exemplar.to_string());
     }
-    let joined = terms.join(", ");
-    let joined: String = joined.chars().take(600).collect();
+    let joined = kept.join(", ");
     Some(match language {
         "el" => format!("Λεξιλόγιο: {joined}. {exemplar}"),
         "auto" if greek_mixed => format!("Λεξιλόγιο, vocabulary: {joined}. {exemplar}"),
@@ -320,6 +354,35 @@ mod tests {
         let mut terms = e.hint_terms(10);
         terms.sort();
         assert_eq!(terms, vec!["chatGPT".to_string(), "logo".to_string()]);
+    }
+
+    /// "Then send" was learned from one edit and went into every prompt as a
+    /// name, because its first letter is a capital.
+    #[test]
+    fn learned_phrase_that_opens_a_sentence_is_no_name() {
+        let mut opener = rule("Στίλε το", "Στείλε το", "whole_word", false);
+        opener.source = "suggested".into();
+        let mut name = rule("blue harbor", "Blue Harbor", "whole_word", false);
+        name.source = "suggested".into();
+        let e = DictionaryEngine::new(vec![opener, name], vec![]);
+        assert_eq!(e.hint_terms(10), vec!["Blue Harbor".to_string()]);
+    }
+
+    /// Forty names cost more tokens than the engine keeps, and what it drops is
+    /// the front of the list: the names said most often.
+    #[test]
+    fn hint_prompt_keeps_the_most_used_names_within_budget() {
+        let terms: Vec<String> = (0..40).map(|i| format!("Harborline{i}")).collect();
+        let p = build_hint_prompt(&terms, "auto", "el").unwrap();
+        assert!(p.starts_with("Λεξιλόγιο, vocabulary: Harborline0, "));
+        assert!(!p.contains("Harborline39"));
+        let names = p.split(": ").nth(1).unwrap().split(". ").next().unwrap();
+        assert!(names.split(", ").map(hint_cost).sum::<usize>() <= HINT_TOKEN_BUDGET);
+        assert!(p.ends_with("Fine, let's go."));
+
+        let greek = vec!["Λευκός Πύργος".to_string()];
+        assert_eq!(hint_cost(&greek[0]), 12);
+        assert!(build_hint_prompt(&greek, "el", "el").unwrap().contains("Λευκός Πύργος"));
     }
 
     #[test]
