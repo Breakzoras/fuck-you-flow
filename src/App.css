@@ -66,6 +66,9 @@ a { color: var(--accent); }
 .brand-mark { display: none; }
 .brand-name { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; display: block; }
 .brand-name .accent { color: var(--accent); }
+/* Local test builds only: which build this is, under the name. */
+.test-build { display: block; margin-top: 10px; padding: 6px 8px; border: 1px solid var(--warn); color: var(--warn); font-size: 16px; line-height: 1.35; }
+.test-build b { display: block; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; }
 .nav button {
   text-align: left; font: inherit; font-size: 16px; padding: 10px 0; border: 0;
   background: transparent; color: var(--fg-2); cursor: pointer; text-transform: lowercase;

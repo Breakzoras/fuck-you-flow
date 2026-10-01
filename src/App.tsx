@@ -15,10 +15,13 @@ import Diagnostics from "./pages/Diagnostics";
 import GpuGauge from "./GpuGauge";
 import ReportDialog from "./ReportDialog";
 import { withTimeout } from "./async";
+import { testBuildStamp } from "./testBuild";
 import logoOnDark from "./assets/luram-logo-on-dark.png";
 import logoOnLight from "./assets/luram-logo-on-light.png";
 
 const LURAM_URL = "https://luram.gr/?utm_source=fuflow&utm_medium=app&utm_campaign=credits";
+// Set by the local build script alone; a public build has none (see testBuild.ts).
+const TEST_BUILD = testBuildStamp(import.meta.env.VITE_FYF_TEST_BUILD);
 
 // The same rule the .deb installs, for the AppImage or a missed step.
 const PERM_CMD = "printf '%s\\n' 'KERNEL==\"uinput\", SUBSYSTEM==\"misc\", TAG+=\"uaccess\", OPTIONS+=\"static_node=uinput\"' 'SUBSYSTEM==\"input\", KERNEL==\"event*\", ENV{ID_INPUT_KEYBOARD}==\"1\", TAG+=\"uaccess\"' 'SUBSYSTEM==\"input\", KERNEL==\"event*\", ENV{ID_INPUT_MOUSE}==\"1\", TAG+=\"uaccess\"' | sudo tee /etc/udev/rules.d/70-fuckyouflow.rules && sudo modprobe uinput && sudo udevadm control --reload-rules && sudo udevadm trigger";
@@ -257,6 +260,12 @@ export default function App() {
                 <span key={i} className={i === 1 ? "accent" : ""}>{w}{i < t("app").split(" ").length - 1 ? " " : ""}</span>
               ))}
             </span>
+            {TEST_BUILD && (
+              <span className="test-build">
+                <b>{t("test_build")}</b>
+                {TEST_BUILD}
+              </span>
+            )}
           </div>
           {nav.map(([id, label]) => (
             <button key={id} className={page === id ? "active" : ""} onClick={() => setPage(id)}>{label}</button>
