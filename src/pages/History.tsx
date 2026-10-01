@@ -1,8 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, dayKey, emptyRule, fmtDate, HistoryEntry, Suggestion } from "../api";
+import { editBoxHeight } from "../editBoxHeight";
 import { useApp } from "../hooks";
 import { Button, Card } from "../ui";
+
+/**
+ * The box a transcript is edited in. It opens showing the whole text, grows
+ * while more is typed, and never shrinks under the hand: a box that was
+ * dragged taller, or text that was deleted, leaves it as it is.
+ */
+function EditBox({ value, onChange }: { value: string; onChange: (text: string) => void }) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    // scrollHeight leaves out the border; the box is sized border and all.
+    const border = el.offsetHeight - el.clientHeight;
+    const wanted = editBoxHeight(el.scrollHeight + border, window.innerHeight);
+    if (wanted > el.offsetHeight) el.style.height = `${wanted}px`;
+  }, [value]);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    // Bring the box and its buttons into the window when they open below it.
+    el.parentElement?.scrollIntoView({ block: "nearest" });
+  }, []);
+  return <textarea ref={box} value={value} onChange={(e) => onChange(e.target.value)} />;
+}
 
 export default function History() {
   const { t, lang, toast, settings } = useApp();
@@ -86,7 +112,7 @@ export default function History() {
             <div className="history-item" key={h.id}>
               {editing?.id === h.id ? (
                 <div>
-                  <textarea value={editing.text} onChange={(e) => setEditing({ id: h.id, text: e.target.value })} />
+                  <EditBox value={editing.text} onChange={(text) => setEditing({ id: h.id, text })} />
                   <div className="row" style={{ marginTop: 8 }}>
                     <Button kind="primary" onClick={saveEdit} disabled={!editing.text.trim()}>{t("save_edit")}</Button>
                     <Button onClick={() => setEditing(null)}>{t("cancel")}</Button>
