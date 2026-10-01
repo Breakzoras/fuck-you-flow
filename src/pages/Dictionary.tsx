@@ -123,7 +123,7 @@ export default function Dictionary() {
                   <td>{r.wrong}</td>
                   <td><strong>{r.correct}</strong></td>
                   <td>{r.match_mode === "whole_word" ? t("whole_word") : r.match_mode === "phrase" ? t("phrase") : t("exact")}{r.case_sensitive ? " · Aa" : ""}</td>
-                  <td>{r.language === "el" ? t("greek") : r.language === "en" ? t("english") : r.language ?? t("global")}{r.source === "suggested" ? " · " : ""}{r.source === "suggested" && <Badge>auto</Badge>}</td>
+                  <td>{r.language === "el" ? t("greek") : r.language === "en" ? t("english") : r.language ?? t("global")}{r.source === "suggested" || r.source === "starter" ? " · " : ""}{r.source === "suggested" && <Badge>auto</Badge>}{r.source === "starter" && <Badge>{t("rule_builtin")}</Badge>}</td>
                   <td className="hint">{t("applied_times", { n: r.apply_count })}<br />{r.last_applied_at ? r.last_applied_at.slice(0, 10) : t("never")}</td>
                   <td>
                     <div className="row" style={{ gap: 4 }}>

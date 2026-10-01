@@ -287,6 +287,17 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             Err(e) => tracing::warn!("learning: learned rules not checked: {e}"),
         }
     }
+    // 0.9.14: the built-in corrections this install has not been offered yet.
+    // After the learning passes, so those never see a rule of ours as the
+    // user's, and safe on every start: an offered rule is never offered again.
+    match crate::starter::apply(&db, settings.starter_language()) {
+        Ok(n) if n > 0 => {
+            tracing::info!("dictionary: {n} built-in corrections added");
+            crate::journal::info("dictionary.starter_added", serde_json::json!({ "rules": n }));
+        }
+        Ok(_) => {}
+        Err(e) => tracing::warn!("dictionary: built-in corrections not added: {e}"),
+    }
     // A history an older build wrote under the old folder name, after the move.
     for orphan in crate::paths::take_orphan_histories() {
         match db.merge_from(&orphan) {
@@ -337,6 +348,10 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             let _ = tx2.send(PipelineMsg::Hotkey(ev));
         }
     });
+
+    // Dictionary corrections, for a user who agreed to share them. It does
+    // nothing at all until they have.
+    crate::sharing::spawn(shared.clone());
 
     // clipboard owner thread, warm early
     crate::insertion::ensure_started();

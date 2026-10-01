@@ -56,12 +56,34 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
     if old.asr.use_gpu != settings.asr.use_gpu || old.asr.backend != settings.asr.backend {
         settings.general.gpu_choice_by_user = true;
     }
-    settings.save(&crate::paths::settings_file()).map_err(e)?;
-    *state.shared.settings.write() = settings.clone();
+    {
+        // Sharing is switched by its own commands only. A settings page that
+        // was opened before the switch moved would otherwise save its old copy
+        // on top. The three fields are taken under the lock those commands
+        // write under, so an answer given while this save was on its way stays.
+        let mut current = state.shared.settings.write();
+        settings.privacy.share_dictionary = current.privacy.share_dictionary;
+        settings.privacy.share_dictionary_asked = current.privacy.share_dictionary_asked;
+        settings.privacy.share_install_id = current.privacy.share_install_id.clone();
+        settings.save(&crate::paths::settings_file()).map_err(e)?;
+        *current = settings.clone();
+    }
     crate::app::apply_hotkeys(&settings);
     crate::logging::set_redaction(settings.privacy.redact_logs);
     crate::local_api::apply(state.shared.engine.clone(), settings.privacy.local_api, settings.privacy.local_api_port);
     let _ = state.shared.tx.send(PipelineMsg::SettingsChanged);
+    // A new language of their own brings the built-in corrections for it,
+    // and so does the first time they say which language that is.
+    if old.starter_language() != settings.starter_language() {
+        match crate::starter::apply(&state.shared.db, settings.starter_language()) {
+            Ok(n) if n > 0 => {
+                tracing::info!("dictionary: {n} built-in corrections added for {}", settings.starter_language());
+                crate::app::reload_engines(&state);
+            }
+            Ok(_) => {}
+            Err(err) => tracing::warn!("dictionary: built-in corrections not added: {err}"),
+        }
+    }
     // `backend` belongs in this list: changing the acceleration on its own used
     // to leave the old engine running, so the setting looked ignored.
     if settings.engine_changed_from(&old) {
@@ -568,7 +590,11 @@ pub fn get_stats(state: State<'_, Arc<AppState>>) -> R<StatsSummary> {
 #[tauri::command(async)]
 pub fn export_all_data(state: State<'_, Arc<AppState>>) -> R<String> {
     let mut v = state.shared.db.export_all().map_err(e)?;
-    v["settings"] = serde_json::to_value(state.shared.settings.read().clone()).map_err(e)?;
+    let mut settings = state.shared.settings.read().clone();
+    // The id is all it takes to add to, or delete, what this install shared.
+    // An export is a file people pass around, so it stays out of it.
+    settings.privacy.share_install_id.clear();
+    v["settings"] = serde_json::to_value(settings).map_err(e)?;
     serde_json::to_string_pretty(&v).map_err(e)
 }
 
@@ -944,6 +970,68 @@ mod report_tests {
         assert!(!t.contains("maria") && !t.contains("Maria") && !t.contains("kostas"), "{t}");
         assert!(t.contains(r"C:\Users\<user>\AppData") && t.contains("/home/<user>/.config"), "{t}");
     }
+}
+
+// ----- sharing Dictionary corrections -----
+
+/// What sharing sends, shown before and after the user says yes.
+#[tauri::command(async)]
+pub fn share_dictionary_preview(state: State<'_, Arc<AppState>>) -> R<Vec<crate::sharing::SharedRule>> {
+    let rules = state.shared.db.list_rules().map_err(e)?;
+    Ok(crate::sharing::shareable(&rules).into_iter().map(|(_, _, rule)| rule).collect())
+}
+
+/// The answer to the one question, and the switch in Settings afterwards.
+#[tauri::command]
+pub async fn share_dictionary_set(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, on: bool) -> R<Settings> {
+    let settings = {
+        // The file first, then memory: a save that fails must leave the
+        // switch where the file says it is.
+        let mut current = state.shared.settings.write();
+        let mut next = current.clone();
+        next.privacy.share_dictionary_asked = true;
+        next.privacy.share_dictionary = on;
+        if on && next.privacy.share_install_id.is_empty() {
+            next.privacy.share_install_id = crate::sharing::new_install_id();
+        }
+        next.save(&crate::paths::settings_file()).map_err(e)?;
+        *current = next.clone();
+        next
+    };
+    crate::journal::info("sharing.switched", serde_json::json!({ "on": on }));
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    if on {
+        let shared = state.shared.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = crate::sharing::sync(&shared).await;
+        });
+    }
+    Ok(settings)
+}
+
+/// Deletes on the server everything this install sent, and switches sharing
+/// off. Fails with "offline" when the server cannot be reached, and then
+/// nothing here changes: the id is still needed to ask again.
+#[tauri::command]
+pub async fn share_dictionary_forget(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<Settings> {
+    // Behind any batch that is on its way: one that landed after the delete
+    // would put the file straight back on the server.
+    let _run = crate::sharing::run_lock().await;
+    let id = state.shared.settings.read().privacy.share_install_id.clone();
+    crate::sharing::forget(&id).await?;
+    let settings = {
+        let mut current = state.shared.settings.write();
+        let mut next = current.clone();
+        next.privacy.share_dictionary = false;
+        next.privacy.share_install_id = String::new();
+        next.save(&crate::paths::settings_file()).map_err(e)?;
+        *current = next.clone();
+        next
+    };
+    state.shared.db.forget_shared().map_err(e)?;
+    crate::journal::info("sharing.forgotten", serde_json::json!({}));
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    Ok(settings)
 }
 
 // ----- a sound file the user already has -----

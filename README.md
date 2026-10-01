@@ -7,7 +7,8 @@ Windows text field. The default Whisper engine processes speech on your own PC.
 
 Local dictation works offline after setup, with no account, subscription or word
 cap. An optional remote speech provider sends audio to the provider you configure;
-its fees and privacy terms apply. The app also checks online for updates, and
+its fees and privacy terms apply. Sharing the corrections in your Dictionary with
+the maker is off until you say yes. The app also checks online for updates, and
 destination apps can store or upload text you insert into them.
 
 Made by [Luram AI Agency](https://luram.gr) in Thessaloniki, Greece. Beta, under MIT.

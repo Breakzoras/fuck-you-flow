@@ -25,7 +25,7 @@ export function languageName(code: string): string {
 }
 
 export interface Settings {
-  general: { ui_language: string; theme: string; skin?: string; autostart: boolean; first_run_done: boolean; play_sounds: boolean; machine_profiled?: boolean; debug_mode?: boolean };
+  general: { ui_language: string; theme: string; skin?: string; autostart: boolean; first_run_done: boolean; language_confirmed?: boolean; play_sounds: boolean; machine_profiled?: boolean; debug_mode?: boolean };
   hotkeys: { push_to_talk: string; hands_free: string; paste_last: string; tap_toggles_hands_free: boolean; tap_ms: number };
   audio: { device_name: string | null; keep_stream_warm: boolean; preroll_ms: number; min_speech_ms: number; max_recording_seconds: number };
   language: { mode: LanguageMode; primary: string };
@@ -45,8 +45,12 @@ export interface Settings {
     keep_history: boolean; retention_days: number | null; keep_audio: boolean; context_awareness: boolean;
     learning_enabled: boolean; learn_from_edits: boolean; redact_logs: boolean;
     local_api: boolean; local_api_port: number;
+    share_dictionary?: boolean; share_dictionary_asked?: boolean; share_install_id?: string;
   };
 }
+
+/** One Dictionary correction as it leaves the computer when sharing is on. */
+export interface SharedRule { wrong: string; correct: string; language: string | null; match_mode: string }
 
 /** The fixed door on 127.0.0.1 for the user's own programs. */
 export interface LocalApiStatus { enabled: boolean; listening: boolean; port: number; error: string | null }
@@ -192,6 +196,10 @@ export const api = {
   reportPreview: () => invoke<string>("report_preview"),
   sendReport: (kind: "problem" | "idea", message: string, email: string, includeLog: boolean) =>
     invoke<string>("send_report", { kind, message, email, includeLog }),
+  // Sharing Dictionary corrections: one question, then a switch in Settings.
+  shareDictionaryPreview: () => invoke<SharedRule[]>("share_dictionary_preview"),
+  shareDictionarySet: (on: boolean) => invoke<Settings>("share_dictionary_set", { on }),
+  shareDictionaryForget: () => invoke<Settings>("share_dictionary_forget"),
   recentKeys: () => invoke<SeenKey[]>("recent_keys"),
   foregroundApp: () => invoke<Record<string, unknown>>("current_foreground_app"),
   recordShortcut: () => invoke<string>("record_shortcut"),

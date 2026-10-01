@@ -115,6 +115,19 @@ const MIGRATIONS: &[&str] = &[
         edits INTEGER NOT NULL DEFAULT 0
     );
     "#,
+    // 2 (0.9.14): which built-in corrections this install has already been
+    // offered, and which of the user's own it has already shared.
+    r#"
+    CREATE TABLE IF NOT EXISTS starter_seen (
+        id TEXT PRIMARY KEY,
+        seen_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS shared_rules (
+        rule_id TEXT PRIMARY KEY,
+        fingerprint TEXT NOT NULL,
+        sent_at TEXT NOT NULL
+    );
+    "#,
 ];
 
 fn now() -> String {
@@ -653,6 +666,51 @@ impl Db {
         Ok(())
     }
 
+    // ----- built-in corrections and sharing -----
+
+    /// Ids of the built-in corrections this install has been offered, whether
+    /// they were added or skipped. One that is in here is never added again,
+    /// so a built-in rule the user deleted stays deleted across updates.
+    pub fn starter_seen(&self) -> anyhow::Result<std::collections::HashSet<String>> {
+        let conn = self.conn.lock();
+        let mut st = conn.prepare("SELECT id FROM starter_seen")?;
+        let rows = st.query_map([], |r| r.get::<_, String>(0))?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
+    }
+
+    pub fn mark_starter_seen(&self, ids: &[String]) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        for id in ids {
+            conn.execute("INSERT OR IGNORE INTO starter_seen (id, seen_at) VALUES (?1, ?2)", params![id, now()])?;
+        }
+        Ok(())
+    }
+
+    /// Rule id -> fingerprint of what was sent, for every rule already shared.
+    pub fn shared_fingerprints(&self) -> anyhow::Result<std::collections::HashMap<String, String>> {
+        let conn = self.conn.lock();
+        let mut st = conn.prepare("SELECT rule_id, fingerprint FROM shared_rules")?;
+        let rows = st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
+    }
+
+    pub fn mark_shared(&self, items: &[(String, String)]) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        for (rule_id, fingerprint) in items {
+            conn.execute(
+                "INSERT INTO shared_rules (rule_id, fingerprint, sent_at) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(rule_id) DO UPDATE SET fingerprint=excluded.fingerprint, sent_at=excluded.sent_at",
+                params![rule_id, fingerprint, now()],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn forget_shared(&self) -> anyhow::Result<()> {
+        self.conn.lock().execute("DELETE FROM shared_rules", [])?;
+        Ok(())
+    }
+
     pub fn list_rule_exceptions(&self) -> anyhow::Result<Vec<(String, String)>> {
         let conn = self.conn.lock();
         let mut st = conn.prepare("SELECT rule_id, context FROM dictionary_exceptions")?;
@@ -966,7 +1024,7 @@ impl Db {
     pub fn wipe_everything(&self) -> anyhow::Result<()> {
         let conn = self.conn.lock();
         conn.execute_batch(
-            "DELETE FROM history; DELETE FROM dictionary; DELETE FROM dictionary_exceptions; DELETE FROM snippets; DELETE FROM learning_events; DELETE FROM suggestions; DELETE FROM app_styles; DELETE FROM stats_daily;",
+            "DELETE FROM history; DELETE FROM dictionary; DELETE FROM dictionary_exceptions; DELETE FROM snippets; DELETE FROM learning_events; DELETE FROM suggestions; DELETE FROM app_styles; DELETE FROM stats_daily; DELETE FROM starter_seen; DELETE FROM shared_rules;",
         )?;
         // Deleted rows stay readable in the file's free pages until they are
         // reused. "Delete everything" has to mean the file too.

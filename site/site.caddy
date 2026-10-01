@@ -38,6 +38,18 @@ fuckyouflow.app {
 		reverse_proxy fyf-reports:8787
 	}
 
+	# Dictionary corrections a user agreed to share (0.9.14). Same receiver,
+	# its own folder; see server/report-receiver/receiver.py.
+	handle /api/dictionary* {
+		# Out of the access log: a line there would put an address and a
+		# time next to a file that is kept under a random number for a reason.
+		log_skip
+		request_body {
+			max_size 200KB
+		}
+		reverse_proxy fyf-reports:8787
+	}
+
 	file_server
 	@static path /assets/* /style.css /theme.js
 	header @static Cache-Control "public, max-age=86400"

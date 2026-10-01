@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, languageName, LANGUAGE_CHOICES, ModelStatus, RuntimeStatus, Settings, LanguageMode, UpdateInfo, LocalApiStatus } from "../api";
+import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fmtBytes, languageName, LANGUAGE_CHOICES, ModelStatus, RuntimeStatus, Settings, SharedRule, LanguageMode, UpdateInfo, LocalApiStatus } from "../api";
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
 import ModelGuide from "../ModelGuide";
@@ -434,12 +434,48 @@ function PrivacyTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settings
       <Toggle label={t("learning")} checked={draft.privacy.learning_enabled} onChange={(v) => patch((s) => { s.privacy.learning_enabled = v; return s; })} />
       <Toggle label={t("redact")} checked={draft.privacy.redact_logs} onChange={(v) => patch((s) => { s.privacy.redact_logs = v; return s; })} />
       <LocalDoor draft={draft} patch={patch} />
+      <ShareDictionary />
       <div className="row" style={{ marginTop: 14 }}>
         <Button onClick={exportAll}>{t("export_all")}</Button>
         <Button onClick={() => api.openDataFolder()}>{t("open_folder")}</Button>
         <Button kind="danger" onClick={async () => { if (confirm(t("confirm_delete_all"))) { await api.deleteAll(); toast(t("saved")); } }}>{t("delete_everything")}</Button>
       </div>
     </Card>
+  );
+}
+
+// Sharing the Dictionary's corrections with the maker. It is switched here at
+// once, by its own commands, and never through the Save button: the answer is
+// about what leaves the computer, so it must not wait behind an unsaved page.
+function ShareDictionary() {
+  const { settings, t, toast } = useApp();
+  const [list, setList] = useState<SharedRule[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  // "offline", "refused" and "too_many" all mean the same to the person: it did not go through.
+  const fail = () => toast(t("share_offline"), "err");
+  const toggleList = () => {
+    if (list !== null) { setList(null); return; }
+    api.shareDictionaryPreview().then(setList).catch(fail);
+  };
+  const forget = () => {
+    setBusy(true);
+    api.shareDictionaryForget().then(() => toast(t("share_forgotten"))).catch(fail).finally(() => setBusy(false));
+  };
+  return (
+    <>
+      <Toggle label={t("share_toggle")} hint={`${t("share_what")} ${t("share_never")} ${t("share_where")}`} checked={!!settings.privacy.share_dictionary}
+        onChange={(v) => api.shareDictionarySet(v).then(() => toast(t(v ? "share_on" : "share_off"))).catch(fail)} />
+      <div className="row">
+        <Button onClick={toggleList}>{t(list === null ? "share_show" : "share_hide")}</Button>
+        {settings.privacy.share_install_id && <Button kind="danger" disabled={busy} onClick={forget}>{t("share_forget")}</Button>}
+      </div>
+      {list !== null && (
+        <>
+          <p className="hint">{t("share_count", { n: list.length })}</p>
+          <pre className="report-preview" tabIndex={0}>{list.map((r) => `${r.wrong} -> ${r.correct}`).join("\n")}</pre>
+        </>
+      )}
+    </>
   );
 }
 

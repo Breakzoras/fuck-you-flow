@@ -1,6 +1,6 @@
 # Lalia architecture
 
-Lalia is a local-first voice keyboard for Windows 10 and 11. Hold a shortcut, speak Greek or English, release, and the text appears at the cursor of whatever application had focus. Nothing leaves the machine unless the user explicitly selects a cloud provider.
+Lalia is a local-first voice keyboard for Windows 10 and 11. Hold a shortcut, speak Greek or English, release, and the text appears at the cursor of whatever application had focus. Nothing leaves the machine unless the user explicitly selects a cloud provider, sends a report, or agrees to share the corrections in the Dictionary (`sharing.rs`).
 
 ## Stack
 

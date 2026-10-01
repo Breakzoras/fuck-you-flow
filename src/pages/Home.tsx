@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, ModelStatus, PipelineSnapshot, RuntimeStatus, StatsSummary } from "../api";
+import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, LANGUAGE_CHOICES, languageName, ModelStatus, PipelineSnapshot, RuntimeStatus, StatsSummary } from "../api";
 import { useApp } from "../hooks";
-import { Badge, Button, Card } from "../ui";
+import { Badge, Button, Card, Select } from "../ui";
 import ModelGuide, { MachineProfile } from "../ModelGuide";
 import { localDayKey, todayFacts } from "../todayStats";
 
@@ -19,6 +19,31 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
   // A recording the user already has, turned into text. One at a time: the
   // engine holds a single model, so a second job would only wait behind this.
   const [fileWork, setFileWork] = useState<string | null>(null);
+  // The language is asked, once, on the first screen. What the installer read
+  // from Windows is only the suggestion: a Greek speaker whose Windows is set
+  // to English formats used to start with dictation in English alone.
+  // "other" is for a language outside the list: the engine then guesses among
+  // everything it knows, which is what the installer chose for such a machine.
+  const spoken = settings.language.mode === "auto" ? "other" : settings.language.mode === "english" ? "en" : settings.language.primary ?? "el";
+  const [langPick, setLangPick] = useState<string>(spoken);
+  // Confirmed in the settings, so that leaving this page and coming back does
+  // not ask again; a new pick in the list asks for its own confirmation.
+  const langOk = !!settings.general.language_confirmed && langPick === spoken;
+  const confirmLanguage = async () => {
+    const language = langPick === "other"
+      ? { primary: settings.language.primary ?? "el", mode: "auto" as const }
+      : { primary: langPick, mode: langPick === "en" ? "english" as const : "multi" as const };
+    try {
+      await setSettings({ ...settings, language, general: { ...settings.general, language_confirmed: true } });
+    } catch (err) {
+      toast(String(err), "err");
+    }
+  };
+  const answerShare = (on: boolean) => {
+    api.shareDictionarySet(on)
+      .then(() => toast(t(on ? "share_on" : "share_off")))
+      .catch(() => toast(t("share_offline"), "err"));
+  };
 
   const transcribeFile = async () => {
     try {
@@ -117,7 +142,32 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
     <>
       <h1>{state.toLowerCase()}</h1>
       {!settings.general.first_run_done && (
-        // The first thing a new user decides is which model is theirs, before
+        <Card title={t("first_lang_title")}>
+          <p className="hint">{t("first_lang_hint")}</p>
+          <div className="row" style={{ marginTop: 10 }}>
+            <Select value={langPick} onChange={setLangPick} options={[...LANGUAGE_CHOICES.map((l) => ({ value: l.code, label: l.name })), { value: "other", label: t("first_lang_other") }]} />
+            {langOk
+              ? <Badge tone="ok">{langPick === "other" ? t("first_lang_other") : languageName(langPick)}</Badge>
+              : <Button kind="primary" onClick={confirmLanguage}>{t("first_lang_confirm")}</Button>}
+          </div>
+        </Card>
+      )}
+      {settings.general.first_run_done && !settings.privacy.share_dictionary_asked && (
+        // Asked once, of everyone: a new install after setup, an older one
+        // after the update. Either answer closes the card for good.
+        <Card title={t("share_title")}>
+          <p>{t("share_ask")}</p>
+          <p className="hint">{t("share_what")}</p>
+          <p className="hint">{t("share_never")}</p>
+          <p className="hint">{t("share_where")}</p>
+          <div className="row" style={{ marginTop: 12 }}>
+            <Button kind="primary" onClick={() => answerShare(true)}>{t("share_yes")}</Button>
+            <Button onClick={() => answerShare(false)}>{t("share_no")}</Button>
+          </div>
+        </Card>
+      )}
+      {!settings.general.first_run_done && langOk && (
+        // The next thing a new user decides is which model is theirs, before
         // a gigabyte is downloaded for the wrong one.
         <Card title={t("guide_title")}>
           <ModelGuide
@@ -125,6 +175,7 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
             profile={(runtime as unknown as { machine?: MachineProfile } | null)?.machine}
             currentModelId={settings.asr.model_id}
             currentBackend={settings.asr.backend}
+            languageAsked
             onApply={async (modelId, backend) => {
               await setSettings({ ...settings, asr: { ...settings.asr, model_id: modelId, backend } });
               refresh();
@@ -173,10 +224,11 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
           </div>
           {setupDone && !settings.general.first_run_done && (
             <div className="row" style={{ marginTop: 12 }}>
-              <Button kind="primary" onClick={async () => {
+              <Button kind="primary" disabled={!langOk} title={langOk ? undefined : t("first_lang_first")} onClick={async () => {
                 await setSettings({ ...settings, general: { ...settings.general, first_run_done: true } });
                 await api.engineRestart();
               }}>{t("finish_setup")}</Button>
+              {!langOk && <span className="hint">{t("first_lang_first")}</span>}
             </div>
           )}
           {setupDone && settings.general.first_run_done && engine?.status !== "ready" && (

@@ -13,18 +13,24 @@ export interface MachineProfile {
 /// "Help me choose": two plain questions, the machine read on its own, and one
 /// model with the reason it suits this person. People need different things,
 /// and a table of model names told nobody which one was theirs.
-export default function ModelGuide({ models, profile, currentModelId, currentBackend, onApply, onPick }: {
+export default function ModelGuide({ models, profile, currentModelId, currentBackend, onApply, onPick, languageAsked }: {
   models: ModelStatus[];
   profile: MachineProfile | null | undefined;
   currentModelId: string;
   currentBackend: string | undefined;
   onApply: (modelId: string, backend: string) => Promise<void>;
   onPick?: (pick: Pick) => void;
+  /// The first screen has already asked which language the user speaks. The
+  /// guide then follows that answer and leaves its own language question out.
+  languageAsked?: boolean;
 }) {
   const { settings, t, toast } = useApp();
   const [lang, setLang] = useState<SpeakLang>(() => speakLangFrom(settings.language));
   const [priority, setPriority] = useState<Priority>("accuracy");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (languageAsked) setLang(speakLangFrom(settings.language));
+  }, [languageAsked, settings.language.mode, settings.language.primary]);
 
   const machine = useMemo(() => machineFrom(profile), [profile]);
   const pick = useMemo(() => recommend(machine, lang, priority), [machine, lang, priority]);
@@ -59,12 +65,16 @@ export default function ModelGuide({ models, profile, currentModelId, currentBac
       <p className="hint" style={{ marginTop: 0 }}>{t("guide_intro")}</p>
       <p><strong>{t("guide_machine")}:</strong> {machineLine}</p>
 
-      <p style={{ margin: "14px 0 6px" }}><strong>{t("guide_q_lang")}</strong></p>
-      <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-        {choice<SpeakLang>("el_mixed", lang, setLang, t("guide_lang_el"))}
-        {choice<SpeakLang>("english", lang, setLang, t("guide_lang_en"))}
-        {choice<SpeakLang>("other", lang, setLang, t("guide_lang_other"))}
-      </div>
+      {!languageAsked && (
+        <>
+          <p style={{ margin: "14px 0 6px" }}><strong>{t("guide_q_lang")}</strong></p>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+            {choice<SpeakLang>("el_mixed", lang, setLang, t("guide_lang_el"))}
+            {choice<SpeakLang>("english", lang, setLang, t("guide_lang_en"))}
+            {choice<SpeakLang>("other", lang, setLang, t("guide_lang_other"))}
+          </div>
+        </>
+      )}
 
       <p style={{ margin: "14px 0 6px" }}><strong>{t("guide_q_priority")}</strong></p>
       <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>

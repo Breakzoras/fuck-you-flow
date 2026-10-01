@@ -22,6 +22,8 @@ pub mod paths;
 pub mod pipeline;
 pub mod scratch;
 pub mod settings;
+pub mod sharing;
+pub mod starter;
 
 use tauri::Manager;
 
@@ -181,6 +183,9 @@ pub fn run() {
             commands::debug_bundle,
             commands::report_preview,
             commands::send_report,
+            commands::share_dictionary_preview,
+            commands::share_dictionary_set,
+            commands::share_dictionary_forget,
             commands::recent_keys,
             commands::current_foreground_app,
             commands::record_shortcut,

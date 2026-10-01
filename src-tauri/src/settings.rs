@@ -40,6 +40,19 @@ impl LanguageModeSetting {
         if crate::languages::is_choice(&self.primary) { &self.primary } else { "el" }
     }
 
+    /// The one language the user dictates in, for the things that are handed
+    /// out per language (the built-in corrections, the label on shared ones).
+    /// English alone is English whatever `primary` still says from the
+    /// defaults, and a user left on "guess among everything" has told us
+    /// nothing, so they get the empty code and only what is for everyone.
+    pub fn own_code(&self) -> &str {
+        match self.mode {
+            LanguageMode::English => "en",
+            LanguageMode::Auto => "",
+            LanguageMode::Primary | LanguageMode::Multi => self.primary(),
+        }
+    }
+
     /// Value passed to whisper-server. Multi means "auto", and a result in a
     /// third language is redone with the primary forced (see `languages::needs_lock`).
     pub fn whisper_code(&self) -> String {
@@ -350,6 +363,15 @@ pub struct PrivacySettings {
     /// Off unless they turn it on.
     pub local_api: bool,
     pub local_api_port: u16,
+    /// The user agreed to send the corrections in their Dictionary to the
+    /// maker, so the ones useful to everyone can go into a later version
+    /// (`sharing.rs`). Off until they say yes.
+    pub share_dictionary: bool,
+    /// The question has been put once. It is never put a second time.
+    pub share_dictionary_asked: bool,
+    /// A random number made up when sharing is switched on. It keeps one
+    /// install's batches together so "delete what I sent" can find them.
+    pub share_install_id: String,
 }
 
 impl Default for PrivacySettings {
@@ -364,6 +386,9 @@ impl Default for PrivacySettings {
             redact_logs: true,
             local_api: false,
             local_api_port: crate::local_api::DEFAULT_PORT,
+            share_dictionary: false,
+            share_dictionary_asked: false,
+            share_install_id: String::new(),
         }
     }
 }
@@ -380,6 +405,10 @@ pub struct GeneralSettings {
     pub skin: String,
     pub autostart: bool,
     pub first_run_done: bool,
+    /// The user said which language they speak on the first screen (0.9.14).
+    /// Until then the dictation language is only what Windows suggested.
+    #[serde(default)]
+    pub language_confirmed: bool,
     pub play_sounds: bool,
     /// The machine was inspected once and threads/model/backend were set from it.
     pub machine_profiled: bool,
@@ -404,6 +433,7 @@ impl Default for GeneralSettings {
             skin: "carbon".into(),
             autostart: false,
             first_run_done: false,
+            language_confirmed: false,
             play_sounds: true,
             machine_profiled: false,
             debug_mode: false,
@@ -437,6 +467,18 @@ pub fn read_failed() -> bool {
 }
 
 impl Settings {
+    /// The language the built-in corrections are handed out by: the user's
+    /// own once they have said it (or finished setup before the question
+    /// existed), and nobody's until then, so a guess from Windows never puts
+    /// one language's corrections into another speaker's Dictionary.
+    pub fn starter_language(&self) -> &str {
+        if self.general.language_confirmed || self.general.first_run_done {
+            self.language.own_code()
+        } else {
+            ""
+        }
+    }
+
     /// Settings captured when the speech provider is constructed.
     pub fn engine_changed_from(&self, old: &Self) -> bool {
         self.asr.model_id != old.asr.model_id
@@ -637,6 +679,32 @@ mod tests {
         next = old.clone();
         next.general.theme = "light".into();
         assert!(!next.engine_changed_from(&old));
+    }
+
+    #[test]
+    fn the_language_things_are_handed_out_by() {
+        let mut l = LanguageModeSetting::default();
+        assert_eq!(l.own_code(), "el");
+        l.mode = LanguageMode::English;
+        assert_eq!(l.own_code(), "en", "English alone, though primary still holds the default");
+        l.mode = LanguageMode::Auto;
+        assert_eq!(l.own_code(), "", "nobody told us, so nothing that is for one language");
+        l.mode = LanguageMode::Primary;
+        l.primary = "de".into();
+        assert_eq!(l.own_code(), "de");
+    }
+
+    #[test]
+    fn built_in_corrections_wait_for_the_language_to_be_said() {
+        let mut s = Settings::default();
+        assert_eq!(s.starter_language(), "", "a fresh install: Windows only suggested");
+        s.general.language_confirmed = true;
+        assert_eq!(s.starter_language(), "el");
+        // an install from before the question existed has finished setup
+        let mut old = Settings::default();
+        old.general.first_run_done = true;
+        old.language.mode = LanguageMode::English;
+        assert_eq!(old.starter_language(), "en");
     }
 
     #[test]
