@@ -262,6 +262,21 @@ fn normalize_spacing(text: &str) -> String {
     super::replace_all_or_keep(&DOMAIN_FIX, &t, "$1.$2").to_string()
 }
 
+/// Abbreviations that announce what comes next, written here without their
+/// last full stop. The sentence always goes on after them, so that full stop
+/// ends nothing. "κλπ." and "etc." are left out on purpose: they close a list,
+/// and a list often closes the sentence.
+const LEADING_ABBREVIATIONS: &[&str] = &["π.χ", "πχ", "δηλ", "βλ", "e.g", "i.e", "vs", "cf"];
+
+/// True when `before` (the text up to a full stop) ends in one of the
+/// abbreviations above, standing as a word of its own.
+fn ends_in_leading_abbreviation(before: &str) -> bool {
+    let lower = before.to_lowercase();
+    LEADING_ABBREVIATIONS.iter().any(|a| {
+        lower.strip_suffix(a).is_some_and(|head| !head.chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '.'))
+    })
+}
+
 fn capitalize_sentences(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut capitalize_next = true;
@@ -277,7 +292,11 @@ fn capitalize_sentences(text: &str) -> String {
         if c == '.' || c == '!' || c == '?' || c == ';' {
             // Greek question mark is ';' but also used as semicolon in English text.
             // Only treat as sentence end when followed by whitespace.
-            if matches!(chars.peek(), Some(' ') | None) && c != ';' {
+            if c == '.' && ends_in_leading_abbreviation(&out) {
+                // "π.χ. ένα κουμπί": the full stop belongs to the abbreviation
+                // (3 of 3 such dictations got a capital, 1 October 2026).
+                capitalize_next = false;
+            } else if matches!(chars.peek(), Some(' ') | None) && c != ';' {
                 capitalize_next = true;
             } else if c == ';' && matches!(chars.peek(), Some(' ')) && looks_greek(text) {
                 capitalize_next = true;
@@ -555,6 +574,27 @@ mod tests {
         for text in ["Πήγαμε στη Θεσσαλονίκη με τον Νίκο.", "Τελείωσε. Και μετά φύγαμε.", "Το σχέδιο τύπου Α δουλεύει.", "Έφτασε; Για πόσο θα μείνει;"] {
             assert_eq!(clean(text, &o).text, text);
         }
+    }
+
+    /// 1 October 2026: "..., π.χ. ένα κουμπί" came out as "..., π.χ. Ένα κουμπί".
+    #[test]
+    fn the_word_after_an_abbreviation_that_announces_it_keeps_its_small_letter() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("Θέλω κάτι απλό, π.χ. ένα κουμπί στη μέση.", &o).text, "Θέλω κάτι απλό, π.χ. ένα κουμπί στη μέση.");
+        assert_eq!(clean("Βάλε μια σκούρα απόχρωση, δηλ. κάτι κοντά στο μπλε.", &o).text, "Βάλε μια σκούρα απόχρωση, δηλ. κάτι κοντά στο μπλε.");
+        assert_eq!(clean("We need a fallback, e.g. a cached copy of the page.", &o).text, "We need a fallback, e.g. a cached copy of the page.");
+        // The abbreviation itself still opens a sentence with a capital.
+        assert_eq!(clean("π.χ. αυτό το κουμπί δεν φαίνεται.", &o).text, "Π.χ. αυτό το κουμπί δεν φαίνεται.");
+        // A name after it keeps the capital it came with.
+        assert_eq!(clean("Ρώτα κάποιον, π.χ. τον Νίκο.", &o).text, "Ρώτα κάποιον, π.χ. τον Νίκο.");
+    }
+
+    #[test]
+    fn a_full_stop_that_only_looks_like_such_an_abbreviation_still_ends_the_sentence() {
+        let o = opts(CleanupIntensity::Normal);
+        // "devs" ends in "vs", "κλπ." closes a list and here the sentence too.
+        assert_eq!(clean("I spoke with the devs. they will ship on Monday.", &o).text, "I spoke with the devs. They will ship on Monday.");
+        assert_eq!(clean("Πήραμε καρέκλες, τραπέζια κλπ. μετά βάψαμε τον τοίχο.", &o).text, "Πήραμε καρέκλες, τραπέζια κλπ. Μετά βάψαμε τον τοίχο.");
     }
 
     /// Replays real dictations kept outside the repository. FYF_REPLAY_IN holds
