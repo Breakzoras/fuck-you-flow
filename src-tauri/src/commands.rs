@@ -551,6 +551,44 @@ pub fn resolve_suggestion(state: State<'_, Arc<AppState>>, id: String, action: S
     Ok(())
 }
 
+/// The two sides of a suggestion as the user corrected them, trimmed. Both are
+/// needed, and a rule that replaces a word with itself is no rule.
+fn corrected_pair(wrong: &str, correct: &str) -> R<(String, String)> {
+    let (w, c) = (wrong.trim(), correct.trim());
+    if w.is_empty() || c.is_empty() {
+        return Err("both sides are needed".into());
+    }
+    if w == c {
+        return Err("the two sides are the same".into());
+    }
+    Ok((w.to_string(), c.to_string()))
+}
+
+/// Accepts a suggestion after the user corrected it. Until 1 October 2026 a
+/// suggestion could only be taken as it stood, dismissed or silenced, so one
+/// that was nearly right had to be thrown away and typed again as a rule.
+#[tauri::command]
+pub fn accept_suggestion_as(state: State<'_, Arc<AppState>>, id: String, wrong: String, correct: String) -> R<()> {
+    let (wrong, correct) = corrected_pair(&wrong, &correct)?;
+    if !state.shared.db.rewrite_pending_suggestion(&id, &wrong, &correct).map_err(e)? {
+        return Err("this suggestion was already answered".into());
+    }
+    resolve_suggestion(state, id, "accept".into())
+}
+
+#[cfg(test)]
+mod suggestion_tests {
+    use super::corrected_pair;
+
+    #[test]
+    fn a_corrected_suggestion_needs_two_different_sides() {
+        assert_eq!(corrected_pair("  γουέμπντοκ ", " Webdock  "), Ok(("γουέμπντοκ".to_string(), "Webdock".to_string())));
+        assert!(corrected_pair("", "Webdock").is_err());
+        assert!(corrected_pair("γουέμπντοκ", "   ").is_err());
+        assert!(corrected_pair("Webdock", " Webdock ").is_err());
+    }
+}
+
 #[tauri::command]
 pub fn delete_learning_data(state: State<'_, Arc<AppState>>) -> R<()> {
     state.shared.db.delete_learning_data().map_err(e)

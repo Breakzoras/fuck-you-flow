@@ -178,6 +178,7 @@ export const api = {
   deleteSnippet: (id: string) => invoke<void>("delete_snippet", { id }),
   suggestions: () => invoke<Suggestion[]>("list_suggestions"),
   resolveSuggestion: (id: string, action: "accept" | "dismiss" | "ignore") => invoke<void>("resolve_suggestion", { id, action }),
+  acceptSuggestionAs: (id: string, wrong: string, correct: string) => invoke<void>("accept_suggestion_as", { id, wrong, correct }),
   deleteLearningData: () => invoke<void>("delete_learning_data"),
   appStyles: () => invoke<AppStyle[]>("list_app_styles"),
   saveAppStyle: (style: AppStyle) => invoke<AppStyle>("save_app_style", { style }),

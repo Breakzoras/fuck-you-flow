@@ -166,6 +166,7 @@ pub fn run() {
             commands::delete_snippet,
             commands::list_suggestions,
             commands::resolve_suggestion,
+            commands::accept_suggestion_as,
             commands::delete_learning_data,
             commands::list_app_styles,
             commands::save_app_style,

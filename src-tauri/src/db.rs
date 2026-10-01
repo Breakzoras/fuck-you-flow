@@ -842,6 +842,18 @@ impl Db {
         }
     }
 
+    /// Rewrites a suggestion that still waits for an answer: the user corrected
+    /// what the app proposed before accepting it. One that was already
+    /// answered is left as it is. Returns whether a row changed.
+    pub fn rewrite_pending_suggestion(&self, id: &str, wrong: &str, correct: &str) -> anyhow::Result<bool> {
+        let conn = self.conn.lock();
+        let n = conn.execute(
+            "UPDATE suggestions SET wrong = ?1, correct = ?2, updated_at = ?3 WHERE id = ?4 AND status = 'pending'",
+            params![wrong, correct, now(), id],
+        )?;
+        Ok(n > 0)
+    }
+
     pub fn set_suggestion_status(&self, id: &str, status: &str) -> anyhow::Result<Option<Suggestion>> {
         let conn = self.conn.lock();
         conn.execute("UPDATE suggestions SET status = ?1, updated_at = ?2 WHERE id = ?3", params![status, now(), id])?;
@@ -1182,5 +1194,21 @@ mod tests {
         assert_eq!(db.upsert_suggestion("dictionary", "Λούραμ", "Luram", "seen twice").unwrap(), 2);
         db.delete_rule(&rule.id).unwrap();
         assert!(db.list_rules().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_waiting_suggestion_can_be_corrected_and_an_answered_one_cannot() {
+        let db = Db::open_in_memory().unwrap();
+        db.upsert_suggestion("dictionary", "γουέμπντοκ", "Webdok", "edited once").unwrap();
+        let id = db.list_suggestions().unwrap()[0].id.clone();
+
+        assert!(db.rewrite_pending_suggestion(&id, "γουέμπντοκ", "Webdock").unwrap());
+        let s = db.set_suggestion_status(&id, "accepted").unwrap().unwrap();
+        assert_eq!((s.wrong.as_str(), s.correct.as_str(), s.status.as_str()), ("γουέμπντοκ", "Webdock", "accepted"));
+
+        // answered: a later correction changes nothing
+        assert!(!db.rewrite_pending_suggestion(&id, "γουέμπντοκ", "Something else").unwrap());
+        assert_eq!(db.list_suggestions().unwrap()[0].correct, "Webdock");
+        assert!(!db.rewrite_pending_suggestion("no-such-id", "a", "b").unwrap());
     }
 }
