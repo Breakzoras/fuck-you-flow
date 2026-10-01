@@ -246,6 +246,14 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             );
         }
     }
+    // Sharing the Dictionary's corrections is on unless the user switched it
+    // off. When their file could not be read their choice is unknown, and
+    // then nothing is sent this run.
+    if crate::settings::privacy_choices_unknown() {
+        settings.privacy.share_dictionary = false;
+    } else if settings.privacy.settle_sharing() {
+        changed = true;
+    }
     // Never on top of a file that could not be read: that would replace the
     // user's real choices with the defaults this run started from.
     if changed && !crate::settings::read_failed() {

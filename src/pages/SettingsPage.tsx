@@ -463,7 +463,7 @@ function ShareDictionary() {
   };
   return (
     <>
-      <Toggle label={t("share_toggle")} hint={`${t("share_what")} ${t("share_never")} ${t("share_where")}`} checked={!!settings.privacy.share_dictionary}
+      <Toggle label={t("share_toggle")} hint={`${t("share_default")} ${t("share_what")} ${t("share_never")} ${t("share_where")}`} checked={!!settings.privacy.share_dictionary}
         onChange={(v) => api.shareDictionarySet(v).then(() => toast(t(v ? "share_on" : "share_off"))).catch(fail)} />
       <div className="row">
         <Button onClick={toggleList}>{t(list === null ? "share_show" : "share_hide")}</Button>

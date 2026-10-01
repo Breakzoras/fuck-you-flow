@@ -363,15 +363,35 @@ pub struct PrivacySettings {
     /// Off unless they turn it on.
     pub local_api: bool,
     pub local_api_port: u16,
-    /// The user agreed to send the corrections in their Dictionary to the
-    /// maker, so the ones useful to everyone can go into a later version
-    /// (`sharing.rs`). Off until they say yes.
+    /// The corrections in the Dictionary are sent to the maker, so the ones
+    /// useful to everyone can go into a later version (`sharing.rs`). On from
+    /// the start, with a switch in Settings under Privacy (the maker's
+    /// decision, 1 October 2026: the app is free and the corrections are what
+    /// it asks back).
     pub share_dictionary: bool,
-    /// The question has been put once. It is never put a second time.
+    /// The user set the switch themselves. Until then the default applies;
+    /// after it, their choice is never changed for them. (The name is from
+    /// the first design, which put a question.)
     pub share_dictionary_asked: bool,
-    /// A random number made up when sharing is switched on. It keeps one
-    /// install's batches together so "delete what I sent" can find them.
+    /// A random number made up for this install. It keeps one install's
+    /// batches together so "delete what I sent" can find them.
     pub share_install_id: String,
+}
+
+impl PrivacySettings {
+    /// Puts sharing where it belongs at startup: on for everyone who has not
+    /// set the switch themselves, with an id to send under. Returns whether
+    /// anything changed, so the caller knows to save.
+    pub fn settle_sharing(&mut self) -> bool {
+        let before = (self.share_dictionary, self.share_install_id.clone());
+        if !self.share_dictionary_asked {
+            self.share_dictionary = true;
+        }
+        if self.share_dictionary && self.share_install_id.is_empty() {
+            self.share_install_id = crate::sharing::new_install_id();
+        }
+        before != (self.share_dictionary, self.share_install_id.clone())
+    }
 }
 
 impl Default for PrivacySettings {
@@ -386,7 +406,7 @@ impl Default for PrivacySettings {
             redact_logs: true,
             local_api: false,
             local_api_port: crate::local_api::DEFAULT_PORT,
-            share_dictionary: false,
+            share_dictionary: true,
             share_dictionary_asked: false,
             share_install_id: String::new(),
         }
@@ -466,6 +486,17 @@ pub fn read_failed() -> bool {
     READ_FAILED.load(std::sync::atomic::Ordering::SeqCst)
 }
 
+/// Set when the privacy part of settings.json could not be read this run, so
+/// its switches came back as defaults.
+static PRIVACY_UNREAD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// True when the user's privacy choices are unknown this run: the file would
+/// not open, or its privacy part was damaged. A switch they turned off may be
+/// among them, so nothing that depends on a default being "on" may run.
+pub fn privacy_choices_unknown() -> bool {
+    read_failed() || PRIVACY_UNREAD.load(std::sync::atomic::Ordering::SeqCst)
+}
+
 impl Settings {
     /// The language the built-in corrections are handed out by: the user's
     /// own once they have said it (or finished setup before the question
@@ -543,11 +574,14 @@ impl Settings {
     /// language, their microphone and everything else they had ever chosen.
     /// Now only the part that is actually broken goes back to its default.
     fn salvage(text: &str) -> Self {
+        let unread = || PRIVACY_UNREAD.store(true, std::sync::atomic::Ordering::SeqCst);
         let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else {
             tracing::warn!("settings.json is not readable as a file at all; starting from the defaults");
+            unread();
             return Settings::default();
         };
         let Some(obj) = value.as_object() else {
+            unread();
             return Settings::default();
         };
         let mut out = Settings::default();
@@ -569,7 +603,15 @@ impl Settings {
         part!("cleanup", cleanup);
         part!("insertion", insertion);
         part!("overlay", overlay);
-        part!("privacy", privacy);
+        if let Some(v) = obj.get("privacy") {
+            match serde_json::from_value(v.clone()) {
+                Ok(parsed) => out.privacy = parsed,
+                Err(e) => {
+                    tracing::warn!("the privacy settings could not be read ({e}); that part went back to its defaults");
+                    unread();
+                }
+            }
+        }
         out
     }
 

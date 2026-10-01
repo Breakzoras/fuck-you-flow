@@ -1,7 +1,9 @@
-//! Sharing Dictionary corrections with the maker, for a user who said yes.
+//! Sharing Dictionary corrections with the maker.
 //!
-//! The app asks once. After a yes, the corrections in the Dictionary (the wrong
-//! word, the right word, its language and how it matches) are sent to
+//! On from the start, with a switch in Settings under Privacy (the maker's
+//! decision, 1 October 2026; the first design put a question and waited for a
+//! yes). The corrections in the Dictionary (the wrong word, the right word,
+//! its language and how it matches, names included) are sent to
 //! fuckyouflow.app, and new ones follow about once a day. Dictated text,
 //! History and audio are not part of it and there is no code path here that
 //! reads them. The built-in corrections are not sent back. On the server the
@@ -9,8 +11,9 @@
 //! person reads them, and the corrections that are useful to everyone go into
 //! the built-in list of a later version (`starter.rs`).
 //!
-//! Without the yes nothing is built and nothing is sent: `next_batch` is the
-//! only door and it returns `None`.
+//! With the switch off nothing is built and nothing is sent: `next_batch` is
+//! the only door and it returns `None`. The same holds for a run in which the
+//! user's privacy choices could not be read (`privacy_choices_unknown`).
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -80,7 +83,7 @@ pub fn new_install_id() -> String {
 }
 
 /// The next request body and the rows to mark as sent once the server has
-/// taken it. `None` when the user has not agreed or nothing new is waiting.
+/// taken it. `None` when sharing is switched off or nothing new is waiting.
 pub fn next_batch(privacy: &PrivacySettings, primary: &str, rules: &[DictionaryRule], sent: &HashMap<String, String>) -> Option<(serde_json::Value, Vec<(String, String)>)> {
     if !privacy.share_dictionary || !valid_install_id(&privacy.share_install_id) {
         return None;
@@ -207,15 +210,35 @@ mod tests {
     }
 
     #[test]
-    fn nothing_is_built_without_the_yes() {
+    fn nothing_is_built_with_the_switch_off_or_without_an_id() {
         let none = HashMap::new();
+        // switched off by the user
+        let off = PrivacySettings { share_dictionary: false, share_dictionary_asked: true, share_install_id: new_install_id(), ..Default::default() };
+        assert!(next_batch(&off, "el", &sample(), &none).is_none());
+        // on, before startup has given this install an id of its own
         assert!(next_batch(&PrivacySettings::default(), "el", &sample(), &none).is_none());
-        // asked and declined
-        let declined = PrivacySettings { share_dictionary_asked: true, ..Default::default() };
-        assert!(next_batch(&declined, "el", &sample(), &none).is_none());
-        // switched on by a hand-edited file, without an id of its own
-        let no_id = PrivacySettings { share_dictionary: true, ..Default::default() };
-        assert!(next_batch(&no_id, "el", &sample(), &none).is_none());
+    }
+
+    #[test]
+    fn sharing_is_on_from_the_start_and_a_switch_set_by_hand_stays() {
+        let none = HashMap::new();
+        // a new install, and an older one whose file never said anything
+        let mut fresh = PrivacySettings::default();
+        assert!(fresh.settle_sharing(), "startup has something to save");
+        assert!(fresh.share_dictionary && valid_install_id(&fresh.share_install_id));
+        assert!(next_batch(&fresh, "el", &sample(), &none).is_some());
+        assert!(!fresh.settle_sharing(), "the second start changes nothing");
+
+        // the file of the first design: off, because nobody had answered yet
+        let mut unanswered = PrivacySettings { share_dictionary: false, share_dictionary_asked: false, ..Default::default() };
+        unanswered.settle_sharing();
+        assert!(unanswered.share_dictionary);
+
+        // switched off by the user: left alone, and no id is made for it
+        let mut off = PrivacySettings { share_dictionary: false, share_dictionary_asked: true, ..Default::default() };
+        assert!(!off.settle_sharing());
+        assert!(!off.share_dictionary && off.share_install_id.is_empty());
+        assert!(next_batch(&off, "el", &sample(), &none).is_none());
     }
 
     #[test]

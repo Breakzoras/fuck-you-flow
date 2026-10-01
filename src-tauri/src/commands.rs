@@ -1012,14 +1012,15 @@ mod report_tests {
 
 // ----- sharing Dictionary corrections -----
 
-/// What sharing sends, shown before and after the user says yes.
+/// What sharing sends, shown in Settings beside the switch.
 #[tauri::command(async)]
 pub fn share_dictionary_preview(state: State<'_, Arc<AppState>>) -> R<Vec<crate::sharing::SharedRule>> {
     let rules = state.shared.db.list_rules().map_err(e)?;
     Ok(crate::sharing::shareable(&rules).into_iter().map(|(_, _, rule)| rule).collect())
 }
 
-/// The answer to the one question, and the switch in Settings afterwards.
+/// The switch in Settings. From here on the choice is the user's own and the
+/// default no longer applies to them.
 #[tauri::command]
 pub async fn share_dictionary_set(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, on: bool) -> R<Settings> {
     let settings = {
@@ -1061,6 +1062,8 @@ pub async fn share_dictionary_forget(app: tauri::AppHandle, state: State<'_, Arc
         let mut current = state.shared.settings.write();
         let mut next = current.clone();
         next.privacy.share_dictionary = false;
+        // Their own choice: the default must not switch it back on at the next start.
+        next.privacy.share_dictionary_asked = true;
         next.privacy.share_install_id = String::new();
         next.save(&crate::paths::settings_file()).map_err(e)?;
         *current = next.clone();

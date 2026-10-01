@@ -39,11 +39,6 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
       toast(String(err), "err");
     }
   };
-  const answerShare = (on: boolean) => {
-    api.shareDictionarySet(on)
-      .then(() => toast(t(on ? "share_on" : "share_off")))
-      .catch(() => toast(t("share_offline"), "err"));
-  };
 
   const transcribeFile = async () => {
     try {
@@ -149,20 +144,6 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
             {langOk
               ? <Badge tone="ok">{langPick === "other" ? t("first_lang_other") : languageName(langPick)}</Badge>
               : <Button kind="primary" onClick={confirmLanguage}>{t("first_lang_confirm")}</Button>}
-          </div>
-        </Card>
-      )}
-      {settings.general.first_run_done && !settings.privacy.share_dictionary_asked && (
-        // Asked once, of everyone: a new install after setup, an older one
-        // after the update. Either answer closes the card for good.
-        <Card title={t("share_title")}>
-          <p>{t("share_ask")}</p>
-          <p className="hint">{t("share_what")}</p>
-          <p className="hint">{t("share_never")}</p>
-          <p className="hint">{t("share_where")}</p>
-          <div className="row" style={{ marginTop: 12 }}>
-            <Button kind="primary" onClick={() => answerShare(true)}>{t("share_yes")}</Button>
-            <Button onClick={() => answerShare(false)}>{t("share_no")}</Button>
           </div>
         </Card>
       )}
