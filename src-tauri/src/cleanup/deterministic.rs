@@ -34,7 +34,11 @@ const FILLER_STRONG_EN: &[&str] = &["like", "basically", "actually", "literally"
 const FILLER_STRONG_EL: &[&str] = &["βασικά", "δηλαδή", "λοιπόν", "ρε"];
 
 static WS: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap());
-static SPACE_BEFORE_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+([,.;:!?…])").unwrap());
+/// A dot glued to a small letter after it opens a domain ending (".ai",
+/// ".com", ".onion") and keeps the space in front of it: "όνομα σε .gr" came
+/// out as "όνομα σε.gr" (2 October 2026). A dot followed by a space, another
+/// mark, a capital or the end of the text is a full stop and loses the space.
+static SPACE_BEFORE_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+([,;:!?…]|\.(?!\p{Ll}))").unwrap());
 static DOUBLE_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"([,.;:!?])\1+").unwrap());
 static REPEAT_WORD: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(\p{L}{2,})\s+\1\b").unwrap());
 
@@ -595,6 +599,22 @@ mod tests {
         // "devs" ends in "vs", "κλπ." closes a list and here the sentence too.
         assert_eq!(clean("I spoke with the devs. they will ship on Monday.", &o).text, "I spoke with the devs. They will ship on Monday.");
         assert_eq!(clean("Πήραμε καρέκλες, τραπέζια κλπ. μετά βάψαμε τον τοίχο.", &o).text, "Πήραμε καρέκλες, τραπέζια κλπ. Μετά βάψαμε τον τοίχο.");
+    }
+
+    /// 2 October 2026: a domain ending said on its own ("σε .gr") lost the
+    /// space in front of it and stuck to the word before ("σε.gr").
+    #[test]
+    fn a_domain_ending_said_on_its_own_keeps_the_space_before_it() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("θέλω ένα όνομα σε .gr ή σε .io για το μαγαζί", &o).text, "Θέλω ένα όνομα σε .gr ή σε .io για το μαγαζί.");
+        assert_eq!(clean("βρήκα δύο ελεύθερα σε .net, σε .org. Μετά τα κλείνουμε", &o).text, "Βρήκα δύο ελεύθερα σε .net, σε .org. Μετά τα κλείνουμε.");
+        assert_eq!(clean("we could take the name on .dev or .app", &o).text, "We could take the name on .dev or .app.");
+        // a full stop with a space in front still loses that space
+        assert_eq!(clean("έφτασε το πακέτο . μετά φύγαμε", &o).text, "Έφτασε το πακέτο. Μετά φύγαμε.");
+        assert_eq!(clean("the build is done .", &o).text, "The build is done.");
+        assert_eq!(clean("έκλεισε .Το άλλο μένει", &o).text, "Έκλεισε. Το άλλο μένει.");
+        // a domain written in one piece stays in one piece
+        assert_eq!(clean("άνοιξε το example.com τώρα", &o).text, "Άνοιξε το example.com τώρα.");
     }
 
     /// Replays real dictations kept outside the repository. FYF_REPLAY_IN holds
