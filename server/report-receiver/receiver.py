@@ -18,8 +18,9 @@ POST /api/dictionary with a JSON body (0.9.14):
     {"install_id": "<32 hex>", "app_version": "0.9.14", "primary": "el",
      "rules": [{"wrong": "...", "correct": "...", "language": "el" | "en" | null,
                 "match_mode": "whole_word" | "phrase" | "exact"}]}
-These are Dictionary corrections a user agreed to share, so that the ones
-useful to everyone can be built into a later version. They are appended to one
+These are Dictionary corrections the app shares (on from the start, with a
+switch in Settings under Privacy), so that the ones useful to everyone can be
+built into a later version. They are appended to one
 file per install id and are never mailed, never published as they arrive and
 never pruned by age. POST /api/dictionary/forget with {"install_id": "..."}
 deletes that file. The id is a random number the app made up; no address and
