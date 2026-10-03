@@ -18,12 +18,12 @@ pub mod local_api;
 pub mod logging;
 pub mod models;
 pub mod overlay;
+pub mod packs;
 pub mod paths;
 pub mod pipeline;
 pub mod scratch;
 pub mod settings;
 pub mod sharing;
-pub mod starter;
 
 use tauri::Manager;
 
@@ -187,6 +187,10 @@ pub fn run() {
             commands::share_dictionary_preview,
             commands::share_dictionary_set,
             commands::share_dictionary_forget,
+            commands::pack_status,
+            commands::pack_install,
+            commands::pack_decline,
+            commands::pack_remove,
             commands::recent_keys,
             commands::current_foreground_app,
             commands::record_shortcut,

@@ -47,7 +47,13 @@ export interface Settings {
     local_api: boolean; local_api_port: number;
     share_dictionary?: boolean; share_dictionary_asked?: boolean; share_install_id?: string;
   };
+  /** The ready-made dictionary for the user's language, downloaded per language. */
+  packs?: { enabled: boolean; asked: boolean; language: string; version: number };
 }
+
+/** Which ready-made dictionary this user would get; empty language when none. */
+export interface PackStatus { language: string; rules: number; version: number; online: boolean }
+export interface PackApplied { added: number; updated: number; withdrawn: number }
 
 /** One Dictionary correction as it leaves the computer when sharing is on. */
 export interface SharedRule { wrong: string; correct: string; language: string | null; match_mode: string }
@@ -201,6 +207,10 @@ export const api = {
   shareDictionaryPreview: () => invoke<SharedRule[]>("share_dictionary_preview"),
   shareDictionarySet: (on: boolean) => invoke<Settings>("share_dictionary_set", { on }),
   shareDictionaryForget: () => invoke<Settings>("share_dictionary_forget"),
+  packStatus: () => invoke<PackStatus>("pack_status"),
+  packInstall: () => invoke<PackApplied>("pack_install"),
+  packDecline: () => invoke<Settings>("pack_decline"),
+  packRemove: () => invoke<number>("pack_remove"),
   recentKeys: () => invoke<SeenKey[]>("recent_keys"),
   foregroundApp: () => invoke<Record<string, unknown>>("current_foreground_app"),
   recordShortcut: () => invoke<string>("record_shortcut"),

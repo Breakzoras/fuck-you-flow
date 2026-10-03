@@ -4,6 +4,7 @@ import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, LANGUAGE_CHO
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Select } from "../ui";
 import ModelGuide, { MachineProfile } from "../ModelGuide";
+import PackOffer from "../PackOffer";
 import { localDayKey, todayFacts } from "../todayStats";
 
 // Home in the Mono style: a state word, a few lines of facts, the last
@@ -146,6 +147,11 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
               : <Button kind="primary" onClick={confirmLanguage}>{t("first_lang_confirm")}</Button>}
           </div>
         </Card>
+      )}
+      {(settings.general.first_run_done || langOk) && (
+        // Once the language is known: the ready-made dictionary for it, asked
+        // once. Users who update from an older version see it once too.
+        <PackOffer mode="offer" />
       )}
       {!settings.general.first_run_done && langOk && (
         // The next thing a new user decides is which model is theirs, before

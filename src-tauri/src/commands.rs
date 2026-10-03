@@ -65,6 +65,9 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
         settings.privacy.share_dictionary = current.privacy.share_dictionary;
         settings.privacy.share_dictionary_asked = current.privacy.share_dictionary_asked;
         settings.privacy.share_install_id = current.privacy.share_install_id.clone();
+        // The same for the ready-made dictionary: its commands and its daily
+        // check own these fields.
+        settings.packs = current.packs.clone();
         settings.save(&crate::paths::settings_file()).map_err(e)?;
         *current = settings.clone();
     }
@@ -72,17 +75,15 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
     crate::logging::set_redaction(settings.privacy.redact_logs);
     crate::local_api::apply(state.shared.engine.clone(), settings.privacy.local_api, settings.privacy.local_api_port);
     let _ = state.shared.tx.send(PipelineMsg::SettingsChanged);
-    // A new language of their own brings the built-in corrections for it,
-    // and so does the first time they say which language that is.
-    if old.starter_language() != settings.starter_language() {
-        match crate::starter::apply(&state.shared.db, settings.starter_language()) {
-            Ok(n) if n > 0 => {
-                tracing::info!("dictionary: {n} built-in corrections added for {}", settings.starter_language());
-                crate::app::reload_engines(&state);
+    // A new language of their own brings the ready-made dictionary for it,
+    // for a user who said yes to it.
+    if old.starter_language() != settings.starter_language() && settings.packs.enabled {
+        let shared = state.shared.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(err) = crate::packs::check(&shared, false).await {
+                tracing::info!("packs: not checked after the language change: {err}");
             }
-            Ok(_) => {}
-            Err(err) => tracing::warn!("dictionary: built-in corrections not added: {err}"),
-        }
+        });
     }
     // `backend` belongs in this list: changing the acceleration on its own used
     // to leave the old engine running, so the setting looked ignored.
@@ -1073,6 +1074,66 @@ pub async fn share_dictionary_forget(app: tauri::AppHandle, state: State<'_, Arc
     crate::journal::info("sharing.forgotten", serde_json::json!({}));
     let _ = app.emit_to("main", "lalia://settings-changed", ());
     Ok(settings)
+}
+
+/// Writes the pack switches the way the sharing switch is written: the file
+/// first, then memory.
+fn set_packs(state: &AppState, change: impl FnOnce(&mut crate::settings::PackSettings)) -> R<Settings> {
+    let mut current = state.shared.settings.write();
+    let mut next = current.clone();
+    change(&mut next.packs);
+    next.save(&crate::paths::settings_file()).map_err(e)?;
+    *current = next.clone();
+    Ok(next)
+}
+
+/// Which ready-made dictionary this user would get, and how big it is.
+#[tauri::command]
+pub async fn pack_status(state: State<'_, Arc<AppState>>) -> R<crate::packs::Status> {
+    let own = state.shared.settings.read().starter_language().to_string();
+    Ok(crate::packs::status(&own).await)
+}
+
+/// Yes to the ready-made dictionary: download it now, and look for a newer
+/// one once a day from here on.
+#[tauri::command]
+pub async fn pack_install(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<crate::packs::Applied> {
+    set_packs(&state, |p| {
+        p.enabled = true;
+        p.asked = true;
+    })?;
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    let done = crate::packs::check(&state.shared, true).await.map_err(|err| err.to_string())?;
+    crate::journal::info("packs.installed", serde_json::json!({ "added": done.added }));
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    Ok(done)
+}
+
+/// "Not now" on the first screen. The button on the Dictionary page stays.
+#[tauri::command]
+pub fn pack_decline(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<Settings> {
+    let settings = set_packs(&state, |p| p.asked = true)?;
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    Ok(settings)
+}
+
+/// Takes the ready-made dictionary out again and stops the daily check. Rules
+/// the user changed stay, as their own.
+#[tauri::command]
+pub async fn pack_remove(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<usize> {
+    // Behind a check that is on its way, so it cannot put the rules back.
+    let _run = crate::packs::run_lock().await;
+    let removed = crate::packs::remove(&state.shared.db).map_err(e)?;
+    set_packs(&state, |p| {
+        p.enabled = false;
+        p.asked = true;
+        p.language = String::new();
+        p.version = 0;
+    })?;
+    crate::app::reload_engines(&state);
+    crate::journal::info("packs.removed", serde_json::json!({ "rules": removed }));
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    Ok(removed)
 }
 
 // ----- a sound file the user already has -----

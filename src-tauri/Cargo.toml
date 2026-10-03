@@ -44,6 +44,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"]
 tracing-appender = "0.2"
 dirs = "6"
 once_cell = "1"
+# Checks the signature on a downloaded dictionary pack with the update key
+# (packs.rs); both already come in through the updater.
+minisign-verify = "0.2"
+base64 = "0.22"
 async-trait = "0.1"
 # Reads sound files the user already has (voice notes, meeting recordings) so
 # they can be turned into text without ffmpeg on the machine.

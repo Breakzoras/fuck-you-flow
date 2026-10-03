@@ -462,6 +462,21 @@ impl Default for GeneralSettings {
     }
 }
 
+/// The ready-made dictionary for the user's language (`packs.rs`). Changed by
+/// its own commands only, like the sharing switch.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(default)]
+pub struct PackSettings {
+    /// The user said yes. Until then nothing is downloaded; after it, a newer
+    /// version is taken in quietly about once a day.
+    pub enabled: bool,
+    /// The question on the first screen was answered, yes or "not now".
+    pub asked: bool,
+    /// The pack that is in the Dictionary ("el", "all") and its version.
+    pub language: String,
+    pub version: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct Settings {
@@ -474,6 +489,7 @@ pub struct Settings {
     pub insertion: InsertionSettings,
     pub overlay: OverlaySettings,
     pub privacy: PrivacySettings,
+    pub packs: PackSettings,
 }
 
 /// Set when settings.json exists but could not be read at all this run.
@@ -498,8 +514,8 @@ pub fn privacy_choices_unknown() -> bool {
 }
 
 impl Settings {
-    /// The language the built-in corrections are handed out by: the user's
-    /// own once they have said it (or finished setup before the question
+    /// The language the ready-made dictionary is picked by: the user's own
+    /// once they have said it (or finished setup before the question
     /// existed), and nobody's until then, so a guess from Windows never puts
     /// one language's corrections into another speaker's Dictionary.
     pub fn starter_language(&self) -> &str {
@@ -603,6 +619,7 @@ impl Settings {
         part!("cleanup", cleanup);
         part!("insertion", insertion);
         part!("overlay", overlay);
+        part!("packs", packs);
         if let Some(v) = obj.get("privacy") {
             match serde_json::from_value(v.clone()) {
                 Ok(parsed) => out.privacy = parsed,

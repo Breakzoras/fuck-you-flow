@@ -1,6 +1,6 @@
 # Lalia architecture
 
-Lalia is a local-first voice keyboard for Windows 10 and 11. Hold a shortcut, speak Greek or English, release, and the text appears at the cursor of whatever application had focus. Dictated text, History and audio stay on the machine unless the user explicitly selects a cloud provider or sends a report. The corrections in the Dictionary are shared with the maker from the start, with a switch in Settings under Privacy (`sharing.rs`).
+Lalia is a local-first voice keyboard for Windows 10 and 11. Hold a shortcut, speak Greek or English, release, and the text appears at the cursor of whatever application had focus. Dictated text, History and audio stay on the machine unless the user explicitly selects a cloud provider or sends a report. The corrections in the Dictionary are shared with the maker from the start, with a switch in Settings under Privacy (`sharing.rs`). A ready-made dictionary per language is downloaded from the public repository (`dictionaries/`) after the user says yes, signed with the update key and checked once a day for a newer version (`packs.rs`).
 
 ## Stack
 

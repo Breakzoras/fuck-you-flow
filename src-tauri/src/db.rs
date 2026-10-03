@@ -128,6 +128,20 @@ const MIGRATIONS: &[&str] = &[
         sent_at TEXT NOT NULL
     );
     "#,
+    // 3 (0.9.14): the ready-made dictionary is downloaded per language
+    // (`packs.rs`). For each of its rules, what the app wrote, so a newer
+    // pack changes or withdraws a rule only while the user has not touched it.
+    // `starter_seen` above belonged to the first design, which built the list
+    // into the program; it stays empty.
+    r#"
+    CREATE TABLE IF NOT EXISTS pack_rules (
+        id TEXT PRIMARY KEY,
+        language TEXT NOT NULL,
+        print TEXT NOT NULL,
+        state TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    "#,
 ];
 
 fn now() -> String {
@@ -678,23 +692,35 @@ impl Db {
         Ok(())
     }
 
-    // ----- built-in corrections and sharing -----
+    // ----- ready-made dictionaries and sharing -----
 
-    /// Ids of the built-in corrections this install has been offered, whether
-    /// they were added or skipped. One that is in here is never added again,
-    /// so a built-in rule the user deleted stays deleted across updates.
-    pub fn starter_seen(&self) -> anyhow::Result<std::collections::HashSet<String>> {
+    /// Rule id -> (what the app wrote, "installed" or "skipped"), for every
+    /// rule a downloaded pack has offered this install.
+    pub fn pack_records(&self) -> anyhow::Result<std::collections::HashMap<String, (String, String)>> {
         let conn = self.conn.lock();
-        let mut st = conn.prepare("SELECT id FROM starter_seen")?;
-        let rows = st.query_map([], |r| r.get::<_, String>(0))?;
+        let mut st = conn.prepare("SELECT id, print, state FROM pack_rules")?;
+        let rows = st.query_map([], |r| Ok((r.get::<_, String>(0)?, (r.get::<_, String>(1)?, r.get::<_, String>(2)?))))?;
         Ok(rows.filter_map(|r| r.ok()).collect())
     }
 
-    pub fn mark_starter_seen(&self, ids: &[String]) -> anyhow::Result<()> {
-        let conn = self.conn.lock();
-        for id in ids {
-            conn.execute("INSERT OR IGNORE INTO starter_seen (id, seen_at) VALUES (?1, ?2)", params![id, now()])?;
-        }
+    pub fn set_pack_record(&self, id: &str, language: &str, print: &str, state: &str) -> anyhow::Result<()> {
+        self.conn.lock().execute(
+            "INSERT INTO pack_rules (id, language, print, state, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(id) DO UPDATE SET language=excluded.language, print=excluded.print, state=excluded.state, updated_at=excluded.updated_at",
+            params![id, language, print, state, now()],
+        )?;
+        Ok(())
+    }
+
+    /// Hands a rule over to the user: from here on it is theirs, like one
+    /// they typed (a pack rule they changed, once the pack lets go of it).
+    pub fn set_rule_source(&self, id: &str, source: &str) -> anyhow::Result<()> {
+        self.conn.lock().execute("UPDATE dictionary SET source = ?1 WHERE id = ?2", params![source, id])?;
+        Ok(())
+    }
+
+    pub fn delete_pack_record(&self, id: &str) -> anyhow::Result<()> {
+        self.conn.lock().execute("DELETE FROM pack_rules WHERE id = ?1", params![id])?;
         Ok(())
     }
 
@@ -1048,7 +1074,7 @@ impl Db {
     pub fn wipe_everything(&self) -> anyhow::Result<()> {
         let conn = self.conn.lock();
         conn.execute_batch(
-            "DELETE FROM history; DELETE FROM dictionary; DELETE FROM dictionary_exceptions; DELETE FROM snippets; DELETE FROM learning_events; DELETE FROM suggestions; DELETE FROM app_styles; DELETE FROM stats_daily; DELETE FROM starter_seen; DELETE FROM shared_rules;",
+            "DELETE FROM history; DELETE FROM dictionary; DELETE FROM dictionary_exceptions; DELETE FROM snippets; DELETE FROM learning_events; DELETE FROM suggestions; DELETE FROM app_styles; DELETE FROM stats_daily; DELETE FROM starter_seen; DELETE FROM shared_rules; DELETE FROM pack_rules;",
         )?;
         // Deleted rows stay readable in the file's free pages until they are
         // reused. "Delete everything" has to mean the file too.

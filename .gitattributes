@@ -1,3 +1,6 @@
 # Linux install scripts and udev rules must keep LF line endings.
 src-tauri/linux/* text eol=lf
 *.sh text eol=lf
+
+# The dictionary packs are signed byte for byte: never let git change their line ends.
+dictionaries/*.json -text

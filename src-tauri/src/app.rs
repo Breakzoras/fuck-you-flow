@@ -36,15 +36,20 @@ pub fn apply_hotkeys(settings: &Settings) {
 }
 
 pub fn reload_engines(state: &AppState) {
-    let rules = state.shared.db.list_rules().unwrap_or_default();
-    let exceptions = state.shared.db.list_rule_exceptions().unwrap_or_default();
+    reload_dictionary(&state.shared);
+    let snippets = state.shared.db.list_snippets().unwrap_or_default();
+    *state.shared.snippets.write() = SnippetEngine::new(snippets);
+}
+
+/// Rebuilds the Dictionary the dictations run through, after its rows changed.
+pub fn reload_dictionary(shared: &Shared) {
+    let rules = shared.db.list_rules().unwrap_or_default();
+    let exceptions = shared.db.list_rule_exceptions().unwrap_or_default();
     let mut dict = DictionaryEngine::new(rules, exceptions);
     // The names said most in the last month go first in the recognition
     // prompt. Counted before the lock, so a dictation starting now never waits.
-    dict.count_said(&state.shared.db.recent_final_texts(30, 3000).unwrap_or_default());
-    *state.shared.dict.write() = dict;
-    let snippets = state.shared.db.list_snippets().unwrap_or_default();
-    *state.shared.snippets.write() = SnippetEngine::new(snippets);
+    dict.count_said(&shared.db.recent_final_texts(30, 3000).unwrap_or_default());
+    *shared.dict.write() = dict;
 }
 
 /// Windows starts whatever path the entry names, so only the installed copy may
@@ -299,17 +304,6 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             Err(e) => tracing::warn!("learning: learned rules not checked: {e}"),
         }
     }
-    // 0.9.14: the built-in corrections this install has not been offered yet.
-    // After the learning passes, so those never see a rule of ours as the
-    // user's, and safe on every start: an offered rule is never offered again.
-    match crate::starter::apply(&db, settings.starter_language()) {
-        Ok(n) if n > 0 => {
-            tracing::info!("dictionary: {n} built-in corrections added");
-            crate::journal::info("dictionary.starter_added", serde_json::json!({ "rules": n }));
-        }
-        Ok(_) => {}
-        Err(e) => tracing::warn!("dictionary: built-in corrections not added: {e}"),
-    }
     // A history an older build wrote under the old folder name, after the move.
     for orphan in crate::paths::take_orphan_histories() {
         match db.merge_from(&orphan) {
@@ -364,6 +358,7 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     // Dictionary corrections, for a user who agreed to share them. It does
     // nothing at all until they have.
     crate::sharing::spawn(shared.clone());
+    crate::packs::spawn(shared.clone());
 
     // clipboard owner thread, warm early
     crate::insertion::ensure_started();

@@ -6,10 +6,10 @@
 //! its language and how it matches, names included) are sent to
 //! fuckyouflow.app, and new ones follow about once a day. Dictated text,
 //! History and audio are not part of it and there is no code path here that
-//! reads them. The built-in corrections are not sent back. On the server the
+//! reads them. The corrections of a downloaded pack are not sent back. On the server the
 //! batches sit in a closed folder under a random id this install made up; a
 //! person reads them, and the corrections that are useful to everyone go into
-//! the built-in list of a later version (`starter.rs`).
+//! the ready-made dictionary of that language (`packs.rs`).
 //!
 //! With the switch off nothing is built and nothing is sent: `next_batch` is
 //! the only door and it returns `None`. The same holds for a run in which the
@@ -53,7 +53,7 @@ pub struct SharedRule {
 
 fn fingerprint(rule: &SharedRule) -> String {
     let joined = format!("{}\u{1}{}\u{1}{}\u{1}{}", rule.wrong, rule.correct, rule.language.as_deref().unwrap_or(""), rule.match_mode);
-    format!("{:016x}", crate::starter::fnv1a(&joined))
+    format!("{:016x}", crate::packs::fnv1a(&joined))
 }
 
 /// Every rule that may leave, as (rule id, fingerprint, what is sent): the
@@ -62,7 +62,7 @@ fn fingerprint(rule: &SharedRule) -> String {
 pub fn shareable(rules: &[DictionaryRule]) -> Vec<(String, String, SharedRule)> {
     rules
         .iter()
-        .filter(|r| r.enabled && r.source != "starter")
+        .filter(|r| r.enabled && r.source != "starter" && r.source != "pack")
         .filter_map(|r| {
             let (wrong, correct) = (r.wrong.trim(), r.correct.trim());
             if wrong.is_empty() || correct.is_empty() || wrong.chars().count() > MAX_TERM_CHARS || correct.chars().count() > MAX_TERM_CHARS {
