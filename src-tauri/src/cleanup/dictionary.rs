@@ -6,6 +6,8 @@
 //! or digit meets a non letter/digit, so Greek text works exactly like English
 //! and "Λούραμ" never matches inside "Λούραμπ".
 
+use std::collections::HashMap;
+
 use fancy_regex::{Regex, RegexBuilder};
 use serde::Serialize;
 
@@ -28,6 +30,9 @@ struct Compiled {
 
 pub struct DictionaryEngine {
     rules: Vec<Compiled>,
+    /// In how many recent dictations each hint name was said, by `name_key`.
+    /// Filled by `count_said`; empty until then.
+    said: HashMap<String, usize>,
 }
 
 fn boundary_regex(wrong: &str, mode: &str, case_sensitive: bool) -> Option<Regex> {
@@ -56,7 +61,7 @@ fn boundary_regex(wrong: &str, mode: &str, case_sensitive: bool) -> Option<Regex
 
 impl DictionaryEngine {
     pub fn empty() -> Self {
-        Self { rules: Vec::new() }
+        Self { rules: Vec::new(), said: HashMap::new() }
     }
 
     pub fn new(rules: Vec<DictionaryRule>, exceptions: Vec<(String, String)>) -> Self {
@@ -69,7 +74,7 @@ impl DictionaryEngine {
         }
         // longer "wrong" first so "Λούραμ ΑΙ" wins over "Λούραμ"
         compiled.sort_by(|a, b| b.rule.wrong.chars().count().cmp(&a.rule.wrong.chars().count()));
-        Self { rules: compiled }
+        Self { rules: compiled, said: HashMap::new() }
     }
 
     pub fn len(&self) -> usize {
@@ -114,29 +119,69 @@ impl DictionaryEngine {
         DictResult { text: out, applied, rule_ids }
     }
 
-    /// Correct terms to bias the recognizer, most recently used first.
+    /// The rules whose correct form may go into the recognition prompt.
     ///
     /// Rules the user typed in count as they are. A rule learned from one edit
     /// in History counts only when its correct form looks like a name (at most
     /// two words, a capital or a digit in each): the prompt is there for names,
     /// and an ordinary word or a corrected sentence only pulls the recognizer off
     /// course. Two words with a capital on the first alone open a sentence.
-    pub fn hint_terms(&self, max: usize) -> Vec<String> {
+    fn hint_rules(&self) -> impl Iterator<Item = &DictionaryRule> {
         fn looks_like_a_name(t: &str) -> bool {
             let words: Vec<&str> = t.split_whitespace().collect();
             !words.is_empty() && words.len() <= 2 && words.iter().all(|w| w.chars().any(|c| c.is_uppercase() || c.is_ascii_digit()))
         }
-        let mut rules: Vec<&DictionaryRule> = self
-            .rules
+        self.rules
             .iter()
-            .filter(|c| c.rule.use_as_hint)
-            .filter(|c| c.rule.source == "user" || looks_like_a_name(&c.rule.correct))
             .map(|c| &c.rule)
-            .collect();
-        rules.sort_by(|a, b| b.apply_count.cmp(&a.apply_count).then(b.updated_at.cmp(&a.updated_at)));
+            .filter(|r| r.use_as_hint)
+            .filter(|r| r.source == "user" || looks_like_a_name(&r.correct))
+    }
+
+    /// Counts in how many of `texts` (the user's recent dictations) each hint
+    /// name was said. The prompt has room for about a dozen names, and the
+    /// order decides which ones get in. It used to follow how often a rule had
+    /// corrected something, so a name the engine already heard right never
+    /// fired its rule and went last: on 3 October 2026 the second most said
+    /// name of the month was cut while a name said in none went in.
+    pub fn count_said(&mut self, texts: &[String]) {
+        // The word regex took 0.7 s over a month of dictations (debug build,
+        // 3 October 2026). A plain search for the name's longest word first
+        // leaves the regex only the dictations that may hold the name.
+        fn fold(t: &str) -> String {
+            t.to_lowercase().replace('ς', "σ")
+        }
+        let folded: Vec<String> = texts.iter().map(|t| fold(t)).collect();
+        let mut said = HashMap::new();
+        for rule in self.hint_rules() {
+            let key = name_key(&rule.correct);
+            if key.is_empty() || said.contains_key(&key) {
+                continue;
+            }
+            let Some(regex) = boundary_regex(&rule.correct, "phrase", false) else { continue };
+            let probe = key.split_whitespace().max_by_key(|w| w.chars().count()).map(fold).unwrap_or_default();
+            let n = texts.iter().zip(&folded).filter(|(t, f)| f.contains(probe.as_str()) && regex.is_match(t).unwrap_or(false)).count();
+            said.insert(key, n);
+        }
+        self.said = said;
+    }
+
+    /// Correct terms to bias the recognizer, the names said most first.
+    /// Before anything was counted (a new install has no dictations yet) the
+    /// order is the old one: the rule that corrected most, then the newest.
+    pub fn hint_terms(&self, max: usize) -> Vec<String> {
+        let said = |r: &DictionaryRule| self.said.get(&name_key(&r.correct)).copied().unwrap_or(0);
+        let mut rules: Vec<&DictionaryRule> = self.hint_rules().collect();
+        rules.sort_by(|a, b| said(b).cmp(&said(a)).then(b.apply_count.cmp(&a.apply_count)).then(b.updated_at.cmp(&a.updated_at)));
         let mut seen = std::collections::HashSet::new();
         rules.into_iter().map(|r| r.correct.trim().to_string()).filter(|t| !t.is_empty() && seen.insert(t.to_lowercase())).take(max).collect()
     }
+}
+
+/// One name, whatever its spelling in capitals: "WebDock" and "Webdock" are
+/// the same name in the prompt and in the counts.
+fn name_key(correct: &str) -> String {
+    correct.trim().to_lowercase()
 }
 
 /// If the matched text was written in capitals or capitalized, keep that shape
@@ -383,6 +428,65 @@ mod tests {
         let greek = vec!["Λευκός Πύργος".to_string()];
         assert_eq!(hint_cost(&greek[0]), 12);
         assert!(build_hint_prompt(&greek, "el", "el").unwrap().contains("Λευκός Πύργος"));
+    }
+
+    /// The engine hears "Velmora" right, so its rule never fires, while the
+    /// rule for "Harborline" fired twenty times. Velmora is said in more
+    /// dictations and goes first once the dictations are counted. Before that,
+    /// as on a new install, the old order stands.
+    #[test]
+    fn hint_order_follows_the_names_said_most() {
+        let mut fired = rule("harbor line", "Harborline", "phrase", false);
+        fired.apply_count = 20;
+        let quiet = rule("vel mora", "Velmora", "phrase", false);
+        let two_words = rule("blue harbour", "Blue Harbor", "phrase", false);
+        let mut e = DictionaryEngine::new(vec![fired, quiet, two_words], vec![]);
+        assert_eq!(e.hint_terms(10)[0], "Harborline");
+
+        let texts: Vec<String> = [
+            "Ask VELMORA first.",
+            "Velmora and Harborline today.",
+            "velmora again, then the blue  harbor team",
+            // a longer word and a joined name are other words
+            "Velmoras is someone else",
+            "harborline-velmora",
+        ]
+        .map(String::from)
+        .to_vec();
+        e.count_said(&texts);
+        assert_eq!(e.said["velmora"], 3);
+        assert_eq!(e.said["harborline"], 1);
+        assert_eq!(e.said["blue harbor"], 1);
+        // equal counts: the rule that corrected more goes first
+        assert_eq!(e.hint_terms(10), vec!["Velmora".to_string(), "Harborline".to_string(), "Blue Harbor".to_string()]);
+    }
+
+    /// A Greek name ends in a small "ς" and in a capital "Σ"; both are said.
+    #[test]
+    fn said_counts_a_greek_name_in_capitals() {
+        let mut e = DictionaryEngine::new(vec![rule("βελ μορας", "Βελμορας", "phrase", false)], vec![]);
+        e.count_said(&["ο ΒΕΛΜΟΡΑΣ ήρθε".to_string(), "είπε ο Βελμορας.".to_string(), "Βελμοραστ".to_string()]);
+        assert_eq!(e.said["βελμορας"], 2);
+    }
+
+    /// Prints the prompt the app would build from a copy of a real database
+    /// (FYF_HINT_DB, kept outside the repository) in the old order and in the
+    /// new one, and how long the counting took.
+    #[test]
+    #[ignore]
+    fn live_hint_order() {
+        let Ok(path) = std::env::var("FYF_HINT_DB") else { return };
+        let db = crate::db::Db::open(std::path::Path::new(&path)).unwrap();
+        let mut e = DictionaryEngine::new(db.list_rules().unwrap(), db.list_rule_exceptions().unwrap());
+        let old = build_hint_prompt(&e.hint_terms(40), "auto", "el").unwrap();
+        let texts = db.recent_final_texts(30, 3000).unwrap();
+        let started = std::time::Instant::now();
+        e.count_said(&texts);
+        let took = started.elapsed();
+        let new = build_hint_prompt(&e.hint_terms(40), "auto", "el").unwrap();
+        let mut said: Vec<(&String, &usize)> = e.said.iter().collect();
+        said.sort_by(|a, b| b.1.cmp(a.1));
+        println!("dictations {}, counted in {took:?}\nsaid {said:?}\nold: {old}\nnew: {new}", texts.len());
     }
 
     #[test]

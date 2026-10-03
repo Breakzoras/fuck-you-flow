@@ -38,7 +38,11 @@ pub fn apply_hotkeys(settings: &Settings) {
 pub fn reload_engines(state: &AppState) {
     let rules = state.shared.db.list_rules().unwrap_or_default();
     let exceptions = state.shared.db.list_rule_exceptions().unwrap_or_default();
-    *state.shared.dict.write() = DictionaryEngine::new(rules, exceptions);
+    let mut dict = DictionaryEngine::new(rules, exceptions);
+    // The names said most in the last month go first in the recognition
+    // prompt. Counted before the lock, so a dictation starting now never waits.
+    dict.count_said(&state.shared.db.recent_final_texts(30, 3000).unwrap_or_default());
+    *state.shared.dict.write() = dict;
     let snippets = state.shared.db.list_snippets().unwrap_or_default();
     *state.shared.snippets.write() = SnippetEngine::new(snippets);
 }

@@ -469,6 +469,18 @@ impl Db {
             .optional()?)
     }
 
+    /// The final text of the dictations of the last `days` days, newest first,
+    /// at most `limit` of them. The dictionary counts its names in these.
+    /// `created_at` is always written by `now()` in UTC, so the strings compare
+    /// in time order.
+    pub fn recent_final_texts(&self, days: i64, limit: u32) -> anyhow::Result<Vec<String>> {
+        let since = (Utc::now() - chrono::Duration::days(days)).to_rfc3339();
+        let conn = self.conn.lock();
+        let mut st = conn.prepare("SELECT final_text FROM history WHERE created_at >= ?1 AND final_text != '' ORDER BY created_at DESC LIMIT ?2")?;
+        let rows = st.query_map(params![since, limit], |r| r.get::<_, String>(0))?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
     pub fn delete_history(&self, id: &str) -> anyhow::Result<Option<String>> {
         let conn = self.conn.lock();
         // Imported recordings remain owned by the user, including older rows.
@@ -1114,6 +1126,21 @@ mod tests {
 
         drop(real);
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// The names of the dictionary are counted in the last month only, newest
+    /// first, and an empty dictation counts for nothing.
+    #[test]
+    fn recent_final_texts_keep_to_the_window() {
+        let db = Db::open_in_memory().unwrap();
+        db.insert_test_history("old", "Velmora long ago");
+        db.insert_test_history("empty", "");
+        db.insert_test_history("new", "Velmora today");
+        let long_ago = (Utc::now() - chrono::Duration::days(40)).to_rfc3339();
+        db.conn.lock().execute("UPDATE history SET created_at = ?1 WHERE id = 'old'", params![long_ago]).unwrap();
+        assert_eq!(db.recent_final_texts(30, 10).unwrap(), vec!["Velmora today".to_string()]);
+        db.insert_test_history("newer", "Velmora again");
+        assert_eq!(db.recent_final_texts(30, 1).unwrap(), vec!["Velmora again".to_string()]);
     }
 
     #[test]
