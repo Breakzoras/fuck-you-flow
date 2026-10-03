@@ -127,10 +127,6 @@ impl DictionaryEngine {
     /// and an ordinary word or a corrected sentence only pulls the recognizer off
     /// course. Two words with a capital on the first alone open a sentence.
     fn hint_rules(&self) -> impl Iterator<Item = &DictionaryRule> {
-        fn looks_like_a_name(t: &str) -> bool {
-            let words: Vec<&str> = t.split_whitespace().collect();
-            !words.is_empty() && words.len() <= 2 && words.iter().all(|w| w.chars().any(|c| c.is_uppercase() || c.is_ascii_digit()))
-        }
         self.rules
             .iter()
             .map(|c| &c.rule)
@@ -176,6 +172,14 @@ impl DictionaryEngine {
         let mut seen = std::collections::HashSet::new();
         rules.into_iter().map(|r| r.correct.trim().to_string()).filter(|t| !t.is_empty() && seen.insert(t.to_lowercase())).take(max).collect()
     }
+}
+
+/// A right side that reads as a name: one or two words, each with a capital
+/// or a digit ("Webdock", "Claude Code"). Only such a rule learned from an
+/// edit may put its word in the recognition prompt.
+pub(crate) fn looks_like_a_name(t: &str) -> bool {
+    let words: Vec<&str> = t.split_whitespace().collect();
+    !words.is_empty() && words.len() <= 2 && words.iter().all(|w| w.chars().any(|c| c.is_uppercase() || c.is_ascii_digit()))
 }
 
 /// One name, whatever its spelling in capitals: "WebDock" and "Webdock" are
@@ -233,8 +237,8 @@ fn hint_cost(term: &str) -> usize {
 
 /// Build the recognition prompt: dictionary terms joined as a natural phrase list.
 /// Whisper treats the prompt as preceding text, so a comma list of names works
-/// well. The terms arrive most used first and are taken for as long as
-/// `HINT_TOKEN_BUDGET` lasts.
+/// well. The terms arrive most used first and are taken while they fit in
+/// `HINT_TOKEN_BUDGET`.
 /// `language` is what the engine is told ("el", "en" or "auto"); `primary` is
 /// the user's own language, which decides the exemplar when the engine is
 /// left to guess. A Greek exemplar in front of a Turkish speaker would pull the
@@ -248,13 +252,20 @@ pub fn build_hint_prompt(terms: &[String], language: &str, primary: &str) -> Opt
         "auto" if greek_mixed => "Τι λες; Πώς σου φαίνεται; What do you think? Fine, let's go.",
         _ => "What do you think? How does it look? Fine, let's go.",
     };
+    // A term that does not fit is passed over and the next ones still get
+    // their turn: one long phrase near the front used to leave the prompt
+    // with no names at all (review, 3 October 2026).
     let mut spent = 0;
     let kept: Vec<&str> = terms
         .iter()
         .map(String::as_str)
-        .take_while(|t| {
-            spent += hint_cost(t);
-            spent <= HINT_TOKEN_BUDGET
+        .filter(|t| {
+            let cost = hint_cost(t);
+            if spent + cost > HINT_TOKEN_BUDGET {
+                return false;
+            }
+            spent += cost;
+            true
         })
         .collect();
     if kept.is_empty() {
@@ -428,6 +439,14 @@ mod tests {
         let greek = vec!["Λευκός Πύργος".to_string()];
         assert_eq!(hint_cost(&greek[0]), 12);
         assert!(build_hint_prompt(&greek, "el", "el").unwrap().contains("Λευκός Πύργος"));
+
+        // one phrase too long for the whole budget, used most, does not take
+        // the names behind it out of the prompt
+        let long = "Λευκός Πύργος της Θεσσαλονίκης στην παραλία δίπλα στο λιμάνι της πόλης και στην πλατεία Αριστοτέλους".to_string();
+        assert!(hint_cost(&long) > HINT_TOKEN_BUDGET);
+        let p = build_hint_prompt(&[long.clone(), "Velmora".into(), "Harborline".into()], "el", "el").unwrap();
+        assert!(!p.contains("Λιμάνι") && !p.contains(&long));
+        assert!(p.starts_with("Λεξιλόγιο: Velmora, Harborline. "), "{p}");
     }
 
     /// The engine hears "Velmora" right, so its rule never fires, while the

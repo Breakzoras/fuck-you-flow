@@ -185,8 +185,21 @@ fn near_fix_earns_a_rule(db: &Db, history_id: &str, wrong: &str, correct: &str, 
 /// use. A name-like word is exempt: the engine may write "WebDoc" every time
 /// and the user may simply not have fixed it yet.
 fn is_one_of_their_words(db: &Db, history_id: &str, wrong: &str) -> anyhow::Result<bool> {
-    if technical(wrong) || wrong.contains(' ') {
+    if technical(wrong) {
         return Ok(false);
+    }
+    let words: Vec<&str> = wrong.split_whitespace().collect();
+    if words.len() > 1 {
+        // A phrase made only of words the user keeps ("Μόνο εκεί") is real
+        // speech, and a rule against it rewrites good text wherever those
+        // words meet (an accepted suggestion, 2 October 2026). One word they
+        // never say is enough to make it a mishearing.
+        for w in words {
+            if technical(w) || db.kept_occurrences(w, history_id)? < KEPT_LIMIT {
+                return Ok(false);
+            }
+        }
+        return Ok(true);
     }
     Ok(db.kept_occurrences(wrong, history_id)? >= KEPT_LIMIT)
 }
@@ -380,6 +393,22 @@ mod tests {
             db.insert_test_history(&format!("k{i}"), "Το έκανα για αυτό τον λόγο χθες");
         }
         assert!(learn_from_edit(&db, "h1", "Φτιάξε το λόγο της εταιρείας", "Φτιάξε το logo της εταιρείας").unwrap().is_empty());
+    }
+
+    /// 2 October 2026: an accepted suggestion turned the two everyday words
+    /// "Μόνο εκεί" into another phrase. Every word on the heard side is one
+    /// the user keeps elsewhere, so the phrase is real speech and stays.
+    #[test]
+    fn a_phrase_of_everyday_words_is_never_learned() {
+        let db = Db::open_in_memory().unwrap();
+        for i in 0..6 {
+            db.insert_test_history(&format!("k{i}"), "Θέλω μόνο αυτό, πήγαινε εκεί και περίμενε");
+        }
+        let got = learn_from_edit(&db, "h1", "Το είπα μόνο εκεί χθες", "Το είπα με όλα χθες").unwrap();
+        assert!(got.is_empty(), "{:?}", got.iter().map(|s| (&s.wrong, &s.correct)).collect::<Vec<_>>());
+        // a phrase with a word the user never says still teaches
+        let got = learn_from_edit(&db, "h2", "Άνοιξε το κλάβντ κόουντ τώρα", "Άνοιξε το Claude Code τώρα").unwrap();
+        assert_eq!(got.len(), 1, "{got:?}");
     }
 
     /// 26 September 2026, 13:48: one History edit changed "το" to "αυτό" and

@@ -392,6 +392,16 @@ impl PrivacySettings {
         }
         before != (self.share_dictionary, self.share_install_id.clone())
     }
+
+    /// The privacy part of the file could not be read, so a switch the user
+    /// turned off may be among what was lost. Sharing stays off, and it stays
+    /// off after the next save too: written as the user's own choice, so the
+    /// default cannot switch it back on at a later start (review, 3 October
+    /// 2026: any save, even moving the pill, used to write "never asked").
+    pub fn hold_sharing_unknown(&mut self) {
+        self.share_dictionary = false;
+        self.share_dictionary_asked = true;
+    }
 }
 
 impl Default for PrivacySettings {

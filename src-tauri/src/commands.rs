@@ -525,10 +525,14 @@ pub fn resolve_suggestion(state: State<'_, Arc<AppState>>, id: String, action: S
     let s = state.shared.db.set_suggestion_status(&id, status).map_err(e)?;
     if status == "accepted" {
         if let Some(s) = s {
+            // A rule for the same heard word is changed in place. A second one
+            // gave one name two spellings that took turns ("WebDoc" became
+            // Webdock in one dictation and WebDock in the next, 3 October 2026).
+            let existing = state.shared.db.list_rules().map_err(e)?.into_iter().find(|r| r.wrong == s.wrong);
             let rule = DictionaryRule {
-                id: crate::db::new_id(),
-                wrong: s.wrong,
-                correct: s.correct,
+                id: existing.as_ref().map(|r| r.id.clone()).unwrap_or_else(crate::db::new_id),
+                wrong: s.wrong.clone(),
+                correct: s.correct.clone(),
                 match_mode: "whole_word".into(),
                 // Learned from a single edit, so it changes only the exact
                 // spelling the user corrected. Case-blind, a rule learned as
@@ -538,8 +542,10 @@ pub fn resolve_suggestion(state: State<'_, Arc<AppState>>, id: String, action: S
                 language: None,
                 app_scope: None,
                 enabled: true,
-                use_as_hint: true,
-                source: "suggested".into(),
+                // Only a name earns a place among the names the engine is
+                // told; "με όλα" never needed one (code queue, 2 October 2026).
+                use_as_hint: crate::cleanup::dictionary::looks_like_a_name(&s.correct),
+                source: existing.as_ref().map(|r| r.source.clone()).unwrap_or_else(|| "suggested".into()),
                 created_at: crate::db::ts_now(),
                 updated_at: crate::db::ts_now(),
                 apply_count: 0,

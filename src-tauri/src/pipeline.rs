@@ -75,6 +75,18 @@ pub struct Shared {
     pub tx: mpsc::UnboundedSender<PipelineMsg>,
 }
 
+/// What a paste the target did not take is saved as. The words are on the
+/// clipboard ("copied") unless the insertion layer says the rescue copy failed
+/// too: then they are only in History, and saving that as "copied" hid a lost
+/// dictation among the normal ones (3 October 2026, the taskbar as target).
+fn not_taken_status(message: &str) -> (&'static str, OverlayState) {
+    if message.ends_with("_no_clipboard") {
+        ("failed", OverlayState::Failed)
+    } else {
+        ("copied", OverlayState::TargetChanged)
+    }
+}
+
 struct Session {
     mode: Mode,
     started: Instant,
@@ -150,12 +162,37 @@ fn join_phrases(parts: &[String]) -> String {
     out
 }
 
+/// The pieces heard while the user was still speaking, each with the mark its
+/// voice asked for. A piece followed by one that carries on its sentence ("και
+/// μετά", "το οποίο", a lower-case start) paused mid-sentence: the voice rises
+/// there without asking anything, and 7 of the 9 false question marks of
+/// 1 October 2026 sat at such a pause.
+fn mark_head_parts(parts: &[String], pitch: &[Option<(f32, f32)>], tail: &str, enabled: bool) -> Vec<String> {
+    parts
+        .iter()
+        .enumerate()
+        .map(|(i, text)| {
+            let next = parts.get(i + 1).map(String::as_str).unwrap_or(tail);
+            let voice = pitch.get(i).copied().flatten();
+            if voice.is_some() && crate::cleanup::questions::continues_sentence(next) {
+                return text.trim().to_string();
+            }
+            apply_intonation(text, voice, enabled)
+        })
+        .collect()
+}
+
 /// Adds the question mark a rising voice asked for, when the words alone gave
 /// the sentence a period. Marks the engine already wrote are kept.
 fn apply_intonation(text: &str, pitch: Option<(f32, f32)>, enabled: bool) -> String {
     let t = text.trim();
     let Some((peak, end)) = pitch else { return t.to_string() };
     if !enabled || t.is_empty() || t.ends_with(';') || t.ends_with('?') || !crate::audio::sounds_like_question(peak, end) {
+        return t.to_string();
+    }
+    // A piece that stops on "στο" or "τα οποία" was cut mid-phrase.
+    if crate::cleanup::questions::ends_on_joiner(t) {
+        tracing::info!("intonation: no mark, the piece stops mid-phrase (peak {peak:+.1} st, end {end:+.1} st)");
         return t.to_string();
     }
     // A list item ("Λος Άντζελες, Νέα Υόρκη") rises like a question. A phrase
@@ -778,6 +815,9 @@ async fn process(
     // transcribe only what came after the last cut. Any failure falls back to
     // one pass over the whole recording.
     let mut head_parts: Vec<String> = Vec::new();
+    // The voice at the end of each piece. Its question mark is decided only
+    // once the piece after it is known (`mark_head_parts`).
+    let mut head_pitch: Vec<Option<(f32, f32)>> = Vec::new();
     let mut tail_wav: Option<Vec<u8>> = None;
     let mut tail_prompt: Option<String> = None;
     let mut tail_silent = false;
@@ -796,10 +836,11 @@ async fn process(
                 match j.await {
                     Ok((Ok(t), pitch)) => {
                         parts_ms += t.inference_ms;
-                        let text = apply_intonation(t.text.trim(), pitch, settings.cleanup.intonation_questions);
+                        let text = t.text.trim().to_string();
                         last_piece_kept = !text.is_empty() && !is_hallucination(&text);
                         if last_piece_kept {
                             head_parts.push(text);
+                            head_pitch.push(pitch);
                         }
                     }
                     _ => {
@@ -824,6 +865,7 @@ async fn process(
                         Some(a) if !a.trimmed.is_empty() => {
                             if last_piece_kept {
                                 head_parts.pop();
+                                head_pitch.pop();
                             }
                             tail_wav = Some(crate::audio::encode_wav(&a.trimmed));
                             tail_prompt = join_prompt(prompt.clone(), &head_parts.join(" "));
@@ -848,6 +890,7 @@ async fn process(
                 }
             } else {
                 head_parts.clear();
+                head_pitch.clear();
                 tracing::warn!("a segment failed; transcribing the whole recording in one pass");
             }
         }
@@ -936,9 +979,10 @@ async fn process(
         tracing::info!("prosody: final tail peak {peak:+.1} st, end {end:+.1} st | {}", crate::logging::redact(result.text.trim()));
     }
     let raw = {
-        // the intonation applies to the last phrase only; the head parts got theirs above
+        // each piece gets the mark its voice asked for, the head ones only when
+        // the piece after them starts a new sentence
         let tail_text = apply_intonation(result.text.trim(), tail_pitch, settings.cleanup.intonation_questions);
-        let mut parts: Vec<String> = head_parts.clone();
+        let mut parts: Vec<String> = mark_head_parts(&head_parts, &head_pitch, &tail_text, settings.cleanup.intonation_questions);
         if !tail_text.is_empty() {
             parts.push(tail_text);
         }
@@ -1059,7 +1103,8 @@ async fn process(
                 // with a fixed sentence told the user they were on the clipboard
                 // even when the copy had failed.
                 let msg = r.message.clone().unwrap_or_else(|| "msg_not_taken".to_string());
-                ("copied".to_string(), OverlayState::TargetChanged, Some(msg))
+                let (status, state) = not_taken_status(&msg);
+                (status.to_string(), state, Some(msg))
             }
             InsertOutcome::Failed => {
                 not_landed = Some("insert_failed");
@@ -1258,6 +1303,14 @@ async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &m
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_paste_lost_with_its_clipboard_copy_is_saved_as_failed() {
+        assert_eq!(super::not_taken_status("msg_not_taken"), ("copied", super::OverlayState::TargetChanged));
+        assert_eq!(super::not_taken_status("msg_cannot_hold"), ("copied", super::OverlayState::TargetChanged));
+        assert_eq!(super::not_taken_status("msg_not_taken_no_clipboard"), ("failed", super::OverlayState::Failed));
+        assert_eq!(super::not_taken_status("msg_cannot_hold_no_clipboard"), ("failed", super::OverlayState::Failed));
+    }
+
     use super::*;
     use crate::asr::{AsrError, TranscriptionResult};
     use crate::settings::{LanguageMode, LanguageModeSetting};
@@ -1377,6 +1430,22 @@ mod tests {
         assert_eq!(apply_intonation("Are you sure.", q, true), "Are you sure?");
         assert_eq!(apply_intonation("Πάμε.", Some((2.0, -3.0)), true), "Πάμε.");
         assert_eq!(apply_intonation("Πάμε.", q, false), "Πάμε.");
+    }
+
+    #[test]
+    fn intonation_waits_for_the_piece_after_it() {
+        let q = Some((9.0, 1.0));
+        let parts = vec!["Θα το δούμε αύριο το πρωί.".to_string(), "Θες να έρθεις κι εσύ.".to_string()];
+        // the next piece carries on the sentence: no mark at the pause
+        let got = mark_head_parts(&parts[..1], &[q], "και μετά αποφασίζουμε.", true);
+        assert_eq!(got, vec!["Θα το δούμε αύριο το πρωί."]);
+        let got = mark_head_parts(&parts[..1], &[q], "Το οποίο ανοίγει τη λίστα.", true);
+        assert_eq!(got, vec!["Θα το δούμε αύριο το πρωί."]);
+        // a new sentence after it: the voice decides as before
+        let got = mark_head_parts(&parts, &[q, None], "Πες μου.", true);
+        assert_eq!(got, vec!["Θα το δούμε αύριο το πρωί;", "Θες να έρθεις κι εσύ."]);
+        // a piece that stops on a joining word never gets one
+        assert_eq!(apply_intonation("Τους δίνουμε συστήματα τα οποία.", q, true), "Τους δίνουμε συστήματα τα οποία.");
     }
 
     #[test]

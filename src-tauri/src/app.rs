@@ -259,7 +259,7 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     // off. When their file could not be read their choice is unknown, and
     // then nothing is sent this run.
     if crate::settings::privacy_choices_unknown() {
-        settings.privacy.share_dictionary = false;
+        settings.privacy.hold_sharing_unknown();
     } else if settings.privacy.settle_sharing() {
         changed = true;
     }

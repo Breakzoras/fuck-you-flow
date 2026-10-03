@@ -46,7 +46,21 @@ const BECAUSE_NEXT_EL: &[&str] = &[
     "βασικά", "προφανώς", "νόμιζα", "νόμιζε", "νομίζει", "νομίζουμε", "πίστευα", "πιστεύει", "πιστεύουμε", "θεωρεί", "θεωρούμε",
     "σίγουρα", "100%", "δυστυχώς", "ευτυχώς", "όντως", "ειλικρινά", "ξεκάθαρα", "μάλλον", "πιθανότατα", "πιθανώς", "λογικά",
     "ουσιαστικά", "οποιοδήποτε", "οποιαδήποτε", "οποιοσδήποτε", "οποιονδήποτε",
+    // 3 October 2026, from Lu's history: every "Γιατί" sentence opening with
+    // one of these was "because" ("Γιατί θα είναι έτοιμο αύριο."), while the
+    // real questions opened with other verbs, να or a number.
+    "θα", "και", "κι", "είμαι", "είμαστε", "θέλω", "είδα", "δες", "κοίτα", "άκου",
 ];
+/// Answer words that, in front of γιατί, make it "because": "Όχι, γιατί θέλω
+/// να μείνει τοπικό." gives the reason for the answer.
+const ANSWER_BEFORE_BECAUSE_EL: &[&str] = &["όχι", "ναι"];
+/// Words that open a piece which carries on the sentence before it. A voice
+/// that rose before such a piece paused in the middle of a sentence.
+const CONTINUES_EL: &[&str] = &[
+    "και", "κι", "αλλά", "όμως", "ή", "που", "ότι", "πως", "να", "γιατί", "επειδή", "οπότε", "άρα", "αν", "άμα", "όταν", "ώστε",
+    "ενώ", "μέχρι", "δηλαδή", "για", "σε", "στο", "στον", "στη", "στην", "στα", "στους", "στις", "με", "από", "χωρίς",
+];
+const CONTINUES_EN: &[&str] = &["and", "but", "or", "so", "because", "that", "which", "who", "then", "to", "with", "for", "of", "if", "when"];
 /// Words a sentence cannot stop on: a pause mark after one of them simply goes
 /// ("από το; αρχείο" -> "από το αρχείο").
 const JOINERS_EL: &[&str] = &[
@@ -159,6 +173,30 @@ pub fn reported_question(text: &str) -> bool {
     REPORTING_EL
         .iter()
         .any(|p| starts_with_phrase(w, p) && w.iter().skip(p.len()).take(4).any(|t| t == "αν" || WH_EL.contains(&t.as_str())))
+}
+
+/// True when `next`, the piece heard after a pause, carries on the sentence
+/// the piece before it was in: it opens with a lower-case letter, with a
+/// joining word ("και", "που", "για"), or with a relative ("το οποίο"). A voice
+/// that rose before it paused mid-sentence, and that rise asks nothing: 7 of
+/// the 9 false question marks of 1 October sat at such a pause.
+pub fn continues_sentence(next: &str) -> bool {
+    let t = next.trim_start();
+    if t.chars().next().is_some_and(|c| c.is_lowercase()) {
+        return true;
+    }
+    let w = words(t);
+    let Some(first) = w.first() else { return false };
+    CONTINUES_EL.contains(&first.as_str())
+        || CONTINUES_EN.contains(&first.as_str())
+        || w.get(1).is_some_and(|second| second.starts_with("οποί"))
+}
+
+/// True when `text` stops on a word no sentence can end on ("τα οποία", "στο"):
+/// the speaker paused mid-phrase, so a rising voice there asks nothing.
+pub fn ends_on_joiner(text: &str) -> bool {
+    let body = text.trim().trim_end_matches(|c: char| matches!(c, '.' | '!' | '?' | ';' | '…' | ','));
+    words(body).last().is_some_and(|last| JOINERS_EL.contains(&last.as_str()) || last.starts_with("οποί"))
 }
 
 /// G20 for the voice: true when the last sentence of `text` corrects itself
@@ -277,6 +315,14 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
         let next = w.get(at + 1).map(|s| s.as_str());
         // G19: "Γιατί άμα ..." / "Γιατί νομίζω ..." is "because"
         if wh == "γιατί" && at == 0 && next.map(|n| BECAUSE_NEXT_EL.contains(&n)).unwrap_or(false) {
+            return false;
+        }
+        // "Γιατί δεν ξέρω ..." gives a reason; "Γιατί δεν έρχεσαι;" stays a question.
+        if wh == "γιατί" && at == 0 && starts_with_phrase(&w[1..], &["δεν", "ξέρω"]) {
+            return false;
+        }
+        // "Όχι, γιατί θέλω ..." answers with a reason. "Ναι, γιατί;" alone is a question.
+        if wh == "γιατί" && at == 0 && skip > 0 && ANSWER_BEFORE_BECAUSE_EL.contains(&all[skip - 1].as_str()) && w.len() > 1 {
             return false;
         }
         // G14: exclamatives with τι / πόσο
@@ -448,6 +494,36 @@ mod tests {
 
     /// 28 September 2026: "Γιατί 100% θα ..." got a question mark. A word of
     /// certainty, a past or third-person opinion, or "any" after γιατί is
+    /// 3 October 2026: the openings that made "because" sentences questions
+    /// in Lu's history, and the real questions that must stay.
+    #[test]
+    fn greek_because_after_an_answer_or_with_a_reason_word() {
+        assert_eq!(q("Όχι, γιατί θέλουμε να μείνει τοπικό."), "Όχι, γιατί θέλουμε να μείνει τοπικό.");
+        assert_eq!(q("Γιατί θα είναι έτοιμο αύριο."), "Γιατί θα είναι έτοιμο αύριο.");
+        assert_eq!(q("Γιατί και αυτό είναι προτεραιότητα."), "Γιατί και αυτό είναι προτεραιότητα.");
+        assert_eq!(q("Γιατί δεν ξέρω αν θα προλάβω."), "Γιατί δεν ξέρω αν θα προλάβω.");
+        assert_eq!(q("Γιατί είμαι κουρασμένος σήμερα."), "Γιατί είμαι κουρασμένος σήμερα.");
+        // still questions
+        assert_eq!(q("Ναι, γιατί."), "Ναι, γιατί;");
+        assert_eq!(q("Γιατί δεν έρχεσαι μαζί μας."), "Γιατί δεν έρχεσαι μαζί μας;");
+        assert_eq!(q("Γιατί να το κάνουμε τώρα."), "Γιατί να το κάνουμε τώρα;");
+    }
+
+    #[test]
+    fn a_piece_that_carries_on_the_sentence() {
+        assert!(continues_sentence("και μετά αποφασίζουμε."));
+        assert!(continues_sentence("Και μετά αποφασίζουμε."));
+        assert!(continues_sentence("Το οποίο ανοίγει τη λίστα."));
+        assert!(continues_sentence("Για το δεύτερο κουμπί."));
+        assert!(continues_sentence("and then we decide."));
+        assert!(!continues_sentence("Θα το δούμε αύριο."));
+        assert!(!continues_sentence("Μετά ας πούμε για το άλλο."));
+        assert!(!continues_sentence(""));
+        assert!(ends_on_joiner("Τους δίνουμε συστήματα τα οποία."));
+        assert!(ends_on_joiner("Πάμε στο"));
+        assert!(!ends_on_joiner("Θέλω ένα κουμπί εδώ."));
+    }
+
     /// "because" too. A plain number stays a question.
     #[test]
     fn greek_because_with_certainty_is_not_why() {

@@ -242,6 +242,19 @@ mod tests {
     }
 
     #[test]
+    fn unreadable_privacy_choices_keep_sharing_off_after_a_save() {
+        // what startup holds when the privacy part could not be read
+        let mut unknown = PrivacySettings::default();
+        unknown.hold_sharing_unknown();
+        // a later save writes it, and the next start reads it back
+        let saved: PrivacySettings = serde_json::from_value(serde_json::to_value(&unknown).unwrap()).unwrap();
+        let mut next_start = saved;
+        assert!(!next_start.settle_sharing());
+        assert!(!next_start.share_dictionary);
+        assert!(next_batch(&next_start, "el", &sample(), &HashMap::new()).is_none());
+    }
+
+    #[test]
     fn only_the_users_own_live_corrections_leave() {
         let privacy = agreed();
         let (body, rows) = next_batch(&privacy, "el", &sample(), &HashMap::new()).expect("a batch");

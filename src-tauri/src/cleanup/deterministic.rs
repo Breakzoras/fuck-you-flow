@@ -41,6 +41,17 @@ static WS: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap());
 static SPACE_BEFORE_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+([,;:!?…]|\.(?!\p{Ll}))").unwrap());
 static DOUBLE_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"([,.;:!?])\1+").unwrap());
 static REPEAT_WORD: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(\p{L}{2,})\s+\1\b").unwrap());
+/// A stutter with a pause between the two copies: "από; από", "κάποια... κάποια".
+/// The pause mark goes further down and the two copies used to stay glued
+/// together (7 dictations, 28 September to 3 October 2026). Lower case only, so
+/// "Τι; Τι λες;" keeps its echo.
+static STUTTER_ACROSS_PAUSE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\b(\p{Ll}\p{L}*)\s*(?:;|\.{3,}|…)\s+\1\b").unwrap());
+/// Joining words said twice in a row ("σε σε", "από από"): never meant, at any
+/// intensity. Words that can also stand as a pronoun ("το", "τα") are left
+/// out, because "δώσ' το το κλειδί" doubles them on purpose.
+static DOUBLED_JOINER: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)\b(σε|στο|στον|στη|στην|στα|στους|στις|με|για|από|προς|να|θα|ότι|που|και|ο|η|οι|ένα|ένας|μια|μία)\s+\1\b").unwrap()
+});
 
 /// "Tuesday, no, Friday" / "Τρίτη, όχι, Παρασκευή" -> keep the corrected word.
 /// Pattern: <word(s)> <sep> <corrector> <sep> <word(s)>. We only resolve when the
@@ -95,6 +106,15 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
         text = super::replace_all_or_keep(&REPEAT_WORD, &text, "$1").to_string();
         if text != before {
             applied.push("removed repeated word".into());
+        }
+    }
+
+    if looks_greek(&text) {
+        let before = text.clone();
+        text = super::replace_all_or_keep(&STUTTER_ACROSS_PAUSE, &text, "$1").to_string();
+        text = super::replace_all_or_keep(&DOUBLED_JOINER, &text, "$1").to_string();
+        if text != before {
+            applied.push("removed a stutter".into());
         }
     }
 
@@ -550,6 +570,18 @@ mod tests {
         assert_eq!(r.text, "Νομίζω ότι, πρέπει να φύγουμε.");
         let r = clean("Em, I think we should, ah, deploy tonight", &opts(CleanupIntensity::Normal));
         assert_eq!(r.text, "I think we should, deploy tonight.");
+    }
+
+    #[test]
+    fn a_greek_stutter_keeps_one_copy() {
+        let n = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("Δεν άκουσα ήχο από; από το δεύτερο κουμπί", &n).text, "Δεν άκουσα ήχο από το δεύτερο κουμπί.");
+        assert_eq!(clean("Πήγα σε σε ένα μαγαζί", &n).text, "Πήγα σε ένα μαγαζί.");
+        assert_eq!(clean("Θέλω κάποια... κάποια αρχεία", &n).text, "Θέλω κάποια αρχεία.");
+        // meant doublings stay
+        assert_eq!(clean("Πάμε σιγά σιγά", &n).text, "Πάμε σιγά σιγά.");
+        assert_eq!(clean("Δώσ' το το κλειδί", &n).text, "Δώσ' το το κλειδί.");
+        assert_eq!(clean("Τι; Τι λες;", &n).text, "Τι; Τι λες;");
     }
 
     #[test]
