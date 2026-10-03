@@ -287,12 +287,20 @@ async fn fetch(client: &reqwest::Client, name: &str) -> anyhow::Result<Vec<u8>> 
     Ok(bytes.to_vec())
 }
 
-/// The list of packs on the server. `None` when it could not be read.
-pub async fn index() -> Option<Index> {
-    let client = client().ok()?;
-    let data = fetch(&client, "index.json").await.map_err(|e| tracing::info!("packs: the list was not read: {e}")).ok()?;
-    let index: Index = serde_json::from_slice(&data).ok()?;
-    (index.format <= FORMAT).then_some(index)
+/// The list of packs on the server. `Ok(None)` when the server answered but
+/// has no list this app can read (none published yet, or a newer format);
+/// `Err` when it was not reached at all.
+pub async fn index() -> Result<Option<Index>, ()> {
+    let client = client().map_err(|_| ())?;
+    let data = match fetch(&client, "index.json").await {
+        Ok(data) => data,
+        Err(e) => {
+            tracing::info!("packs: the list was not read: {e}");
+            let answered = e.downcast_ref::<reqwest::Error>().is_some_and(|r| r.status().is_some());
+            return if answered { Ok(None) } else { Err(()) };
+        }
+    };
+    Ok(serde_json::from_slice::<Index>(&data).ok().filter(|i| i.format <= FORMAT))
 }
 
 /// What the Dictionary page and the first screen show.
@@ -307,15 +315,17 @@ pub struct Status {
 }
 
 pub async fn status(own: &str) -> Status {
+    let none = |online| Status { language: String::new(), rules: 0, version: 0, online };
     match index().await {
-        Some(index) => match pick(&index, own) {
+        Ok(Some(index)) => match pick(&index, own) {
             Some(lang) => {
                 let entry = &index.packs[&lang];
                 Status { language: lang, rules: entry.rules, version: entry.version, online: true }
             }
-            None => Status { language: String::new(), rules: 0, version: 0, online: true },
+            None => none(true),
         },
-        None => Status { language: String::new(), rules: 0, version: 0, online: false },
+        Ok(None) => none(true),
+        Err(()) => none(false),
     }
 }
 
@@ -331,7 +341,9 @@ pub async fn check(shared: &Arc<Shared>, force: bool) -> anyhow::Result<Applied>
     if !packs.enabled {
         return Ok(Applied::default());
     }
-    let index = index().await.ok_or_else(|| anyhow::anyhow!("offline"))?;
+    let Some(index) = index().await.map_err(|_| anyhow::anyhow!("offline"))? else {
+        return Ok(Applied::default());
+    };
     let Some(lang) = pick(&index, &own) else {
         return Ok(Applied::default());
     };
@@ -565,7 +577,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_index_and_signed_pack() {
-        let index = index().await.expect("the list");
+        let index = index().await.expect("reached").expect("the list");
         for (lang, entry) in &index.packs {
             let client = client().unwrap();
             let data = fetch(&client, &format!("{lang}.json")).await.unwrap();
