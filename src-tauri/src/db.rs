@@ -295,6 +295,17 @@ fn daily_backup(path: &Path) -> anyhow::Result<()> {
 }
 
 impl Db {
+    /// The schema version of the file on disk, read without migrating it or
+    /// opening it for writing; `None` when there is no file or no version yet.
+    /// Startup reads it before it settles the sharing choice (app.rs).
+    pub fn schema_version_at(path: &Path) -> Option<i64> {
+        if !path.exists() {
+            return None;
+        }
+        let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).ok()?;
+        conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get::<_, Option<i64>>(0)).ok().flatten()
+    }
+
     pub fn open(path: &Path) -> anyhow::Result<Db> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -1123,6 +1134,20 @@ mod tests {
             undone: false,
             edited_text: None,
         }
+    }
+
+    /// Startup reads the schema before it settles sharing (4 October 2026).
+    #[test]
+    fn the_schema_version_is_read_without_touching_the_file() {
+        let base = std::env::temp_dir().join(format!("fyf-schema-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        let path = base.join("fresh.db");
+        assert_eq!(Db::schema_version_at(&path), None, "no file yet");
+        assert!(!path.exists(), "reading created nothing");
+        drop(Db::open(&path).unwrap());
+        assert_eq!(Db::schema_version_at(&path), Some(MIGRATIONS.len() as i64));
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// The case of 10-11 September 2026: an old build wrote dictations into a

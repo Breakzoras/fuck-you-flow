@@ -24,7 +24,9 @@ pub struct DetResult {
 
 /// Filler words that carry no meaning in dictation. Whole-word, case-insensitive.
 /// Kept conservative: "like", "so", "well" are NOT here because they are often meaningful.
-const FILLERS_EN: &[&str] = &["um", "umm", "uh", "uhh", "uhm", "erm", "er", "ehm", "em", "ah", "hmm", "mmm", "mm"];
+/// "em" is also "them" ("beat em ups", 2 October 2026): it goes only as a pause
+/// with its comma, see `EM_PAUSE`.
+const FILLERS_EN: &[&str] = &["um", "umm", "uh", "uhh", "uhm", "erm", "er", "ehm", "ah", "hmm", "mmm", "mm"];
 const FILLERS_EL: &[&str] = &["ε", "εε", "εεε", "εμ", "εμμ", "μμ", "μμμ", "αα", "ααα", "χμ", "χμμ"];
 /// Phrases removed only at Normal/Strong intensity.
 const FILLER_PHRASES_EN: &[&str] = &["you know", "i mean", "sort of", "kind of"];
@@ -47,10 +49,13 @@ static REPEAT_WORD: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(\p{L}{2,})\s+
 /// "Τι; Τι λες;" keeps its echo.
 static STUTTER_ACROSS_PAUSE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\b(\p{Ll}\p{L}*)\s*(?:;|\.{3,}|…)\s+\1\b").unwrap());
 /// Joining words said twice in a row ("σε σε", "από από"): never meant, at any
-/// intensity. Words that can also stand as a pronoun ("το", "τα") are left
-/// out, because "δώσ' το το κλειδί" doubles them on purpose.
+/// intensity. Words that can also stand as a pronoun ("το", "τα", "με") are left
+/// out, because "δώσ' το το κλειδί" and "βοήθησέ με με αυτό" double them on
+/// purpose; so are "ένα ένα" and "μία μία" (one by one, 4 October 2026). Lower
+/// case only: after the same word a capital opens a name or an abbreviation
+/// ("ο Ο.Η.Ε.").
 static DOUBLED_JOINER: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)\b(σε|στο|στον|στη|στην|στα|στους|στις|με|για|από|προς|να|θα|ότι|που|και|ο|η|οι|ένα|ένας|μια|μία)\s+\1\b").unwrap()
+    Regex::new(r"\b(σε|στο|στον|στη|στην|στα|στους|στις|για|από|προς|να|θα|ότι|που|και|ο|η|οι)\s+\1\b").unwrap()
 });
 
 /// "Tuesday, no, Friday" / "Τρίτη, όχι, Παρασκευή" -> keep the corrected word.
@@ -87,7 +92,7 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
 
     if o.remove_fillers {
         let before = text.clone();
-        text = remove_fillers(&text, &o.intensity);
+        text = remove_fillers(&text, &o.intensity, &o.language);
         if text != before {
             applied.push("removed fillers".into());
         }
@@ -222,6 +227,18 @@ static FILLERS_LIGHT: Lazy<Regex> = Lazy::new(|| {
     all.extend(FILLERS_EL);
     word_list_regex(&all)
 });
+static FILLERS_LIGHT_EL: Lazy<Regex> = Lazy::new(|| word_list_regex(FILLERS_EL));
+static EM_PAUSE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)(?:^|(?<=[^\p{L}]))em(?=\s*,)").unwrap());
+
+/// The English hesitation words are real words in languages the first screen
+/// offers: "er" is "is" in Danish and Norwegian, "he" in German and "there" in
+/// Dutch; "um" is "a" and "em" is "in" in Portuguese (4 October 2026). They go
+/// from English, from Greek (which mixes English in) and while the language is
+/// unknown.
+fn english_fillers_apply(language: &str) -> bool {
+    let l = language.trim().to_ascii_lowercase();
+    l.is_empty() || l == "auto" || l == "el" || l == "en" || l.starts_with("en-") || l.starts_with("en_")
+}
 static FILLERS_NORMAL: Lazy<Regex> = Lazy::new(|| {
     let mut all: Vec<&str> = Vec::new();
     all.extend(FILLER_PHRASES_EN);
@@ -235,8 +252,13 @@ static FILLERS_STRONG: Lazy<Regex> = Lazy::new(|| {
     word_list_regex(&all)
 });
 
-fn remove_fillers(text: &str, intensity: &CleanupIntensity) -> String {
-    let mut t = super::replace_all_or_keep(&FILLERS_LIGHT, text, "").to_string();
+fn remove_fillers(text: &str, intensity: &CleanupIntensity, language: &str) -> String {
+    let mut t = if english_fillers_apply(language) {
+        let t = super::replace_all_or_keep(&EM_PAUSE, text, "").to_string();
+        super::replace_all_or_keep(&FILLERS_LIGHT, &t, "").to_string()
+    } else {
+        super::replace_all_or_keep(&FILLERS_LIGHT_EL, text, "").to_string()
+    };
     if matches!(intensity, CleanupIntensity::Strong) {
         t = super::replace_all_or_keep(&FILLERS_NORMAL, &t, "").to_string();
     }
@@ -582,6 +604,49 @@ mod tests {
         assert_eq!(clean("Πάμε σιγά σιγά", &n).text, "Πάμε σιγά σιγά.");
         assert_eq!(clean("Δώσ' το το κλειδί", &n).text, "Δώσ' το το κλειδί.");
         assert_eq!(clean("Τι; Τι λες;", &n).text, "Τι; Τι λες;");
+    }
+
+    /// 4 October 2026: the joining-word rule took one copy of doublings that
+    /// Greek means ("ένα ένα", a pronoun "με" before the preposition "με") and,
+    /// without regard to case, a letter of an abbreviation after an article.
+    #[test]
+    fn meant_greek_doublings_keep_both_copies() {
+        let n = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("Τα πήρα ένα ένα", &n).text, "Τα πήρα ένα ένα.");
+        assert_eq!(clean("Τις έλεγξα μία μία", &n).text, "Τις έλεγξα μία μία.");
+        assert_eq!(clean("Βοήθησέ με με αυτό", &n).text, "Βοήθησέ με με αυτό.");
+        let r = clean("Μίλησε η Η. Παπαδοπούλου σήμερα", &n).text;
+        assert!(r.contains("η Η. Παπαδοπούλου"), "{r}");
+        // the stutters stay fixed
+        assert_eq!(clean("Πάμε για για καφέ", &n).text, "Πάμε για καφέ.");
+        assert_eq!(clean("Το είδα στο στο κινητό", &n).text, "Το είδα στο κινητό.");
+    }
+
+    fn lang(language: &str) -> DetOptions {
+        DetOptions { language: language.into(), ..opts(CleanupIntensity::Normal) }
+    }
+
+    /// 4 October 2026: the English hesitation list ran for every language and
+    /// took real words: Danish and Norwegian "er" (is), German "er" (he),
+    /// Dutch "er" (there), Portuguese "um" (a) and "em" (in).
+    #[test]
+    fn english_fillers_stay_out_of_other_languages() {
+        assert_eq!(clean("det er godt", &lang("da")).text, "Det er godt.");
+        assert_eq!(clean("det er fint i dag", &lang("no")).text, "Det er fint i dag.");
+        assert_eq!(clean("er kommt morgen", &lang("de")).text, "Er kommt morgen.");
+        assert_eq!(clean("er is koffie", &lang("nl")).text, "Er is koffie.");
+        assert_eq!(clean("fico em casa um dia", &lang("pt")).text, "Fico em casa um dia.");
+        // English and Greek still lose them
+        assert_eq!(clean("um I think uh we should go", &lang("en")).text, "I think we should go.");
+        assert_eq!(clean("um θέλω να πάμε", &lang("el")).text, "Θέλω να πάμε.");
+    }
+
+    /// 2 October 2026: "beat em ups" came out as "beat ups". "em" is a pause
+    /// only with its comma.
+    #[test]
+    fn em_goes_only_as_a_pause() {
+        assert_eq!(clean("I love beat em ups", &lang("en")).text, "I love beat em ups.");
+        assert_eq!(clean("Em, I think we can go", &lang("en")).text, "I think we can go.");
     }
 
     #[test]

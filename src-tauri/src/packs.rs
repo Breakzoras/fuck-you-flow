@@ -17,7 +17,10 @@
 //! it: a rule the user edited, switched off or deleted stays the way they left
 //! it, and a rule of their own for the same word is never joined by ours.
 //!
-//! With the switch off (`PackSettings::enabled`) nothing is fetched.
+//! With the switch off (`PackSettings::enabled`) no pack is downloaded. Only
+//! the small list (`index.json`) is read: once per run while the question on
+//! the first screen is unanswered, and when the user presses the button on the
+//! Dictionary page (PackOffer.tsx).
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

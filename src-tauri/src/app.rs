@@ -258,8 +258,14 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     // Sharing the Dictionary's corrections is on unless the user switched it
     // off. When their file could not be read their choice is unknown, and
     // then nothing is sent this run.
+    // When a rollback to 0.9.13 dropped the choice, it is held off and saved
+    // that way, until the user sets it again.
     if crate::settings::privacy_choices_unknown() {
         settings.privacy.hold_sharing_unknown();
+    } else if settings.privacy.share_choice_lost(crate::db::Db::schema_version_at(&crate::paths::db_file())) {
+        tracing::info!("sharing: the choice was lost from settings (an older version saved them); held off");
+        settings.privacy.hold_sharing_unknown();
+        changed = true;
     } else if settings.privacy.settle_sharing() {
         changed = true;
     }

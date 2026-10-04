@@ -402,6 +402,16 @@ impl PrivacySettings {
         self.share_dictionary = false;
         self.share_dictionary_asked = true;
     }
+
+    /// The share fields read like a first start although a version that
+    /// shares already ran here. 0.9.13 drops the fields it does not know when
+    /// it saves, so going back to it and updating again switched sharing on
+    /// with a fresh id, over a switch the user had turned off (review,
+    /// 3 October 2026). The database remembers: schema v2 came with sharing,
+    /// and 0.9.13 leaves a newer schema as it is.
+    pub fn share_choice_lost(&self, db_schema: Option<i64>) -> bool {
+        !self.share_dictionary_asked && self.share_install_id.is_empty() && db_schema.is_some_and(|v| v >= 2)
+    }
 }
 
 impl Default for PrivacySettings {
@@ -793,5 +803,36 @@ mod tests {
         let back: Settings = serde_json::from_str(r#"{"general":{"ui_language":"en"}}"#).unwrap();
         assert_eq!(back.general.ui_language, "en");
         assert!(back.audio.keep_stream_warm);
+    }
+
+    /// 4 October 2026: going back to 0.9.13 and updating again switched
+    /// sharing on with a new id. The database tells a lost choice from a
+    /// first start.
+    #[test]
+    fn a_share_choice_lost_to_an_older_version_is_held_off() {
+        // someone who shares, as the app saved it: nothing changes
+        let mut sharing = PrivacySettings::default();
+        sharing.settle_sharing();
+        sharing.share_dictionary_asked = true;
+        assert!(!sharing.share_choice_lost(Some(3)));
+        let before = (sharing.share_dictionary, sharing.share_install_id.clone());
+        assert!(!sharing.settle_sharing(), "a start changes nothing for them");
+        assert_eq!(before, (sharing.share_dictionary, sharing.share_install_id.clone()));
+        // a 0.9.14 user who never touched the switch keeps their id
+        let mut quiet = PrivacySettings::default();
+        quiet.settle_sharing();
+        assert!(!quiet.share_choice_lost(Some(3)));
+        // first start: no database yet, or the one 0.9.13 left (schema v1)
+        let fresh = PrivacySettings::default();
+        assert!(!fresh.share_choice_lost(None));
+        assert!(!fresh.share_choice_lost(Some(1)));
+        // 0.9.13 saved over the fields, the database had been opened by 0.9.14
+        let mut lost = PrivacySettings::default();
+        assert!(lost.share_choice_lost(Some(3)));
+        lost.hold_sharing_unknown();
+        assert!(!lost.share_dictionary);
+        assert!(!lost.share_choice_lost(Some(3)), "held once, then it is the user's choice");
+        assert!(!lost.settle_sharing(), "and a later start leaves it off");
+        assert!(!lost.share_dictionary);
     }
 }
