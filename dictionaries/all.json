@@ -1,0 +1,63 @@
+{
+ "format": 1,
+ "language": "all",
+ "version": 1,
+ "rules": [
+  {
+   "wrong": "adgentic",
+   "correct": "agentic"
+  },
+  {
+   "wrong": "Chajgpt",
+   "correct": "ChatGPT"
+  },
+  {
+   "wrong": "chatzpt",
+   "correct": "ChatGPT"
+  },
+  {
+   "wrong": "Claud",
+   "correct": "Claude"
+  },
+  {
+   "wrong": "Claudecode",
+   "correct": "Claude Code"
+  },
+  {
+   "wrong": "Claudo",
+   "correct": "Claude"
+  },
+  {
+   "wrong": "Clodopus",
+   "correct": "Claude Opus"
+  },
+  {
+   "wrong": "Connectros",
+   "correct": "connectors"
+  },
+  {
+   "wrong": "dip-seq",
+   "correct": "DeepSeek"
+  },
+  {
+   "wrong": "fuckuflow",
+   "correct": "fuckyouflow"
+  },
+  {
+   "wrong": "fuflow",
+   "correct": "FU Flow"
+  },
+  {
+   "wrong": "Tamagochi",
+   "correct": "Tamagotchi"
+  },
+  {
+   "wrong": "Termax",
+   "correct": "Termux"
+  },
+  {
+   "wrong": "unred",
+   "correct": "unread"
+  }
+ ]
+}

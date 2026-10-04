@@ -1,0 +1,2 @@
+# The dictionary packs are signed byte for byte: never let git change their line ends.
+dictionaries/*.json -text

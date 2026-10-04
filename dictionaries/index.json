@@ -1,0 +1,13 @@
+{
+ "format": 1,
+ "packs": {
+  "all": {
+   "version": 1,
+   "rules": 14
+  },
+  "el": {
+   "version": 1,
+   "rules": 248
+  }
+ }
+}
