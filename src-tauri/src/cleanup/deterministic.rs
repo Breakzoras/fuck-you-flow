@@ -252,12 +252,29 @@ static FILLERS_STRONG: Lazy<Regex> = Lazy::new(|| {
     word_list_regex(&all)
 });
 
+/// A filler that opens a sentence hands its capital to the word after it, so
+/// the sentence still opens with one where nothing else would set it: "κλπ. Ε,
+/// όχι" kept "όχι" small once the case after "κλπ." was left to the engine
+/// (4 October 2026). After ";" it keeps it: in Greek that mark is often a
+/// pause of the voice in the middle of a sentence ("viral; Εμ, με domain").
+fn pass_on_capital(text: &str, fillers: &Regex) -> String {
+    static OPENING: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:^|(?<=[.!?…]\s))(\p{Lu}\p{L}*)([\s,]+)(\p{Ll})").unwrap());
+    super::replace_all_or_keep(&OPENING, text, |c: &fancy_regex::Captures<'_, str>| {
+        let word = &c[1];
+        let whole = fillers.find(word).ok().flatten().is_some_and(|m| m.start() == 0 && m.end() == word.len());
+        if whole { format!("{word}{}{}", &c[2], c[3].to_uppercase()) } else { c[0].to_string() }
+    })
+    .to_string()
+}
+
 fn remove_fillers(text: &str, intensity: &CleanupIntensity, language: &str) -> String {
     let mut t = if english_fillers_apply(language) {
         let t = super::replace_all_or_keep(&EM_PAUSE, text, "").to_string();
+        let t = pass_on_capital(&t, &FILLERS_LIGHT);
         super::replace_all_or_keep(&FILLERS_LIGHT, &t, "").to_string()
     } else {
-        super::replace_all_or_keep(&FILLERS_LIGHT_EL, text, "").to_string()
+        let t = pass_on_capital(text, &FILLERS_LIGHT_EL);
+        super::replace_all_or_keep(&FILLERS_LIGHT_EL, &t, "").to_string()
     };
     if matches!(intensity, CleanupIntensity::Strong) {
         t = super::replace_all_or_keep(&FILLERS_NORMAL, &t, "").to_string();
@@ -310,15 +327,20 @@ fn normalize_spacing(text: &str) -> String {
 
 /// Abbreviations that announce what comes next, written here without their
 /// last full stop. The sentence always goes on after them, so that full stop
-/// ends nothing. "κλπ." and "etc." are left out on purpose: they close a list,
-/// and a list often closes the sentence.
+/// ends nothing.
 const LEADING_ABBREVIATIONS: &[&str] = &["π.χ", "πχ", "δηλ", "βλ", "e.g", "i.e", "vs", "cf"];
+/// Abbreviations that close a list. A list may close the sentence or not, and
+/// the engine shows which: in Lu's history it wrote a capital after one 22
+/// times, each a new sentence, and a small letter 4 times, each a sentence
+/// going on ("κλπ. να μπαίνει", 4 October 2026). After them the next word
+/// keeps the case the engine gave it.
+const LIST_ABBREVIATIONS: &[&str] = &["κλπ", "κτλ", "κ.λπ", "κ.τ.λ", "etc"];
 
 /// True when `before` (the text up to a full stop) ends in one of the
 /// abbreviations above, standing as a word of its own.
-fn ends_in_leading_abbreviation(before: &str) -> bool {
+fn ends_in_known_abbreviation(before: &str) -> bool {
     let lower = before.to_lowercase();
-    LEADING_ABBREVIATIONS.iter().any(|a| {
+    LEADING_ABBREVIATIONS.iter().chain(LIST_ABBREVIATIONS).any(|a| {
         lower.strip_suffix(a).is_some_and(|head| !head.chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '.'))
     })
 }
@@ -338,7 +360,7 @@ fn capitalize_sentences(text: &str) -> String {
         if c == '.' || c == '!' || c == '?' || c == ';' {
             // Greek question mark is ';' but also used as semicolon in English text.
             // Only treat as sentence end when followed by whitespace.
-            if c == '.' && ends_in_leading_abbreviation(&out) {
+            if c == '.' && ends_in_known_abbreviation(&out) {
                 // "π.χ. ένα κουμπί": the full stop belongs to the abbreviation
                 // (3 of 3 such dictations got a capital, 1 October 2026).
                 capitalize_next = false;
@@ -693,9 +715,23 @@ mod tests {
     #[test]
     fn a_full_stop_that_only_looks_like_such_an_abbreviation_still_ends_the_sentence() {
         let o = opts(CleanupIntensity::Normal);
-        // "devs" ends in "vs", "κλπ." closes a list and here the sentence too.
+        // "devs" ends in "vs"
         assert_eq!(clean("I spoke with the devs. they will ship on Monday.", &o).text, "I spoke with the devs. They will ship on Monday.");
-        assert_eq!(clean("Πήραμε καρέκλες, τραπέζια κλπ. μετά βάψαμε τον τοίχο.", &o).text, "Πήραμε καρέκλες, τραπέζια κλπ. Μετά βάψαμε τον τοίχο.");
+    }
+
+    /// 4 October 2026: "Πάσχα, κλπ. να μπαίνει" came out as "κλπ. Να μπαίνει",
+    /// 4 times in one day. After a list the engine's own case decides.
+    #[test]
+    fn after_a_list_abbreviation_the_engine_case_stays() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("Όταν έχει Χριστούγεννα, Πάσχα κλπ. να μπαίνει το θέμα.", &o).text, "Όταν έχει Χριστούγεννα, Πάσχα κλπ. να μπαίνει το θέμα.");
+        assert_eq!(clean("Πήραμε καρέκλες, τραπέζια κλπ. Μετά βάψαμε τον τοίχο.", &o).text, "Πήραμε καρέκλες, τραπέζια κλπ. Μετά βάψαμε τον τοίχο.");
+        assert_eq!(clean("Bring chairs, tables etc. and some cups.", &o).text, "Bring chairs, tables etc. and some cups.");
+        // a filler that opened the next sentence hands over its capital
+        assert_eq!(clean("Βάλε τίτλο, ενότητα κλπ. Ε, όχι, δεν θέλω πλαίσιο.", &o).text, "Βάλε τίτλο, ενότητα κλπ. Όχι, δεν θέλω πλαίσιο.");
+        // after a pause of the voice (";") the sentence goes on
+        let r = clean("Θέλω κάτι πιασάρικο, κάτι viral; Εμ, με διαθέσιμο domain, φυσικά.", &o).text;
+        assert!(r.contains("viral, με διαθέσιμο"), "{r}");
     }
 
     /// 2 October 2026: a domain ending said on its own ("σε .gr") lost the

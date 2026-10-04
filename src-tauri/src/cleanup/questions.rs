@@ -73,6 +73,10 @@ const IDIOMS_EL: &[&[&str]] = &[
     &["πού", "και", "πού"], &["πώς", "και", "πώς"], &["πού", "να", "ξέρω"], &["πού", "να", "το", "ξέρω"], &["πού", "να", "ξέρεις"],
     &["πού", "να", "σου", "τα", "λέω"], &["πού", "να", "σας", "τα", "λέω"], &["πώς", "όχι"],
 ];
+/// "Τι να σου πω, δεν ξέρω, ..." opens a statement with a shrug: 7 of 7 such
+/// sentences in Lu's history got a wrong ";" (4 October 2026). Said alone,
+/// "Τι να σου πω;" is still a question.
+const SHRUG_OPENERS_EL: &[&[&str]] = &[&["τι", "να", "σου", "πω"], &["τι", "να", "σας", "πω"], &["τι", "να", "πω"]];
 
 // ---------- English ----------
 
@@ -302,6 +306,9 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
     if IDIOMS_EL.iter().any(|p| starts_with_phrase(w, p)) {
         return false;
     }
+    if SHRUG_OPENERS_EL.iter().any(|p| starts_with_phrase(w, p) && w.len() > p.len()) {
+        return false;
+    }
     // G1, G2, G3: question word first, or after a preposition
     let wh_at = if WH_EL.contains(&first.as_str()) {
         Some(0)
@@ -475,6 +482,22 @@ mod tests {
         }
         // the engine's own question mark is kept as is
         assert_eq!(q("Τι κάνεις;"), "Τι κάνεις;");
+    }
+
+    /// 4 October 2026: "Τι να σου πω, δεν ξέρω, γενικά βλέπω ..." is a shrug
+    /// in front of a statement.
+    #[test]
+    fn a_shrug_opener_leaves_a_statement() {
+        for s in [
+            "Τι να σου πω, δεν ξέρω, γενικά βλέπω καλή συμπεριφορά μέχρι τώρα.",
+            "Τι να πω, είναι πάρα πολλές οι παρατηρήσεις μου.",
+            "Τι να σας πω ρε παιδιά, βάλτε όσα θέλετε.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        assert_eq!(q("Τι να σου πω."), "Τι να σου πω;");
+        assert_eq!(q("Τι να σου πω για το ταξίδι."), "Τι να σου πω για το ταξίδι.");
+        assert_eq!(q("Τι να κάνουμε τώρα."), "Τι να κάνουμε τώρα;");
     }
 
     /// 27 September 2026: "Γιατί άμα το δεις από κοντά, ..." got a
