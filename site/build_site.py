@@ -524,9 +524,9 @@ TR = [('Skip to content', 'Στο περιεχόμενο'),
  ('The Statistics screen: words dictated per day, median wait and time saved, shown as numbers and bars.',
   'Η οθόνη Στατιστικά: λέξεις που υπαγορεύτηκαν ανά μέρα, μέση αναμονή και χρόνος που γλιτώθηκε, σε νούμερα '
   'και μπάρες.'),
- ('The Settings screen: the speech model, the graphics card in use, the microphone and the hotkeys.',
-  'Η οθόνη Ρυθμίσεις: το μοντέλο ομιλίας, η κάρτα γραφικών που χρησιμοποιείται, το μικρόφωνο και τα πλήκτρα '
-  'συντόμευσης.'),
+ ('The Settings screen, Speech models tab: each model with its size, the graphics memory it needs, who it suits and which one is in use.',
+  'Η οθόνη Ρυθμίσεις, καρτέλα Μοντέλα ομιλίας: κάθε μοντέλο με το μέγεθός του, τη μνήμη κάρτας που θέλει, '
+  'για ποιον είναι και ποιο είναι σε χρήση.'),
  ('A black keyboard in the dark. The Alt key immediately to the right of the spacebar is lit from inside in '
   'acid green.',
   'Ένα μαύρο πληκτρολόγιο στο σκοτάδι. Το πλήκτρο Alt αμέσως δεξιά από το πλήκτρο διαστήματος είναι '

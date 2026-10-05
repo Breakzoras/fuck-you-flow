@@ -1,5 +1,9 @@
 """Clean interface pictures for the site and for a public post.
 
+REPLACED on 5 October 2026 by press/app-shots/capture.mjs, which photographs
+the real app (0.9.14 and later) with the same sample content. Running this
+older static version would put the 0.9.12 interface back on the site.
+
 Renders the real dashboard markup with the real stylesheet (src/App.css) and
 neutral sample content, then photographs each page with headless Chrome. The
 result matches what the app draws, without the floating overlay sitting on the
