@@ -38,8 +38,9 @@ fuckyouflow.app {
 		reverse_proxy fyf-reports:8787
 	}
 
-	# Dictionary corrections a user agreed to share (0.9.14). Same receiver,
-	# its own folder; see server/report-receiver/receiver.py.
+	# Dictionary corrections the app shares (0.9.14, on from the start, with a
+	# switch in Settings under Privacy). Same receiver, its own folder; see
+	# server/report-receiver/receiver.py.
 	handle /api/dictionary* {
 		# Out of the access log: a line there would put an address and a
 		# time next to a file that is kept under a random number for a reason.
