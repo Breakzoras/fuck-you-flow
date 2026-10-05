@@ -59,7 +59,9 @@ TS=$(ssh "${SSH_OPTS[@]}" "$HOST" 'TS=$(date +%Y%m%d-%H%M%S); sudo -n cp -a /srv
 echo "   /srv/fuckyouflow-backup-$TS"
 
 echo "== upload =="
-tar -czf /tmp/fyf-deploy.tgz "${SHIP[@]}" "$CONFIG"
+# .omc folders are a coding tool's state; two of them were once served from the
+# live site, so they never travel.
+tar --exclude=.omc -czf /tmp/fyf-deploy.tgz "${SHIP[@]}" "$CONFIG"
 scp "${SSH_OPTS[@]}" /tmp/fyf-deploy.tgz "$HOST":~/ >/dev/null
 ssh "${SSH_OPTS[@]}" "$HOST" 'set -e
   rm -rf ~/fyf-in && mkdir ~/fyf-in && tar -xzf ~/fyf-deploy.tgz -C ~/fyf-in
