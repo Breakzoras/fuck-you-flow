@@ -1,11 +1,11 @@
 {
-  "version": "0.9.13",
-  "notes": "Send a problem or an idea from inside the app. Also cleaner punctuation, better short endings, and one paste per dictation in Chromium and Electron apps.",
-  "pub_date": "2026-09-28T12:44:37Z",
+  "version": "0.9.14",
+  "notes": "Ready-made dictionaries for your language, an Edit button for suggestions, and more accurate punctuation.",
+  "pub_date": "2026-10-05T10:09:43Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWxxSUE1T3hVeTZLTG9yRnNMSDc5S1ppUzhrTERscXNoSHg5REsvdElBamovY3BaRk5LZkpYS3N1Zk5HNzZpQ1hpVHA4MmZISnVCRkhOZDVTZHg4WEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNTk5MDUzCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTNfeDY0LXNldHVwLmV4ZQp4ekM4cHhZK0dVUm1PV2l5NlVhZlh5azFYYVlQdURWdmwxNzRyMkhIclVGUUNMQ21hYVJLNWFnTDgydTMzNDFyRnhDb1Z0YUpvU1ZKN1JoOGJLUEhBUT09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.13/Fuck.You.Flow.Update.0.9.13.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWtGZ05xa005akZIY1V2SU5JZWk3SHVOaHFnVlhoQ2ZDZnhDMEpHQVNEM214QzVpb1ltTXEyb0hqWFNlcW80UkRUZEFYc2JtRmRMSzBHQmtIWmcyT3dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMTkzNDAyCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTRfeDY0LXNldHVwLmV4ZQpjM1hDN3BaVVJKU2NiTk83M2Mxc215QnZ1VnpseFdCNGMwVWdWamxJaUwrS1BELzB1YTJWYkdrTWtzUWE1Y2wzYlhnVTE5WnNlOEZoeEJNTVo5dGtEZz09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.14/Fuck.You.Flow.Update.0.9.14.exe"
     }
   }
 }

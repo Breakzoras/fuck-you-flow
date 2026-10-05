@@ -1,15 +1,15 @@
 """Release facts shared by every generated public page.
 
-Installer size measured from the signed 0.9.12 setup.
+Installer size measured from the signed 0.9.14 setup.
 Update these facts together when publishing a release.
 """
 BASE = "https://fuckyouflow.app"
 REPO = "https://github.com/Breakzoras/fuck-you-flow"
-VERSION = "0.9.13"
-SIZE_BYTES = 1729921494
+VERSION = "0.9.14"
+SIZE_BYTES = 1730231254
 SIZE = "1.7 GB"
 SIZE_EL = "1,7 GB"
-RELEASE_DATE = "2026-09-26"
+RELEASE_DATE = "2026-10-05"
 CONTENT_DATE = "2026-09-26"
 DL = f"{REPO}/releases/download/v{VERSION}/Fuck.You.Flow.Setup.{VERSION}.exe"
 # The link preview every page shares, 1200 x 630. A new picture gets a new file name,

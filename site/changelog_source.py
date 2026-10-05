@@ -27,6 +27,91 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.14",
+        "date": "2026-10-05",
+        "summary": (
+            "Ready-made dictionaries for your language, an Edit button for suggestions, and more "
+            "accurate punctuation.",
+            "Έτοιμα λεξικά για τη γλώσσα σου, κουμπί Διόρθωση στις Προτάσεις και πιο ακριβής στίξη.",
+        ),
+        "lines": [
+            ("added",
+             "Ready-made dictionaries. The app can download a hand-checked list of words the "
+             "speech engine often mishears in your language. Each list is signed, updates itself "
+             "once a day, and any rule you change or delete stays the way you left it. It is "
+             "offered on the Home page and under Dictionary, Look for my language.",
+             "Έτοιμα λεξικά. Η εφαρμογή κατεβάζει μια λίστα, ελεγμένη με το χέρι, με λέξεις που η "
+             "μηχανή ομιλίας ακούει συχνά λάθος στη γλώσσα σου. Το ελληνικό ξεκινά με 248 "
+             "διορθώσεις. Κάθε λίστα είναι υπογεγραμμένη, ενημερώνεται μόνη της μία φορά τη μέρα "
+             "και ό,τι αλλάξεις ή σβήσεις μένει όπως το άφησες. Θα τη βρεις στην Αρχική και "
+             "στο Λεξικό, «Ψάξε για τη γλώσσα μου»."),
+            ("added",
+             "Dictionary sharing. The corrections in your Dictionary help build the ready-made "
+             "dictionaries. What you dictate, your History and your voice stay on your computer. "
+             "Sharing is on from the start. Switch it off, or delete what was sent, in Settings, "
+             "Privacy.",
+             "Μοίρασμα Λεξικού. Οι διορθώσεις του Λεξικού σου βοηθούν να χτιστούν τα έτοιμα "
+             "λεξικά. Όσα υπαγορεύεις, το Ιστορικό και η φωνή σου μένουν στον υπολογιστή σου. Το "
+             "μοίρασμα είναι ανοιχτό από την αρχή. Το κλείνεις ή σβήνεις όσα στάλθηκαν στις "
+             "Ρυθμίσεις, Απόρρητο."),
+            ("added",
+             "A new install asks which language you speak, so dictation starts in the right "
+             "language.",
+             "Μια νέα εγκατάσταση ρωτά ποια γλώσσα μιλάς, ώστε η υπαγόρευση να ξεκινά στη σωστή "
+             "γλώσσα."),
+            ("added",
+             "Suggestions have an Edit button. Correct a suggestion that is nearly right, then "
+             "accept it.",
+             "Οι Προτάσεις έχουν κουμπί Διόρθωση. Φτιάξε μια πρόταση που είναι σχεδόν σωστή και "
+             "μετά δέξου την."),
+            ("added",
+             "A card in the menu invites you to rate the project on GitHub. It goes away once "
+             "you press it.",
+             "Μια κάρτα στο μενού σε καλεί να ψηφίσεις το project στο GitHub. Φεύγει μόλις την "
+             "πατήσεις."),
+            ("improved",
+             "The names you say most often reach the speech engine first, which helps it "
+             "recognize them.",
+             "Τα ονόματα που λες πιο συχνά φτάνουν πρώτα στη μηχανή ομιλίας και τα αναγνωρίζει "
+             "καλύτερα."),
+            ("improved",
+             "Edit in History opens the whole transcript at once and grows as you type.",
+             "Το Edit στο Ιστορικό ανοίγει ολόκληρο το κείμενο με τη μία και μεγαλώνει όσο γράφεις."),
+            ("improved",
+             "Punctuation: the word after e.g. or i.e. keeps its small letter, and a domain ending "
+             "said on its own, as in \"on .ai\", keeps its space.",
+             "Στίξη: η λέξη μετά το «π.χ.» κρατά το μικρό της γράμμα και μια κατάληξη domain που "
+             "λες μόνη της, όπως «σε .ai», κρατά το κενό της."),
+            ("improved",
+             None,
+             "Πιο σωστά ερωτηματικά στα ελληνικά. Το «Γιατί» με νόημα «επειδή», οι πλάγιες "
+             "ερωτήσεις («δεν ξέρω πού θα πάμε») και το «Τι να σου πω, ...» μένουν δηλώσεις. Μια "
+             "φράση που διορθώνει τον εαυτό της κρατά την τελεία της."),
+            ("improved",
+             None,
+             "Πιο καθαρές προτάσεις στα ελληνικά. Μια τελεία εκεί που ενώνονται δύο κομμάτια της "
+             "φωνής σου φεύγει, οι μικρές λέξεις μέσα στην πρόταση μένουν με μικρά και μια λέξη "
+             "που ειπώθηκε δύο φορές από δισταγμό («από από») γράφεται μία."),
+            ("improved",
+             "English filler sounds such as \"um\" are left alone in languages where they are "
+             "real words.",
+             "Οι αγγλικοί ήχοι δισταγμού, όπως το «um», μένουν στη θέση τους σε γλώσσες όπου "
+             "είναι κανονικές λέξεις."),
+            ("fixed",
+             "When a paste is lost, History now shows it as failed.",
+             "Όταν μια επικόλληση χάνεται, το Ιστορικό τη δείχνει πια ως αποτυχημένη."),
+            ("fixed",
+             "Smaller fixes: Suggestions keep ordinary words out of the name list, one name keeps "
+             "one spelling, and Delete all data says what stays as it is.",
+             "Μικρότερες διορθώσεις: οι Προτάσεις κρατούν τις κοινές λέξεις έξω από τη λίστα "
+             "ονομάτων, κάθε όνομα κρατά μία γραφή και η Διαγραφή όλων των δεδομένων λέει τι "
+             "μένει όπως είναι."),
+            ("known",
+             "This version is for Windows. Ubuntu Linux stays on 0.9.12 for now.",
+             "Αυτή η έκδοση είναι για Windows. Το Ubuntu Linux μένει προς το παρόν στην 0.9.12."),
+        ],
+    },
+    {
         "version": "0.9.13",
         "date": "2026-09-28",
         "summary": (
