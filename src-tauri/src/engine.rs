@@ -16,6 +16,9 @@ pub struct EngineManager {
     cloud: RwLock<Option<Arc<OpenAiCompat>>>,
     provider_name: RwLock<String>,
     starting: std::sync::atomic::AtomicBool,
+    /// The settings a caller wanted while a start was already in flight. The
+    /// runner picks them up and goes round again rather than dropping them.
+    queued: RwLock<Option<Settings>>,
     port: std::sync::atomic::AtomicU16,
 }
 
@@ -55,6 +58,7 @@ impl EngineManager {
             cloud: RwLock::new(None),
             provider_name: RwLock::new("whisper_local".into()),
             starting: std::sync::atomic::AtomicBool::new(false),
+            queued: RwLock::new(None),
             port: std::sync::atomic::AtomicU16::new(0),
         }
     }
@@ -72,6 +76,20 @@ impl EngineManager {
 
     /// (Re)start according to settings. Emits "lalia://engine" with EngineInfo.
     pub async fn apply(self: &Arc<Self>, app: &tauri::AppHandle, settings: &Settings) {
+        let mut settings = settings.clone();
+        loop {
+            self.apply_once(app, &settings).await;
+            match self.queued.write().take() {
+                Some(next) => {
+                    tracing::info!("engine settings changed while starting; going round again");
+                    settings = next;
+                }
+                None => break,
+            }
+        }
+    }
+
+    async fn apply_once(self: &Arc<Self>, app: &tauri::AppHandle, settings: &Settings) {
         *self.provider_name.write() = settings.asr.provider.clone();
         if settings.asr.provider == "openai_compatible" {
             *self.cloud.write() = Some(Arc::new(OpenAiCompat::new(settings.asr.openai_base_url.clone(), settings.asr.openai_model.clone())));
@@ -83,21 +101,62 @@ impl EngineManager {
             return;
         }
         if self.starting.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            // Somebody is already starting one. Remember that the settings moved
+            // on, so the runner can go round again with the new ones instead of
+            // dropping this on the floor. Changing model or backend during a
+            // start, or pressing Restart engine, used to do nothing at all for
+            // up to two minutes and looked like the setting was ignored.
+            *self.queued.write() = Some(settings.clone());
+            tracing::info!("engine change queued: one is already starting");
             return;
         }
         let (backend, exe) = choose_backend(&settings.asr.backend, settings.asr.use_gpu);
         let model = crate::models::find_model(&settings.asr.model_id);
         let (Some(exe), Some((spec, model_path))) = (exe, model) else {
-            tracing::warn!("engine not started: runtime found = {}, model '{}' known = {}", find_runtime_exe().is_some(), settings.asr.model_id, crate::models::find_model(&settings.asr.model_id).is_some());
+            let has_runtime = find_runtime_exe().is_some();
+            tracing::warn!("engine not started: runtime found = {}, model '{}' known = {}", has_runtime, settings.asr.model_id, crate::models::find_model(&settings.asr.model_id).is_some());
+            // Name the missing piece. "Speech engine not installed" on its own
+            // sent the first AMD tester hunting through Settings on
+            // 7 September 2026 with nothing to go on.
+            let message = if has_runtime {
+                format!("the model {} is not on this machine; choose another one under Speech models", settings.asr.model_id)
+            } else {
+                "the speech engine files are missing from this installation; reinstall the app to restore them".to_string()
+            };
+            // Forget the old one as well. Leaving it in place made info() and
+            // transcribe() keep using a server the app had just announced as
+            // missing, so an update that removed the install folder mid-session
+            // said "engine missing" while dictation carried on regardless.
+            *self.local.write() = None;
             self.starting.store(false, std::sync::atomic::Ordering::SeqCst);
             let _ = app.emit(
                 "lalia://engine",
-                EngineInfo { status: EngineStatus::Missing, provider: "whisper_local".into(), model_id: settings.asr.model_id.clone(), gpu: false, message: Some("runtime or model not installed".into()), warm_ms: None, backend: String::new() },
+                EngineInfo { status: EngineStatus::Missing, provider: "whisper_local".into(), model_id: settings.asr.model_id.clone(), gpu: false, message: Some(message), warm_ms: None, backend: String::new() },
             );
             return;
         };
-        if !model_path.exists() {
+        // Not just "is it there": a half-downloaded file is there and passes,
+        // and whisper-server then exits with a bare code that names nothing.
+        let size_ok = std::fs::metadata(&model_path).map(|m| m.len() == spec.size_bytes).unwrap_or(false);
+        if !model_path.exists() || !size_ok {
+            if model_path.exists() && !size_ok {
+                tracing::warn!("engine not started: {} is the wrong size, the download did not finish", model_path.display());
+                *self.local.write() = None;
+                self.starting.store(false, std::sync::atomic::Ordering::SeqCst);
+                let _ = app.emit(
+                    "lalia://engine",
+                    EngineInfo { status: EngineStatus::Missing, provider: "whisper_local".into(), model_id: spec.id.clone(), gpu: false, message: Some(format!("the file for {} is incomplete; download it again under Speech models", spec.display_name)), warm_ms: None, backend: String::new() },
+                );
+                return;
+            }
             tracing::warn!("engine not started: model file missing at {}", model_path.display());
+            // Forget the dead server before giving up. Without this the watchdog
+            // still sees a handle whose status is Ready and whose process is
+            // gone, calls apply, lands here again and repeats every five
+            // seconds for as long as the app runs. Measured on 6 September
+            // 2026: sixteen rounds in seventy seconds, ended only by restarting
+            // the app, with the tray icon present and every dictation failing.
+            *self.local.write() = None;
             self.starting.store(false, std::sync::atomic::Ordering::SeqCst);
             let _ = app.emit(
                 "lalia://engine",
@@ -122,12 +181,28 @@ impl EngineManager {
         if let Some(old) = old {
             old.stop().await;
         }
-        let _ = app.emit("lalia://engine", server.info());
+        // A freshly built server still says Missing, and nothing else is sent
+        // until start() returns, which can take two minutes. The dashboard read
+        // "engine missing" with a Download button for that whole time, and that
+        // is what sent the first AMD tester hunting through Settings on
+        // 7 September 2026. Say what is actually happening.
+        let mut starting_info = server.info();
+        starting_info.status = EngineStatus::Starting;
+        starting_info.message = Some("the speech model is loading".into());
+        let _ = app.emit("lalia://engine", starting_info);
         let mut result = server.start().await;
         if result.is_err() && use_gpu {
             tracing::warn!("GPU start failed, retrying on CPU");
+            // Stop the one that failed first. A warm-up failure leaves its child
+            // alive, and the fallback used to reuse the same port, so its own
+            // port probe answered against the corpse of the first attempt and
+            // reported success. The user was told it had moved to the CPU while
+            // nothing had changed at all.
+            server.stop().await;
             let mut cfg = server.config().clone();
             cfg.use_gpu = false;
+            cfg.backend = "cpu".to_string();
+            cfg.port = self.pick_port();
             let cpu = Arc::new(WhisperServer::new(cfg));
             *self.local.write() = Some(cpu.clone());
             result = cpu.start().await;
@@ -165,6 +240,12 @@ impl EngineManager {
         self.info().status == EngineStatus::Ready
     }
 
+    /// The process holding the speech model, when it is a local one. A cloud
+    /// provider has none, and neither does an engine that never started.
+    pub fn local_pid(&self) -> Option<u32> {
+        self.local.read().clone().and_then(|s| s.pid())
+    }
+
     pub async fn transcribe(&self, req: TranscriptionRequest) -> Result<TranscriptionResult, AsrError> {
         let is_cloud = self.provider_name.read().as_str() == "openai_compatible";
         if is_cloud {
@@ -193,12 +274,22 @@ impl EngineManager {
             return;
         }
         let local = self.local.read().clone();
+        // Ready and Starting both mean a process should be running right now.
+        //
+        // Only Ready was checked before, so an engine whose process died while
+        // it was still loading the model stayed "starting" for the rest of the
+        // session and nothing ever brought it back. Loading takes up to two
+        // minutes on a cold machine, which is a wide window to crash in.
+        //
+        // Nothing is started here when there is no engine at all. That case is
+        // deliberate: a missing model file used to make this fire every five
+        // seconds for as long as the app stayed open.
         let dead = match local {
-            Some(s) => s.info().status == EngineStatus::Ready && !s.is_alive(),
+            Some(s) => matches!(s.info().status, EngineStatus::Ready | EngineStatus::Starting) && !s.is_alive(),
             None => false,
         };
         if dead {
-            tracing::warn!("whisper-server died, restarting");
+            tracing::warn!("the speech engine stopped on its own, starting it again");
             self.apply(app, settings).await;
         }
     }

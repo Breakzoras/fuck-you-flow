@@ -142,6 +142,11 @@ fn apply_intonation(text: &str, pitch: Option<(f32, f32)>, enabled: bool) -> Str
 struct Segmenter {
     /// Sample index where the next segment starts.
     cut: usize,
+    /// Where the last refused attempt ended. Refusing keeps the cut where it
+    /// is, on purpose, so no audio is lost. Without this marker the same
+    /// stretch would be copied and analysed again every quarter second, over
+    /// and over, growing longer each time through a long silence.
+    last_try: usize,
     jobs: Vec<SegmentJob>,
     /// Text of the last finished segment, given to the next request as context.
     last_text: String,
@@ -161,10 +166,17 @@ fn join_prompt(hints: Option<String>, previous: &str) -> Option<String> {
 
 /// Sends one finished segment to the engine in the background. Silence-only
 /// segments are dropped without a request.
-fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: Vec<f32>, lang: &str, hints: Option<String>, beam: u32, vad: bool, min_speech_ms: u64) {
-    let Some(a) = crate::audio::analyze_speech(&samples, min_speech_ms) else { return };
+///
+/// Returns whether the audio was queued. The caller must only move the cut
+/// forward when it was: audio that is dropped here is transcribed by nobody,
+/// because the final pass only sends what lies after the cut. A near-silent
+/// segment holding one short word ("yes", "ok") would disappear from the
+/// finished text without a trace.
+#[must_use]
+fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: Vec<f32>, lang: &str, hints: Option<String>, beam: u32, vad: bool, min_speech_ms: u64) -> bool {
+    let Some(a) = crate::audio::analyze_speech(&samples, min_speech_ms) else { return false };
     if a.trimmed.is_empty() {
-        return;
+        return false;
     }
     let wav = crate::audio::encode_wav(&a.trimmed);
     let pitch = crate::audio::tail_pitch_features(&a.trimmed);
@@ -191,6 +203,7 @@ fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: 
         (r, pitch)
     });
     seg.lock().jobs.push(handle);
+    true
 }
 
 /// Whisper hallucinations on silence, seen in the wild. If the whole transcript
@@ -272,9 +285,23 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                     }
                     HotkeyEvent::Released(ChordId::HandsFree) => {}
                     HotkeyEvent::Pressed(ChordId::PasteLast) => {
-                        paste_last(&app, &shared, None).await;
+                        paste_last(&app, &shared, &mut idle_timer, None).await;
                     }
                     HotkeyEvent::Released(ChordId::PasteLast) => {}
+                    HotkeyEvent::Cancelled(_) => {
+                        // The person is typing with the modifier held, so this
+                        // was never a dictation. Drop it without a word: an
+                        // announcement here would flash on the screen for every
+                        // accented letter somebody writes.
+                        if let Some(s) = session.take() {
+                            if s.mode == Mode::Ptt {
+                                tracing::debug!("a key was typed while the shortcut was held; the recording is dropped");
+                                cancel_quietly(&app, &shared, s, &mut level_task, &mut idle_timer).await;
+                            } else {
+                                session = Some(s);
+                            }
+                        }
+                    }
                     HotkeyEvent::Escape => {
                         if let Some(s) = session.take() {
                             cancel(&app, &shared, s, &mut level_task, &mut idle_timer).await;
@@ -294,8 +321,8 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                         cancel(&app, &shared, s, &mut level_task, &mut idle_timer).await;
                     }
                 }
-                PipelineMsg::PasteLast => paste_last(&app, &shared, None).await,
-                PipelineMsg::PasteHistory(id) => paste_last(&app, &shared, Some(id)).await,
+                PipelineMsg::PasteLast => paste_last(&app, &shared, &mut idle_timer, None).await,
+                PipelineMsg::PasteHistory(id) => paste_last(&app, &shared, &mut idle_timer, Some(id)).await,
                 PipelineMsg::Retry => {
                     let rec = last_recovery.lock().clone();
                     if let Some((samples, ctx)) = rec {
@@ -350,7 +377,15 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                 schedule_idle(app, shared, idle_timer, 2500);
                 return None;
             }
-            Err(_) => return None,
+            Err(_) => {
+                // The thread that opens the microphone died. Nothing here can
+                // recover it, but leaving the badge spinning for the rest of
+                // the session helps nobody.
+                tracing::error!("the microphone thread died while opening the device");
+                overlay::emit_state(app, OverlayPayload { state: OverlayState::MicUnavailable, message: Some("msg_mic_thread_died".into()), preview: None, can_retry: false, seconds: 0.0 });
+                schedule_idle(app, shared, idle_timer, 2500);
+                return None;
+            }
         }
     }
     shared.audio.start_recording();
@@ -423,17 +458,24 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
             // Every ~250 ms: has the user paused after saying enough for a segment?
             if segment_enabled && n % 8 == 0 {
                 let len = shared2.audio.recorded_len();
-                let cut = seg.lock().cut;
+                let (cut, last_try) = { let g = seg.lock(); (g.cut, g.last_try) };
                 let pause = SEGMENT_PAUSE_MS * 16;
-                if len >= cut + SEGMENT_MIN_MS * 16 + pause {
+                // A refused stretch is worth another look only once it has
+                // grown by a whole segment's worth of new audio.
+                let retry_ready = len >= last_try + SEGMENT_MIN_MS * 16;
+                if retry_ready && len >= cut + SEGMENT_MIN_MS * 16 + pause {
                     let tail = shared2.audio.recorded_range(len - pause, len);
                     if crate::audio::is_silent(&tail) {
                         // cut in the middle of the pause: the segment keeps some
                         // trailing silence, the next one some leading silence
                         let end = len - pause / 2;
                         let samples = shared2.audio.recorded_range(cut, end);
-                        seg.lock().cut = end;
-                        dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let queued = dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let mut g = seg.lock();
+                        if queued {
+                            g.cut = end;
+                        }
+                        g.last_try = len;
                     } else if len >= cut + SEGMENT_MAX_MS * 16 {
                         // no pause for a long time: cut at the quietest 200 ms of
                         // the last three seconds, which lands between words
@@ -441,8 +483,12 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                         let at = crate::audio::quietest_point(&window, 16 * 200);
                         let end = len - 16 * 3000 + at;
                         let samples = shared2.audio.recorded_range(cut, end);
-                        seg.lock().cut = end;
-                        dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let queued = dispatch_segment(&shared2, &seg, samples, &lang_code, hints.clone(), beam, vad, min_speech_ms);
+                        let mut g = seg.lock();
+                        if queued {
+                            g.cut = end;
+                        }
+                        g.last_try = len;
                     }
                 }
             }
@@ -453,6 +499,25 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
 }
 
 async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
+    drop_recording(shared, s, level_task);
+    crate::hotkey::reset_pressed_state();
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: false, seconds: 0.0 });
+    finish_cancel(app, shared, idle_timer);
+}
+
+/// Cancel without saying so, for a recording that was never meant to start.
+///
+/// The held keys are deliberately left alone. Somebody typing AltGr and a
+/// letter still has the modifier down, and forgetting that would let the very
+/// next repeat of the same held key look like a fresh press and start another
+/// recording, once per letter.
+async fn cancel_quietly(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
+    drop_recording(shared, s, level_task);
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0 });
+    finish_cancel(app, shared, idle_timer);
+}
+
+fn drop_recording(shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>) {
     if let Some(t) = level_task.take() {
         t.abort();
     }
@@ -461,8 +526,9 @@ async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_
     }
     shared.audio.discard();
     CAPTURE_ESCAPE.store(false, std::sync::atomic::Ordering::Relaxed);
-    crate::hotkey::reset_pressed_state();
-    overlay::emit_state(app, OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: false, seconds: 0.0 });
+}
+
+fn finish_cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
     set_phase(shared, Phase::Idle, false);
     if !shared.settings.read().audio.keep_stream_warm {
         shared.audio.close();
@@ -551,7 +617,27 @@ async fn process(
     overlay::emit_state(app, OverlayPayload { state: OverlayState::Processing, message: None, preview: None, can_retry: false, seconds: samples.len() as f32 / 16000.0 });
 
     // 1. Empty / accidental press?
+    //
+    // A microphone that goes away mid sentence produces exactly the same thing
+    // as a key pressed by accident: silence. A wireless headset that runs out
+    // of battery, a plug pulled, a device grabbed by another program. Telling
+    // somebody who has just spoken for a minute that they said nothing is the
+    // wrong answer, so the state of the microphone is asked first.
     let analysis = crate::audio::analyze_speech(&samples, settings.audio.min_speech_ms);
+    let quiet = !matches!(analysis.as_ref(), Some(a) if !a.trimmed.is_empty());
+    if quiet && shared.audio.status() == crate::audio::StreamStatus::Error {
+        tracing::warn!("the microphone stopped working during the recording, so there is no sound to read");
+        crate::journal::record("warn", "record.mic_lost", serde_json::json!({ "samples": samples.len() }));
+        overlay::emit_state(app, OverlayPayload {
+            state: OverlayState::Failed,
+            message: Some("msg_mic_lost".to_string()),
+            preview: None,
+            can_retry: false,
+            seconds: 0.0,
+        });
+        finish_idle(shared, app, idle_timer, 2600);
+        return;
+    }
     let (audio_ms, speech) = match analysis {
         Some(a) if !a.trimmed.is_empty() => (a.total_ms, a.trimmed),
         Some(a) => {
@@ -569,10 +655,24 @@ async fn process(
     };
 
     // 2. Keep a recovery copy until the text is safely inserted.
+    //
+    // The copy that matters is the one in memory on the line above, and it is
+    // there before anything can fail. Encoding and writing the file are done off
+    // this task: at the ten minute recording cap the file is about 19 MB, and
+    // that write used to sit on the path between releasing the key and seeing
+    // the text.
     *last_recovery.lock() = Some((speech.clone(), ctx.clone()));
     let recovery_file = crate::paths::recovery_dir().join("last.wav");
     let wav = crate::audio::encode_wav(&speech);
-    let _ = std::fs::write(&recovery_file, &wav);
+    {
+        let path = recovery_file.clone();
+        let bytes = wav.clone();
+        tokio::task::spawn_blocking(move || {
+            if let Err(e) = std::fs::write(&path, &bytes) {
+                tracing::warn!("recovery audio not written: {e}");
+            }
+        });
+    }
 
     // 3. Engine ready?
     if !shared.engine.is_ready() {
@@ -661,9 +761,15 @@ async fn process(
     } else {
         Some(TranscriptionRequest { wav, language: lang_code.clone(), prompt, beam_size: settings.asr.beam_size, vad: settings.asr.vad })
     };
-    // Same rule as the engine client: long recordings need proportionally more
-    // time (about 0.09 s per second of audio on the RTX 3070, allow 0.5 s).
-    let transcribe_limit = Duration::from_secs((20 + audio_ms / 2000).max(60));
+    // Slightly wider than the engine client's own limit, so the client's error
+    // arrives first and names what happened. When this one won the race instead,
+    // a healthy engine was killed and restarted on every long dictation, the
+    // words were lost, and every retry did the same thing again.
+    //
+    // The budget is four seconds per second of audio: enough for a machine with
+    // no usable graphics card, where the same model runs thirty times slower
+    // than on the card this was first measured against.
+    let transcribe_limit = Duration::from_secs((40 + (audio_ms / 1000) * 4).max(150));
     let result = match req {
         Some(req) => tokio::time::timeout(transcribe_limit, shared.engine.transcribe(req)).await,
         // everything was transcribed while speaking; nothing left after the last pause
@@ -671,26 +777,38 @@ async fn process(
     };
     let result = match result {
         Ok(Ok(r)) => r,
+        // Only the last piece failed. Everything said before the final pause was
+        // already turned into words while the user was still speaking, and
+        // throwing that away loses a whole dictation over a single stumble at
+        // the end. Keep what exists and carry on with it.
         Ok(Err(e)) => {
             tracing::error!("transcription failed: {e}");
-            let state = match e {
-                crate::asr::AsrError::Offline(_) => OverlayState::Offline,
-                _ => OverlayState::Failed,
-            };
-            overlay::emit_state(app, OverlayPayload { state, message: Some(e.to_string()), preview: None, can_retry: true, seconds: 0.0 });
-            shared.snapshot.lock().last_error = Some(e.to_string());
-            finish_idle(shared, app, idle_timer, 3500);
-            return;
+            if head_parts.is_empty() {
+                let state = match e {
+                    crate::asr::AsrError::Offline(_) => OverlayState::Offline,
+                    _ => OverlayState::Failed,
+                };
+                overlay::emit_state(app, OverlayPayload { state, message: Some(e.to_string()), preview: None, can_retry: true, seconds: 0.0 });
+                shared.snapshot.lock().last_error = Some(e.to_string());
+                finish_idle(shared, app, idle_timer, 3500);
+                return;
+            }
+            tracing::warn!("keeping the {} piece(s) already transcribed while speaking", head_parts.len());
+            crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
         }
         Err(_) => {
             tracing::error!("transcription timed out; restarting the engine");
-            overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("transcription took longer than the limit; restarting the speech engine".into()), preview: None, can_retry: true, seconds: 0.0 });
             let engine = shared.engine.clone();
             let app2 = app.clone();
             let s2 = settings.clone();
             tokio::spawn(async move { engine.apply(&app2, &s2).await });
-            finish_idle(shared, app, idle_timer, 3500);
-            return;
+            if head_parts.is_empty() {
+                overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("transcription took longer than the limit; restarting the speech engine".into()), preview: None, can_retry: true, seconds: 0.0 });
+                finish_idle(shared, app, idle_timer, 3500);
+                return;
+            }
+            tracing::warn!("the tail timed out; keeping the {} piece(s) already transcribed", head_parts.len());
+            crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
         }
     };
     let tail_pitch = crate::audio::tail_pitch_features(&speech);
@@ -748,6 +866,10 @@ async fn process(
     // 6. Insert.
     let target_alive = insertion::window_alive(ctx.target.hwnd);
     let mut insertion_method = "paste".to_string();
+    // When the words cannot reach the window the user was in, they are not
+    // allowed to vanish into the clipboard unseen: this holds the line that
+    // explains where they went, and the notepad below shows them.
+    let mut not_landed: Option<&'static str> = None;
     let (status, state, message) = if !target_alive {
         let r = tokio::task::spawn_blocking({
             let t = final_text.clone();
@@ -755,8 +877,16 @@ async fn process(
         })
         .await
         .unwrap_or(insertion::InsertReport { outcome: InsertOutcome::Failed, method: "copy".into(), message: None, elapsed_ms: 0 });
-        insertion_method = r.method;
-        ("copied".to_string(), OverlayState::TargetChanged, Some("the window closed; the text is on the clipboard".to_string()))
+        insertion_method = r.method.clone();
+        not_landed = Some("window_closed");
+        // The copy is the only thing standing between the user and a lost
+        // dictation here, so its result decides what they are told and whether
+        // the recovery recording may be thrown away below.
+        if r.outcome == InsertOutcome::Failed {
+            ("failed".to_string(), OverlayState::Failed, Some("msg_window_closed_no_clipboard".to_string()))
+        } else {
+            ("copied".to_string(), OverlayState::TargetChanged, Some("msg_window_closed".to_string()))
+        }
     } else {
         let method = if ctx.target.elevated { InsertionMethod::CopyOnly } else { settings.insertion.method.clone() };
         let opts = InsertOptions { restore_clipboard: settings.insertion.restore_clipboard, settle_ms: settings.insertion.paste_settle_ms, shift_paste: ctx.shift_paste };
@@ -796,22 +926,59 @@ async fn process(
         insertion_method = r.method.clone();
         match r.outcome {
             InsertOutcome::Pasted | InsertOutcome::PastedNoRestore | InsertOutcome::Typed => ("success".to_string(), OverlayState::Success, r.message),
-            InsertOutcome::CopiedOnly if ctx.target.elevated => ("copied".to_string(), OverlayState::TargetChanged, Some("the app runs as administrator; the text is on the clipboard (Ctrl+V)".to_string())),
-            InsertOutcome::CopiedOnly if focus_lost => ("copied".to_string(), OverlayState::TargetChanged, Some("the active window changed; the text is on the clipboard (Ctrl+V)".to_string())),
-            InsertOutcome::CopiedOnly => ("copied".to_string(), OverlayState::Success, Some("copied to the clipboard".to_string())),
-            InsertOutcome::PasteNotConsumed => ("copied".to_string(), OverlayState::TargetChanged, Some("the app did not accept the paste; the text is on the clipboard".to_string())),
-            InsertOutcome::Failed => ("failed".to_string(), OverlayState::Failed, r.message),
+            InsertOutcome::CopiedOnly if ctx.target.elevated => {
+                not_landed = Some("elevated");
+                ("copied".to_string(), OverlayState::TargetChanged, Some("msg_elevated".to_string()))
+            }
+            InsertOutcome::CopiedOnly if focus_lost => {
+                not_landed = Some("focus_lost");
+                ("copied".to_string(), OverlayState::TargetChanged, Some("msg_focus_lost".to_string()))
+            }
+            InsertOutcome::CopiedOnly => ("copied".to_string(), OverlayState::Success, Some("msg_copied".to_string())),
+            InsertOutcome::PasteNotConsumed => {
+                not_landed = Some("not_taken");
+                // Keep what the insertion layer said. It knows whether the
+                // clipboard actually took the words, and replacing its answer
+                // with a fixed sentence told the user they were on the clipboard
+                // even when the copy had failed.
+                let msg = r.message.clone().unwrap_or_else(|| "msg_not_taken".to_string());
+                ("copied".to_string(), OverlayState::TargetChanged, Some(msg))
+            }
+            InsertOutcome::Failed => {
+                not_landed = Some("insert_failed");
+                ("failed".to_string(), OverlayState::Failed, r.message)
+            }
         }
     };
+
+    // The words exist and the user cannot see them anywhere. Show them, unless
+    // the user has said that a window appearing mid-work costs them more than
+    // the loss does; the clipboard still holds the text either way.
+    if let Some(reason) = not_landed {
+        if settings.insertion.notepad_when_lost {
+            crate::scratch::show(app, &final_text, reason, Some(ctx.friendly_name.clone()), "insert");
+        } else {
+            tracing::info!("notepad suppressed by settings; the text is on the clipboard");
+        }
+    }
 
     let latency_ms = released_at.elapsed().as_millis() as u64;
     let preview: String = final_text.trim().chars().take(60).collect();
     overlay::emit_state(app, OverlayPayload { state: state.clone(), message, preview: Some(preview), can_retry: state == OverlayState::Failed, seconds: 0.0 });
     shared.snapshot.lock().last_transcript = Some(final_text.trim().to_string());
-    if status == "success" || status == "copied" {
-        *last_recovery.lock() = None;
-        let _ = std::fs::remove_file(&recovery_file);
-    }
+    // The recording is one file that the next dictation overwrites, so keeping
+    // it costs nothing and is the last copy of what was actually said.
+    //
+    // It used to be deleted the moment a paste was called a success. Since
+    // 10 September 2026 the words go onto the clipboard as real data rather
+    // than a promise, which is what made the paste reliable, and the price is
+    // that nothing can prove the target read them any more. A paste that fails
+    // in silence, with the cursor outside a text box, now looks exactly like
+    // one that worked. So the recording stays until the next dictation
+    // replaces it.
+    let _ = &status;
+    let _ = &last_recovery;
+    let _ = &recovery_file;
 
     // 7. History and stats.
     let word_count = crate::cleanup::deterministic::word_count(&final_text);
@@ -854,18 +1021,50 @@ async fn process(
             undone: false,
             edited_text: None,
         };
-        if let Err(e) = shared.db.insert_history(&entry) {
-            tracing::error!("history insert failed: {e}");
-        }
-        let _ = app.emit_to("main", "lalia://history-changed", ());
-    }
-    if status == "success" || status == "copied" {
-        let _ = shared.db.bump_daily(word_count, audio_ms, outcome.rule_ids.len() as u64);
-        let _ = shared.db.bump_rule_usage(&outcome.rule_ids);
-        let _ = shared.db.bump_snippet_usage(&outcome.snippet_ids);
-    }
-    if is_retry {
-        let _ = shared.db.bump_daily_counter("retries");
+        // Off the pipeline task. The database is opened with journal_mode=DELETE
+        // and synchronous=FULL, which is the slowest safe setting and was chosen
+        // deliberately after a write-ahead log swallowed a day of history on
+        // 6 September 2026, so it stays. What changes is where the waiting
+        // happens: these writes each create a journal file, fsync and delete it,
+        // and they used to run inline on the task that also reads the hotkey
+        // channel, so the app ignored the next key press until the disk was
+        // finished.
+        let db = shared.db.clone();
+        let counted = status == "success" || status == "copied";
+        let rule_ids = outcome.rule_ids.clone();
+        let snippet_ids = outcome.snippet_ids.clone();
+        let rules_used = outcome.rule_ids.len() as u64;
+        let retry = is_retry;
+        // No wait here on purpose. Waiting for the thread would park this task,
+        // and this task is the one that reads the hotkey channel, so the next
+        // key press would still queue behind the disk. The window is told to
+        // refresh from inside the thread, after the rows are actually written.
+        let app_for_db = app.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            if let Err(e) = db.insert_history(&entry) {
+                // History is the last place the words exist once the clipboard
+                // moves on, so a failure here has to reach the user rather than
+                // sit in a log nobody opens.
+                tracing::error!("history insert failed: {e}");
+                crate::journal::warn("history.insert_failed", serde_json::json!({ "error": e.to_string() }));
+                overlay::emit_state(&app_for_db, OverlayPayload {
+                    state: OverlayState::Failed,
+                    message: Some("msg_history_not_saved".into()),
+                    preview: None,
+                    can_retry: false,
+                    seconds: 0.0,
+                });
+            }
+            if counted {
+                let _ = db.bump_daily(word_count, audio_ms, rules_used);
+                let _ = db.bump_rule_usage(&rule_ids);
+                let _ = db.bump_snippet_usage(&snippet_ids);
+            }
+            if retry {
+                let _ = db.bump_daily_counter("retries");
+            }
+            let _ = app_for_db.emit_to("main", "lalia://history-changed", ());
+        });
     }
     tracing::info!("dictation {status}: {word_count} words, {audio_ms} ms audio, {latency_ms} ms release-to-insert ({} ms inference)", result.inference_ms);
     finish_idle(shared, app, idle_timer, if state == OverlayState::Success { 1400 } else { 4000 });
@@ -877,20 +1076,51 @@ fn finish_idle(shared: &Arc<Shared>, app: &tauri::AppHandle, idle_timer: &mut Op
     schedule_idle(app, shared, idle_timer, ms);
 }
 
-async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, history_id: Option<String>) {
+async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>, history_id: Option<String>) {
+    // Whatever the user corrected by hand is the version they want back. The
+    // row on the screen already shows the correction, so pasting the original
+    // silently undoes their edit.
+    fn best_text(h: crate::db::HistoryEntry) -> String {
+        match h.edited_text {
+            Some(t) if !t.trim().is_empty() => t,
+            _ => h.final_text,
+        }
+    }
     let text = match history_id {
-        Some(id) => shared.db.get_history(&id).ok().flatten().map(|h| h.final_text),
+        Some(id) => shared.db.get_history(&id).ok().flatten().map(best_text),
         None => {
             let mem = shared.snapshot.lock().last_transcript.clone();
-            mem.or_else(|| shared.db.last_successful_history().ok().flatten().map(|h| h.final_text))
+            mem.or_else(|| shared.db.last_successful_history().ok().flatten().map(best_text))
         }
     };
     let Some(text) = text else {
-        overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("no previous transcript".into()), preview: None, can_retry: false, seconds: 0.0 });
+        overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("msg_no_previous".into()), preview: None, can_retry: false, seconds: 0.0 });
+        // Without this the badge sat on "Failed" until the next dictation, or
+        // stayed on screen for ever when it is set to hide when idle.
+        schedule_idle(app, shared, idle_timer, 2500);
         return;
     };
     let settings = shared.settings.read().clone();
     let target = tokio::task::spawn_blocking(insertion::capture_target).await.unwrap_or_default();
+    // The Paste button lives inside this program, so pressing it makes this
+    // program the window in front. Pasting there puts the words into our own
+    // History screen, which is never what the button meant, and the badge then
+    // reported that the paste was refused. Hand them over instead.
+    if target.process_id == std::process::id() {
+        overlay::show(app, &settings.overlay, target.hwnd);
+        let t = text.clone();
+        let r = tokio::task::spawn_blocking(move || insertion::copy_only(&t)).await.ok();
+        let ok = matches!(r.as_ref().map(|r| &r.outcome), Some(InsertOutcome::CopiedOnly));
+        overlay::emit_state(app, OverlayPayload {
+            state: if ok { OverlayState::TargetChanged } else { OverlayState::Failed },
+            message: Some(if ok { "msg_copied_click_target" } else { "msg_not_taken_no_clipboard" }.to_string()),
+            preview: Some(text.chars().take(60).collect()),
+            can_retry: false,
+            seconds: 0.0,
+        });
+        schedule_idle(app, shared, idle_timer, 3000);
+        return;
+    }
     overlay::show(app, &settings.overlay, target.hwnd);
     let opts = InsertOptions { restore_clipboard: settings.insertion.restore_clipboard, settle_ms: settings.insertion.paste_settle_ms, shift_paste: false };
     let t = format!("{text} ");
@@ -900,15 +1130,11 @@ async fn paste_last(app: &tauri::AppHandle, shared: &Arc<Shared>, history_id: Op
         _ => OverlayState::TargetChanged,
     };
     overlay::emit_state(app, OverlayPayload { state, message: r.and_then(|r| r.message), preview: Some(text.chars().take(60).collect()), can_retry: false, seconds: 0.0 });
-    let app2 = app.clone();
-    let hide = settings.overlay.hide_when_idle;
-    tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_millis(1400)).await;
-        overlay::emit_state(&app2, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0 });
-        if hide {
-            overlay::hide(&app2);
-        }
-    });
+    // Through the shared timer, so starting a dictation within the next second
+    // and a half cancels it. As a loose task it kept its appointment and hid the
+    // badge a moment after the new recording had shown it, leaving the user
+    // dictating with nothing on screen for the rest of the session.
+    schedule_idle(app, shared, idle_timer, 1400);
 }
 
 #[cfg(test)]

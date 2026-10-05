@@ -240,7 +240,7 @@ pub struct StatsSummary {
     pub daily: Vec<DailyStat>,
 }
 
-/// Copies `lalia.db` to `backup/lalia-YYYY-MM-DD.db` once per day and prunes
+/// Copies `fuckyouflow.db` to `backup/fuckyouflow-YYYY-MM-DD.db` once per day and prunes
 /// copies older than 14 days. Only the main file is copied; with a rollback
 /// journal that file is complete whenever no transaction is open, which is the
 /// case before the connection is created.
@@ -248,7 +248,7 @@ fn daily_backup(path: &Path) -> anyhow::Result<()> {
     let dir = path.parent().map(|p| p.join("backup")).unwrap_or_else(|| PathBuf::from("backup"));
     std::fs::create_dir_all(&dir)?;
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let target = dir.join(format!("lalia-{today}.db"));
+    let target = dir.join(format!("fuckyouflow-{today}.db"));
     if !target.exists() {
         std::fs::copy(path, &target)?;
         tracing::info!("database backup written: {}", target.display());
@@ -256,7 +256,7 @@ fn daily_backup(path: &Path) -> anyhow::Result<()> {
     let cutoff = chrono::Local::now() - chrono::Duration::days(14);
     for entry in std::fs::read_dir(&dir)?.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
-        if let Some(date) = name.strip_prefix("lalia-").and_then(|n| n.strip_suffix(".db")) {
+        if let Some(date) = name.strip_prefix("fuckyouflow-").or_else(|| name.strip_prefix("lalia-")).and_then(|n| n.strip_suffix(".db")) {
             if let Ok(d) = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
                 if d < cutoff.date_naive() {
                     let _ = std::fs::remove_file(entry.path());
@@ -283,7 +283,12 @@ impl Db {
         // One file, no write-ahead log. On 2026-09-06 the app came up after a
         // reboot seeing an empty database while every row was still on disk in
         // the WAL; a rollback journal keeps the main file the only source of truth.
-        conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;")?;
+        // journal_mode=DELETE and synchronous=FULL are deliberate and stay:
+        // a write-ahead log held a whole day of history and lost it on
+        // 6 September 2026. busy_timeout is the missing piece; without it a
+        // second connection meeting a locked file fails at once instead of
+        // waiting the moment out.
+        conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;")?;
         let db = Db { conn: Mutex::new(conn) };
         db.migrate(path)?;
         {
@@ -376,7 +381,7 @@ impl Db {
         match search.map(|s| s.trim()).filter(|s| !s.is_empty()) {
             Some(q) => {
                 let like = format!("%{q}%");
-                let mut st = conn.prepare("SELECT * FROM history WHERE raw_text LIKE ?1 OR final_text LIKE ?1 OR app_name LIKE ?1 ORDER BY created_at DESC LIMIT ?2 OFFSET ?3")?;
+                let mut st = conn.prepare("SELECT * FROM history WHERE raw_text LIKE ?1 OR final_text LIKE ?1 OR edited_text LIKE ?1 OR app_name LIKE ?1 ORDER BY created_at DESC LIMIT ?2 OFFSET ?3")?;
                 let rows = st.query_map(params![like, limit, offset], Self::row_to_history)?;
                 for r in rows {
                     out.push(r?);

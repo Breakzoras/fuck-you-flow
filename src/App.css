@@ -52,7 +52,10 @@ a { color: var(--accent); }
 .hint { display: block; font-size: 15px; color: var(--fg-2); margin-top: 3px; }
 .muted { color: var(--fg-2); }
 .mono { font-family: var(--font); font-size: 15px; }
-.layout { display: grid; grid-template-columns: 220px 1fr; height: 100%; }
+.layout { display: grid; grid-template-columns: 220px 1fr 232px; height: 100%; }
+/* On a narrow window the rail is the first thing to go: the menu and the page
+   itself both matter more than a number that only changes now and then. */
+@media (max-width: 1000px) { .layout { grid-template-columns: 220px 1fr; } .gauge { display: none; } }
 .nav {
   background: var(--bg);
   border-right: 1px solid var(--line);
@@ -184,3 +187,49 @@ th { font-size: 13px; color: var(--fg-2); font-weight: 700; text-transform: uppe
 .log .warn { color: var(--warn); }
 .log .err { color: var(--err); }
 .log .body { color: var(--fg); }
+
+/* ------------------------------------------------------------- memory gauge */
+.gauge {
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+  padding: 26px 18px 20px;
+  overflow: auto;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.gauge h2 { margin-top: 5px; }
+.gauge h2:first-child { margin-top: 0; }
+.gauge .hint { font-size: 15px; }
+.gauge-word { font-size: 21px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.gauge-word.ok { color: var(--ok); }
+.gauge-word.warn { color: var(--warn); }
+.gauge-word.err { color: var(--err); }
+
+.gauge-note { margin: 0; font-size: 15px; color: var(--fg-2); }
+.gauge-note.err { color: var(--err); font-weight: 700; }
+.gauge-model-name { margin: 0; font-size: 16px; word-break: break-word; }
+
+/* Every reading in this rail is one of these bars, so a number that was
+   measured never sits next to a number that was worked out. flex-shrink stays
+   off: in a column of wrapping text the track is the first thing the browser
+   would squash flat, which is exactly what it did the first time. */
+.gauge-bar { margin-top: 2px; flex: 0 0 auto; }
+.gauge-bar-label { display: flex; justify-content: space-between; gap: 8px; font-size: 16px; color: var(--fg-2); }
+.gauge-bar-note { color: var(--fg); }
+.gauge-bar-track { height: 12px; background: var(--bg-3); border: 1px solid var(--line); margin-top: 4px; overflow: hidden; }
+.gauge-bar-track > div { height: 100%; background: var(--accent); }
+.gauge-bar-track > div.warn { background: var(--warn); }
+.gauge-bar-track > div.err { background: var(--err); }
+.gauge-switch { margin-top: 10px; width: 100%; }
+
+/* The bar that says a new version is out. It sits above the page, never over
+   it, so nothing the user is reading gets covered. */
+.update-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px; margin: 0 0 16px; font-size: 16px;
+  border: 1px solid var(--accent); background: var(--bg-2); color: var(--fg);
+}
+.update-bar strong { color: var(--accent); }
+.update-bar .grow { flex: 1; }
+.update-bar button { font: inherit; font-size: 16px; padding: 8px 14px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+.update-bar button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 700; }
+.update-bar button:hover { border-color: var(--accent); }
