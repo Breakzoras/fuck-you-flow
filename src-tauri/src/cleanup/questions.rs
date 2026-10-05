@@ -50,7 +50,14 @@ const BECAUSE_NEXT_EL: &[&str] = &[
     // one of these was "because" ("Γιατί θα είναι έτοιμο αύριο."), while the
     // real questions opened with other verbs, να or a number.
     "θα", "και", "κι", "είμαι", "είμαστε", "θέλω", "είδα", "δες", "κοίτα", "άκου",
+    // 5 October 2026, from Lu's history: "Γιατί υπάρχει ...", "Γιατί μπορεί να
+    // ...", "Γιατί ήθελα ...", "Γιατί έχω ..." gave the reason for the sentence
+    // before, every time.
+    "υπάρχει", "υπάρχουν", "υπήρχε", "υπήρχαν", "μπορεί", "ήθελα", "θέλαμε", "θέλουμε", "έχω",
 ];
+/// Adverbs that may stand between γιατί and the word that makes it "because"
+/// ("Γιατί τώρα είμαι κουρασμένος.", "Γιατί πολύ απλά δεν χωράει.").
+const BECAUSE_ADVERBS_EL: &[&str] = &["τώρα", "πολύ", "τόσο"];
 /// Answer words that, in front of γιατί, make it "because": "Όχι, γιατί θέλω
 /// να μείνει τοπικό." gives the reason for the answer.
 const ANSWER_BEFORE_BECAUSE_EL: &[&str] = &["όχι", "ναι"];
@@ -320,9 +327,16 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
     if let Some(at) = wh_at {
         let wh = w[at].as_str();
         let next = w.get(at + 1).map(|s| s.as_str());
-        // G19: "Γιατί άμα ..." / "Γιατί νομίζω ..." is "because"
-        if wh == "γιατί" && at == 0 && next.map(|n| BECAUSE_NEXT_EL.contains(&n)).unwrap_or(false) {
-            return false;
+        // G19: "Γιατί άμα ..." / "Γιατί νομίζω ..." is "because", also with an
+        // adverb or two in between ("Γιατί τόσο θα κοιμηθώ.")
+        if wh == "γιατί" && at == 0 {
+            let mut k = 1;
+            while k <= 2 && w.get(k).is_some_and(|a| BECAUSE_ADVERBS_EL.contains(&a.as_str())) {
+                k += 1;
+            }
+            if w.get(k).is_some_and(|n| BECAUSE_NEXT_EL.contains(&n.as_str())) {
+                return false;
+            }
         }
         // "Γιατί δεν ξέρω ..." gives a reason; "Γιατί δεν έρχεσαι;" stays a question.
         if wh == "γιατί" && at == 0 && starts_with_phrase(&w[1..], &["δεν", "ξέρω"]) {
@@ -558,6 +572,24 @@ mod tests {
         }
         assert_eq!(q("Γιατί 100 ευρώ για αυτό."), "Γιατί 100 ευρώ για αυτό;");
         assert_eq!(q("Γιατί νόμιζες ότι έφυγα."), "Γιατί νόμιζες ότι έφυγα;");
+    }
+
+    /// 5 October 2026: "Γιατί υπάρχει ...", "Γιατί ήθελα ...", and "because"
+    /// behind an adverb ("Γιατί τόσο θα ...") still got a question mark.
+    #[test]
+    fn greek_because_with_a_reason_verb_or_after_an_adverb() {
+        for s in [
+            "Γιατί υπάρχει αρκετός χώρος στον δίσκο.", "Γιατί υπήρχαν λάθη στο αρχείο.", "Γιατί μπορεί να αργήσει το τρένο.",
+            "Γιατί ήθελα να το δεις από κοντά.", "Γιατί έχω ραντεβού στις πέντε.", "Γιατί τόσο θα κρατήσει η συνάντηση.",
+            "Γιατί τώρα είμαι στο γραφείο.", "Γιατί πολύ απλά δεν χωράει.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        // still questions
+        assert_eq!(q("Γιατί τόσο."), "Γιατί τόσο;");
+        assert_eq!(q("Γιατί τώρα έφυγες."), "Γιατί τώρα έφυγες;");
+        assert_eq!(q("Γιατί δεν θα υπάρχει πακέτο."), "Γιατί δεν θα υπάρχει πακέτο;");
+        assert_eq!(q("Γιατί είναι τόσο αργό."), "Γιατί είναι τόσο αργό;");
     }
 
     #[test]

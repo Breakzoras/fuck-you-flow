@@ -20,6 +20,7 @@ import logoOnDark from "./assets/luram-logo-on-dark.png";
 import logoOnLight from "./assets/luram-logo-on-light.png";
 
 const LURAM_URL = "https://luram.gr/?utm_source=fuflow&utm_medium=app&utm_campaign=credits";
+const GITHUB_URL = "https://github.com/Breakzoras/fuck-you-flow";
 // Set by the local build script alone; a public build has none (see testBuild.ts).
 const TEST_BUILD = testBuildStamp(import.meta.env.VITE_FYF_TEST_BUILD);
 
@@ -271,6 +272,31 @@ export default function App() {
             <button key={id} className={page === id ? "active" : ""} onClick={() => setPage(id)}>{label}</button>
           ))}
           <div className="spacer" />
+          {/* Asks for a star on GitHub until the card is pressed once. GitHub
+              tells no program who starred, so the press is what counts. */}
+          {!settings.general.rated_on_github && (
+            <button
+              type="button"
+              className="rate-card"
+              title={`${t("rate_body")} ${t("rate_note")}`}
+              onClick={() => {
+                openUrl(GITHUB_URL)
+                  .then(() => api.markRatedOnGithub())
+                  .then(setSettingsState)
+                  .catch(() => {});
+              }}
+            >
+              <span className="rate-head">
+                {/* Thumbs up, after the Lucide icon (ISC licence). */}
+                <svg className="rate-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M7 10v12" />
+                  <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+                </svg>
+                <b>{t("rate_title")}</b>
+              </span>
+              <span className="rate-note">{t("rate_note")}</span>
+            </button>
+          )}
           <div className={`status-chip ${snap?.phase === "recording" ? "recording" : engineClass}`} title={engine?.message ?? ""}>
             <span className="dot" />
             <span>{snap?.phase && snap.phase !== "idle" ? phaseLabel : engineLabel}</span>

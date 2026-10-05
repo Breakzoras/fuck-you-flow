@@ -68,6 +68,8 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
         // The same for the ready-made dictionary: its commands and its daily
         // check own these fields.
         settings.packs = current.packs.clone();
+        // The GitHub card: once pressed, an older copy never brings it back.
+        settings.general.rated_on_github |= current.general.rated_on_github;
         settings.save(&crate::paths::settings_file()).map_err(e)?;
         *current = settings.clone();
     }
@@ -1024,6 +1026,22 @@ mod report_tests {
 pub fn share_dictionary_preview(state: State<'_, Arc<AppState>>) -> R<Vec<crate::sharing::SharedRule>> {
     let rules = state.shared.db.list_rules().map_err(e)?;
     Ok(crate::sharing::shareable(&rules).into_iter().map(|(_, _, rule)| rule).collect())
+}
+
+/// The "Rate us on GitHub" card in the menu was pressed: the page has opened
+/// in the browser and the card goes away for good.
+#[tauri::command]
+pub fn mark_rated_on_github(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<Settings> {
+    let settings = {
+        let mut current = state.shared.settings.write();
+        let mut next = current.clone();
+        next.general.rated_on_github = true;
+        next.save(&crate::paths::settings_file()).map_err(e)?;
+        *current = next.clone();
+        next
+    };
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    Ok(settings)
 }
 
 /// The switch in Settings. From here on the choice is the user's own and the

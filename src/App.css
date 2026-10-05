@@ -96,6 +96,33 @@ a { color: var(--accent); }
 :root[data-theme="light"] .credit-logo.on-dark { display: none; }
 :root[data-theme="light"] .credit-logo.on-light { display: block; }
 [data-skin="carbon"][data-theme="dark"] .nav button.credit { padding-left: 0; border-left: 0; }
+/* "Rate us on GitHub": a card at the foot of the menu until it is pressed.
+   The menu has little room to spare, so the card is two short lines, and
+   on a shorter window only the title (the rest is in the tooltip). Below
+   690 px it waits until the window is taller: the menu and the credit come
+   first. */
+.nav button.rate-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  margin: 12px 0 2px; padding: 10px 10px 10px 12px; text-align: left; text-transform: none;
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--fg); cursor: pointer;
+}
+.nav button.rate-card::before { content: none; }
+.nav button.rate-card:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.rate-head { display: flex; align-items: center; gap: 9px; font-size: 15px; line-height: 1.25; }
+.rate-head b { font-weight: 700; }
+.rate-thumb { width: 24px; height: 24px; flex: 0 0 auto; color: var(--accent); transition: transform 160ms ease; }
+.nav button.rate-card:hover .rate-thumb { transform: rotate(-12deg) scale(1.08); }
+.rate-note { font-size: 14px; line-height: 1.35; color: var(--fg-2); }
+@media (prefers-reduced-motion: reduce) { .rate-thumb { transition: none; } }
+[data-skin="carbon"][data-theme="dark"] .nav button.rate-card { padding-left: 12px; border-left: 1px solid var(--accent); }
+@media (max-height: 799px) {
+  .nav button.rate-card { margin-top: 8px; padding-top: 8px; padding-bottom: 8px; }
+  .rate-note { display: none; }
+}
+@media (max-height: 689px) { .nav button.rate-card { display: none; } }
 /* "report a problem or idea": a quiet line just above the credit. */
 .nav button.report-open { font-size: 14px; padding: 10px 0 0; color: var(--fg-2); }
 .nav button.report-open:hover { color: var(--accent); }

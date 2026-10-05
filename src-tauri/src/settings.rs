@@ -463,6 +463,12 @@ pub struct GeneralSettings {
     /// the first AMD tester on 7 September 2026.
     #[serde(default)]
     pub gpu_choice_by_user: bool,
+    /// The user pressed the "Rate us on GitHub" card in the menu (0.9.14).
+    /// GitHub tells no program who starred a project, so the press is the
+    /// only sign there is. Set by its own command only, and from then on the
+    /// card stays away.
+    #[serde(default)]
+    pub rated_on_github: bool,
 }
 
 impl Default for GeneralSettings {
@@ -478,6 +484,7 @@ impl Default for GeneralSettings {
             machine_profiled: false,
             debug_mode: false,
             gpu_choice_by_user: false,
+            rated_on_github: false,
         }
     }
 }
@@ -682,6 +689,16 @@ mod tests {
         assert_eq!(old.skin, "carbon");
         let chosen: GeneralSettings = serde_json::from_str(r#"{"theme":"dark","skin":"classic"}"#).unwrap();
         assert_eq!(chosen.skin, "classic");
+    }
+
+    /// A settings file from before 0.9.14 shows the GitHub card; one that
+    /// recorded the press keeps it away after the update.
+    #[test]
+    fn the_github_card_shows_until_it_was_pressed() {
+        let old: GeneralSettings = serde_json::from_str(r#"{"ui_language":"el","theme":"dark"}"#).unwrap();
+        assert!(!old.rated_on_github);
+        let rated: GeneralSettings = serde_json::from_str(r#"{"theme":"dark","rated_on_github":true}"#).unwrap();
+        assert!(rated.rated_on_github);
     }
 
     /// A file an editor saved as ANSI is not UTF-8. It used to count as

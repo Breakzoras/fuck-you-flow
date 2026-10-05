@@ -131,6 +131,11 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
     }
 
     if looks_greek(&text) {
+        let before = text.clone();
+        text = join_carried_on_sentences(&text);
+        if text != before {
+            applied.push("joined a sentence the engine stopped".into());
+        }
         // Whisper often writes a Latin "?" in Greek sentences; Greek uses ";"
         let before = text.clone();
         text = text.replace('?', ";");
@@ -323,6 +328,31 @@ fn normalize_spacing(text: &str) -> String {
     // repair URLs and domains damaged by the previous rule ("example. com")
     static DOMAIN_FIX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b([a-z0-9-]+)\. (com|gr|io|net|org|eu|ai|dev|app|co|uk|de|fr|info)\b").unwrap());
     super::replace_all_or_keep(&DOMAIN_FIX, &t, "$1.$2").to_string()
+}
+
+/// Words that carry a sentence on: prepositions, an article or pronoun in an
+/// object case, a relative, "that". Where two pieces of the voice meet, the
+/// engine sometimes writes a full stop and opens the next piece with one of
+/// these in lower case ("ένα πιο ομαλό πέρασμα. στο animation"). All 34 such
+/// stops in Lu's history sat inside a sentence that went on (5 October 2026);
+/// a new sentence after such a stop opened with a verb or a subject instead.
+const CARRY_ON_EL: &[&str] = &[
+    "σε", "στο", "στον", "στη", "στην", "στα", "στους", "στις", "στου", "στης", "με", "από", "για", "προς", "χωρίς", "μέχρι",
+    "κατά", "τον", "την", "τη", "τους", "τις", "του", "της", "των", "όπου", "που", "ώστε", "ότι",
+];
+
+/// Drops the full stop described above, so the sentence goes on in lower case.
+/// A stop that closes an abbreviation ("π.χ. τον") stays, and a capital after
+/// the stop is the engine's own new sentence, left alone.
+fn join_carried_on_sentences(text: &str) -> String {
+    static STOP: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(&format!(r"(?<=[\p{{L}}\p{{N}}])\. (?=(?:{})(?!\p{{L}}))", CARRY_ON_EL.join("|"))).unwrap()
+    });
+    super::replace_all_or_keep(&STOP, text, |c: &fancy_regex::Captures<'_, str>| {
+        let at = c.get(0).map(|m| m.start()).unwrap_or(0);
+        if ends_in_known_abbreviation(&text[..at]) { ". ".to_string() } else { " ".to_string() }
+    })
+    .to_string()
 }
 
 /// Abbreviations that announce what comes next, written here without their
@@ -575,6 +605,22 @@ mod tests {
         assert_eq!(clean("έμεινα μέσα, γιατί έβρεχε; και μετά βγήκα", &o).text, "Έμεινα μέσα, γιατί έβρεχε, και μετά βγήκα.");
         // English keeps its semicolons
         assert_eq!(clean("it works; we ship it", &o).text, "It works; we ship it.");
+    }
+
+    /// 5 October 2026: "ένα πιο ομαλό πέρασμα. στο animation" came out as
+    /// "... πέρασμα. Στο animation", a sentence break nobody said.
+    #[test]
+    fn a_full_stop_before_a_small_word_that_carries_on_goes() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("θέλω ένα πιο ομαλό πέρασμα. στο animation του μενού", &o).text, "Θέλω ένα πιο ομαλό πέρασμα στο animation του μενού.");
+        assert_eq!(clean("βάλε πιο γενικούς όρους. όπου βοηθάνε τον αναγνώστη", &o).text, "Βάλε πιο γενικούς όρους όπου βοηθάνε τον αναγνώστη.");
+        assert_eq!(clean("θα έρχονται όλοι με τα προγράμματα. τους οποίους μετράμε", &o).text, "Θα έρχονται όλοι με τα προγράμματα τους οποίους μετράμε.");
+        // a new sentence keeps its stop and gets its capital
+        assert_eq!(clean("δεν δουλεύει πάντως. συνεχίζει να κολλάει", &o).text, "Δεν δουλεύει πάντως. Συνεχίζει να κολλάει.");
+        // an abbreviation keeps its full stop
+        assert_eq!(clean("βάλε κάτι μικρό, π.χ. τον διακόπτη", &o).text, "Βάλε κάτι μικρό, π.χ. τον διακόπτη.");
+        // a capital after the stop is the engine's own new sentence
+        assert_eq!(clean("τελείωσε το κομμάτι. Στο επόμενο πάμε αύριο", &o).text, "Τελείωσε το κομμάτι. Στο επόμενο πάμε αύριο.");
     }
 
     #[test]
