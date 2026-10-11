@@ -1239,6 +1239,496 @@
    "wrong": "όπαρε",
    "correct": "όπα ρε",
    "for": "el"
+  },
+  {
+   "wrong": "δικσιονέρι",
+   "correct": "dictionary",
+   "for": "el"
+  },
+  {
+   "wrong": "μάζευσε",
+   "correct": "μάζεψε",
+   "for": "el"
+  },
+  {
+   "wrong": "δικσιονάρις",
+   "correct": "dictionaries",
+   "for": "el"
+  },
+  {
+   "wrong": "κωμωτήριος",
+   "correct": "κομμωτήριο",
+   "for": "el"
+  },
+  {
+   "wrong": "συνεργείος",
+   "correct": "συνεργείο",
+   "for": "el"
+  },
+  {
+   "wrong": "επιχρεωτικά",
+   "correct": "υποχρεωτικά",
+   "for": "el"
+  },
+  {
+   "wrong": "πλέιερ",
+   "correct": "player",
+   "for": "el"
+  },
+  {
+   "wrong": "τσεχωριστές",
+   "correct": "σε ξεχωριστές",
+   "for": "el"
+  },
+  {
+   "wrong": "αυτοφτωχό",
+   "correct": "αυτό φτωχό",
+   "for": "el"
+  },
+  {
+   "wrong": "λουτ",
+   "correct": "loot",
+   "for": "el"
+  },
+  {
+   "wrong": "τεκονίδια",
+   "correct": "τα εικονίδια",
+   "for": "el"
+  },
+  {
+   "wrong": "φθιγραμμισμένα",
+   "correct": "ευθυγραμμισμένα",
+   "for": "el"
+  },
+  {
+   "wrong": "σεκάρισμα",
+   "correct": "τσεκάρισμα",
+   "for": "el"
+  },
+  {
+   "wrong": "τυρώντας",
+   "correct": "τηρώντας",
+   "for": "el"
+  },
+  {
+   "wrong": "ατζέντικο",
+   "correct": "agentic",
+   "for": "el"
+  },
+  {
+   "wrong": "εντόνο",
+   "correct": "έντονο",
+   "for": "el"
+  },
+  {
+   "wrong": "ελαφρύα",
+   "correct": "ελαφριά",
+   "for": "el"
+  },
+  {
+   "wrong": "γρηγόρα",
+   "correct": "γρήγορα",
+   "for": "el"
+  },
+  {
+   "wrong": "ηρολογιού",
+   "correct": "ρολογιού",
+   "for": "el"
+  },
+  {
+   "wrong": "πανσέλινο",
+   "correct": "πανσέληνο",
+   "for": "el"
+  },
+  {
+   "wrong": "πανσέλινος",
+   "correct": "πανσέληνος",
+   "for": "el"
+  },
+  {
+   "wrong": "τοπιά",
+   "correct": "τοπία",
+   "for": "el"
+  },
+  {
+   "wrong": "αριθμίσεις",
+   "correct": "αριθμήσεις",
+   "for": "el"
+  },
+  {
+   "wrong": "συνέφων",
+   "correct": "σύννεφων",
+   "for": "el"
+  },
+  {
+   "wrong": "ξεφοριασμένο",
+   "correct": "ξεθωριασμένο",
+   "for": "el"
+  },
+  {
+   "wrong": "αλλάχθεί",
+   "correct": "αλλαχθεί",
+   "for": "el"
+  },
+  {
+   "wrong": "κατέγκορις",
+   "correct": "categories",
+   "for": "el"
+  },
+  {
+   "wrong": "ελοπίσει",
+   "correct": "υλοποιήσει",
+   "for": "el"
+  },
+  {
+   "wrong": "πονδιών",
+   "correct": "ποδιών",
+   "for": "el"
+  },
+  {
+   "wrong": "κατέβασαι",
+   "correct": "κατέβασε",
+   "for": "el"
+  },
+  {
+   "wrong": "προτινόμενο",
+   "correct": "προτεινόμενο",
+   "for": "el"
+  },
+  {
+   "wrong": "εχάκια",
+   "correct": "ηχάκια",
+   "for": "el"
+  },
+  {
+   "wrong": "μπουλετ",
+   "correct": "bullet",
+   "for": "el"
+  },
+  {
+   "wrong": "καρτούνις",
+   "correct": "cartoonish",
+   "for": "el"
+  },
+  {
+   "wrong": "θαρώ",
+   "correct": "θαρρώ",
+   "for": "el"
+  },
+  {
+   "wrong": "ανασχολείται",
+   "correct": "αν ασχολείται",
+   "for": "el"
+  },
+  {
+   "wrong": "εξοδά",
+   "correct": "έξοδά",
+   "for": "el"
+  },
+  {
+   "wrong": "παράξανε",
+   "correct": "παράγανε",
+   "for": "el"
+  },
+  {
+   "wrong": "φιδό",
+   "correct": "φειδώ",
+   "for": "el"
+  },
+  {
+   "wrong": "ροκέτας",
+   "correct": "ρουκέτας",
+   "for": "el"
+  },
+  {
+   "wrong": "εντσάξεις",
+   "correct": "εντάξεις",
+   "for": "el"
+  },
+  {
+   "wrong": "Αλλάδα",
+   "correct": "Ελλάδα",
+   "for": "el"
+  },
+  {
+   "wrong": "παλιωμοδίτικο",
+   "correct": "παλιομοδίτικο",
+   "for": "el"
+  },
+  {
+   "wrong": "κατεγόρι",
+   "correct": "category",
+   "for": "el"
+  },
+  {
+   "wrong": "failarουν",
+   "correct": "failάρουν",
+   "for": "el"
+  },
+  {
+   "wrong": "σκάτο",
+   "correct": "σκατό",
+   "for": "el"
+  },
+  {
+   "wrong": "αιδιαστικές",
+   "correct": "αηδιαστικές",
+   "for": "el"
+  },
+  {
+   "wrong": "έρε",
+   "correct": "ε ρε",
+   "for": "el"
+  },
+  {
+   "wrong": "γιγαμπάιτ",
+   "correct": "gigabyte",
+   "for": "el"
+  },
+  {
+   "wrong": "σγραφίζουμε",
+   "correct": "ζωγραφίζουμε",
+   "for": "el"
+  },
+  {
+   "wrong": "σκεκριμένο",
+   "correct": "συγκεκριμένο",
+   "for": "el"
+  },
+  {
+   "wrong": "σκατακάνεις",
+   "correct": "σκατά κάνεις",
+   "for": "el"
+  },
+  {
+   "wrong": "αρθογραφήσουμε",
+   "correct": "αρθρογραφήσουμε",
+   "for": "el"
+  },
+  {
+   "wrong": "μεγενθυθεί",
+   "correct": "μεγεθυνθεί",
+   "for": "el"
+  },
+  {
+   "wrong": "αβαταρμό",
+   "correct": "avatar μου",
+   "for": "el"
+  },
+  {
+   "wrong": "ματσο",
+   "correct": "μάτσο",
+   "for": "el"
+  },
+  {
+   "wrong": "γωμάτι",
+   "correct": "κομμάτι",
+   "for": "el"
+  },
+  {
+   "wrong": "διεκπαιρεώσουμε",
+   "correct": "διεκπεραιώσουμε",
+   "for": "el"
+  },
+  {
+   "wrong": "χρειαστό",
+   "correct": "χρειαστώ",
+   "for": "el"
+  },
+  {
+   "wrong": "τσοβαροφανή",
+   "correct": "σοβαροφανή",
+   "for": "el"
+  },
+  {
+   "wrong": "προτινόμενα",
+   "correct": "προτεινόμενα",
+   "for": "el"
+  },
+  {
+   "wrong": "προτινόμενες",
+   "correct": "προτεινόμενες",
+   "for": "el"
+  },
+  {
+   "wrong": "προτινόμενη",
+   "correct": "προτεινόμενη",
+   "for": "el"
+  },
+  {
+   "wrong": "προτινόμενων",
+   "correct": "προτεινόμενων",
+   "for": "el"
+  },
+  {
+   "wrong": "ανασεξιον",
+   "correct": "ανά section",
+   "for": "el"
+  },
+  {
+   "wrong": "πρίξανε",
+   "correct": "πρήξανε",
+   "for": "el"
+  },
+  {
+   "wrong": "σλόγγαν",
+   "correct": "σλόγκαν",
+   "for": "el"
+  },
+  {
+   "wrong": "εσφυτικά",
+   "correct": "αισθητικά",
+   "for": "el"
+  },
+  {
+   "wrong": "εφηρεώσατε",
+   "correct": "αφιερώσατε",
+   "for": "el"
+  },
+  {
+   "wrong": "εργασιμές",
+   "correct": "εργάσιμες",
+   "for": "el"
+  },
+  {
+   "wrong": "φλιαρούσε",
+   "correct": "φλυαρούσε",
+   "for": "el"
+  },
+  {
+   "wrong": "νιουσπέιπερ",
+   "correct": "newspaper",
+   "for": "el"
+  },
+  {
+   "wrong": "πανεδές",
+   "correct": "πάνε δες",
+   "for": "el"
+  },
+  {
+   "wrong": "δίπα",
+   "correct": "ΔΥΠΑ",
+   "for": "el"
+  },
+  {
+   "wrong": "τσεκάρετο",
+   "correct": "τσέκαρέ το",
+   "for": "el"
+  },
+  {
+   "wrong": "Χρησιμοποιήσε",
+   "correct": "χρησιμοποίησε",
+   "for": "el"
+  },
+  {
+   "wrong": "μαλακί",
+   "correct": "μαλακία",
+   "for": "el"
+  },
+  {
+   "wrong": "μπάσκε",
+   "correct": "μπας και",
+   "for": "el"
+  },
+  {
+   "wrong": "μήνυματάκι",
+   "correct": "μηνυματάκι",
+   "for": "el"
+  },
+  {
+   "wrong": "γαμίσω",
+   "correct": "γαμήσω",
+   "for": "el"
+  },
+  {
+   "wrong": "Πηγαίνε",
+   "correct": "πήγαινε",
+   "for": "el"
+  },
+  {
+   "wrong": "σερβερς",
+   "correct": "servers",
+   "for": "el"
+  },
+  {
+   "wrong": "μαλέκα",
+   "correct": "μαλάκα",
+   "for": "el"
+  },
+  {
+   "wrong": "Ξανακάντω",
+   "correct": "ξανακάν' το",
+   "for": "el"
+  },
+  {
+   "wrong": "ανακατηγορία",
+   "correct": "ανά κατηγορία",
+   "for": "el"
+  },
+  {
+   "wrong": "ωρέξεις",
+   "correct": "ορέξεις",
+   "for": "el"
+  },
+  {
+   "wrong": "σκαθά",
+   "correct": "σκατά",
+   "for": "el"
+  },
+  {
+   "wrong": "ορολογάκι",
+   "correct": "ρολογάκι",
+   "for": "el"
+  },
+  {
+   "wrong": "γραμμόσεις",
+   "correct": "γραμμώσεις",
+   "for": "el"
+  },
+  {
+   "wrong": "Αρθογραφούνται",
+   "correct": "αρθρογραφούνται",
+   "for": "el"
+  },
+  {
+   "wrong": "κοσμηματοπόλες",
+   "correct": "κοσμηματοπώλες",
+   "for": "el"
+  },
+  {
+   "wrong": "αφήμι",
+   "correct": "ΑΦΜ",
+   "for": "el"
+  },
+  {
+   "wrong": "πιλωτικά",
+   "correct": "πιλοτικά",
+   "for": "el"
+  },
+  {
+   "wrong": "μείνιση",
+   "correct": "μήνυση",
+   "for": "el"
+  },
+  {
+   "wrong": "μπαρα",
+   "correct": "μπάρα",
+   "for": "el"
+  },
+  {
+   "wrong": "συνεγερμούς",
+   "correct": "συναγερμούς",
+   "for": "el"
+  },
+  {
+   "wrong": "τσακαρέμω",
+   "correct": "τσέκαρέ μου",
+   "for": "el"
+  },
+  {
+   "wrong": "τσεκαρέτο",
+   "correct": "τσέκαρέ το",
+   "for": "el"
   }
  ]
 }
