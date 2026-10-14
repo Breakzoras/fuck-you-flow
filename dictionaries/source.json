@@ -1729,6 +1729,141 @@
    "wrong": "τσεκαρέτο",
    "correct": "τσέκαρέ το",
    "for": "el"
+  },
+  {
+   "wrong": "ελλελέν",
+   "correct": "LLM",
+   "for": "el"
+  },
+  {
+   "wrong": "εξτραπεραιτέρω",
+   "correct": "έξτρα περαιτέρω",
+   "for": "el"
+  },
+  {
+   "wrong": "freetrial",
+   "correct": "free trial",
+   "for": "el"
+  },
+  {
+   "wrong": "πρακτορία",
+   "correct": "πρακτορεία",
+   "for": "el"
+  },
+  {
+   "wrong": "τέξτ",
+   "correct": "text",
+   "for": "el"
+  },
+  {
+   "wrong": "ταϊπόγραφι",
+   "correct": "typography",
+   "for": "el"
+  },
+  {
+   "wrong": "υπενθύμηση",
+   "correct": "υπενθύμιση",
+   "for": "el"
+  },
+  {
+   "wrong": "προλάβεται",
+   "correct": "προλάβετε",
+   "for": "el"
+  },
+  {
+   "wrong": "οφόνης",
+   "correct": "οθόνης",
+   "for": "el"
+  },
+  {
+   "wrong": "φθηνοπορεινή",
+   "correct": "φθινοπωρινή",
+   "for": "el"
+  },
+  {
+   "wrong": "φθηνοπορεινής",
+   "correct": "φθινοπωρινής",
+   "for": "el"
+  },
+  {
+   "wrong": "προσταριστεί",
+   "correct": "ποσταριστεί",
+   "for": "el"
+  },
+  {
+   "wrong": "πέστουν",
+   "correct": "πέσουν",
+   "for": "el"
+  },
+  {
+   "wrong": "ultimater",
+   "correct": "ultimate",
+   "for": "el"
+  },
+  {
+   "wrong": "Τάρθρα",
+   "correct": "τ' άρθρα",
+   "for": "el"
+  },
+  {
+   "wrong": "ταποστάρεις",
+   "correct": "τα ποστάρεις",
+   "for": "el"
+  },
+  {
+   "wrong": "μιάμης",
+   "correct": "μιάμιση",
+   "for": "el"
+  },
+  {
+   "wrong": "δείξτο",
+   "correct": "δείξ' το",
+   "for": "el"
+  },
+  {
+   "wrong": "ανθρώπικ",
+   "correct": "Anthropic",
+   "for": "el"
+  },
+  {
+   "wrong": "δέμο",
+   "correct": "demo",
+   "for": "el"
+  },
+  {
+   "wrong": "προκάλεει",
+   "correct": "προκαλεί",
+   "for": "el"
+  },
+  {
+   "wrong": "σκουρίνει",
+   "correct": "σκουραίνει",
+   "for": "el"
+  },
+  {
+   "wrong": "επισυναπτώμενες",
+   "correct": "επισυναπτόμενες",
+   "for": "el"
+  },
+  {
+   "wrong": "πουνε",
+   "correct": "πούνε",
+   "for": "el"
+  },
+  {
+   "wrong": "μήκρυνε",
+   "correct": "μίκρυνε",
+   "for": "el"
+  },
+  {
+   "wrong": "κακομυριά",
+   "correct": "κακομοιριά",
+   "for": "el"
+  },
+  {
+   "wrong": "μαγνητήσουμε",
+   "correct": "μαγνητίσουμε",
+   "for": "el"
   }
  ]
 }
