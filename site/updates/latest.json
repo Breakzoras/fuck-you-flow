@@ -1,11 +1,11 @@
 {
-  "version": "0.9.14",
-  "notes": "Ready-made dictionaries for your language, an Edit button for suggestions, and more accurate punctuation.",
-  "pub_date": "2026-10-05T10:09:43Z",
+  "version": "0.9.15",
+  "notes": "Runs better on computers with a small or older graphics card, ships a newer speech engine, and keeps the pauses you speak.",
+  "pub_date": "2026-10-16T08:19:31Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWtGZ05xa005akZIY1V2SU5JZWk3SHVOaHFnVlhoQ2ZDZnhDMEpHQVNEM214QzVpb1ltTXEyb0hqWFNlcW80UkRUZEFYc2JtRmRMSzBHQmtIWmcyT3dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMTkzNDAyCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTRfeDY0LXNldHVwLmV4ZQpjM1hDN3BaVVJKU2NiTk83M2Mxc215QnZ1VnpseFdCNGMwVWdWamxJaUwrS1BELzB1YTJWYkdrTWtzUWE1Y2wzYlhnVTE5WnNlOEZoeEJNTVo5dGtEZz09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.14/Fuck.You.Flow.Update.0.9.14.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUW96NXFWRlAwRVpUbUdaakcvMUFhYmIvblRTdHVFbjFDc3NzZmR6OWJYNnZjUnJIZDJ2N0tpWDZPakM5MHB1YnRvVHByZzYzdUxvdEtiYitTd24vY1FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMTM4NDI3CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTVfeDY0LXNldHVwLmV4ZQpYRC92eDJWVm81dDY5b0t3dmx4UzN2WWdkZTRHMnJLRnRSZE9jeUVJQzlWQ2M5Nmk1cVF0T0dSYnRiYUlhNHBsVUNhaGZwOWxMK04ydldFbWZhdnBCUT09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.15/Fuck.You.Flow.Update.0.9.15.exe"
     }
   }
 }
