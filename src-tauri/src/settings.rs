@@ -469,6 +469,26 @@ pub struct GeneralSettings {
     /// card stays away.
     #[serde(default)]
     pub rated_on_github: bool,
+    /// The user said "No, thanks" to the line that offers the light model on a
+    /// machine without a graphics card worth using. Set by its own command only.
+    #[serde(default)]
+    pub light_model_declined: bool,
+    /// Startup has once moved a thread count the app itself had chosen to the
+    /// one that leaves a core free for the microphone (12 October 2026). A count
+    /// the user typed in later stays theirs.
+    #[serde(default)]
+    pub threads_spare_core: bool,
+    /// The speech engine has been ready at least once on this machine, or
+    /// there is a dictation in History from before this was kept. Until then a
+    /// failure means the app never worked here at all, and the app may change
+    /// the model on its own (decided 14 October 2026).
+    #[serde(default)]
+    pub engine_ever_ready: bool,
+    /// The graphics card that failed to start the engine on a machine where it
+    /// never worked, so "auto" stops trying it on every start. Cleared when the
+    /// best card changes. A backend the user picked by name still uses it.
+    #[serde(default)]
+    pub gpu_failed_card: String,
 }
 
 impl Default for GeneralSettings {
@@ -485,6 +505,10 @@ impl Default for GeneralSettings {
             debug_mode: false,
             gpu_choice_by_user: false,
             rated_on_github: false,
+            light_model_declined: false,
+            threads_spare_core: false,
+            engine_ever_ready: false,
+            gpu_failed_card: String::new(),
         }
     }
 }
@@ -502,6 +526,18 @@ pub struct PackSettings {
     /// The pack that is in the Dictionary ("el", "all") and its version.
     pub language: String,
     pub version: u64,
+    /// A newer version the daily check took in on its own. The first screen
+    /// shows one line about it until the user presses OK.
+    pub notice: Option<PackNotice>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(default)]
+pub struct PackNotice {
+    pub version: u64,
+    pub added: usize,
+    pub updated: usize,
+    pub withdrawn: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

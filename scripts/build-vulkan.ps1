@@ -1,7 +1,7 @@
 # Builds whisper.cpp with the Vulkan backend, which accelerates on AMD, Intel
 # and NVIDIA cards alike. The official project ships only CPU and CUDA binaries
 # for Windows, so this produces the missing piece ourselves from the same tag we
-# already ship (b4938 / v1.9.3).
+# ship (v1.9.5 from FU Flow 0.9.15; build with --parallel 4 on the maintainer PC).
 #
 # Needs: Visual Studio 2022 Build Tools, the LunarG Vulkan SDK, CMake.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\build-vulkan.ps1

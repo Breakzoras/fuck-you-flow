@@ -137,7 +137,7 @@ pub fn soften_inner_semicolons(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut sentence = String::new();
     for (i, &c) in chars.iter().enumerate() {
-        let ends = matches!(c, '.' | '!' | '?' | ';') && (i + 1 == chars.len() || chars[i + 1].is_whitespace());
+        let ends = ends_sentence(&chars, i);
         if c == ';' && ends {
             let next_letter = chars[i + 1..].iter().find(|ch| !ch.is_whitespace());
             if next_letter.map(|ch| ch.is_lowercase()).unwrap_or(false) && !is_question_so_far(&sentence) {
@@ -255,8 +255,7 @@ pub fn mark_questions(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     for (i, &c) in chars.iter().enumerate() {
         sentence.push(c);
-        let terminal = matches!(c, '.' | '!' | '?' | ';') && (i + 1 == chars.len() || chars[i + 1].is_whitespace());
-        if terminal {
+        if ends_sentence(&chars, i) {
             out.push_str(&question_form(&sentence));
             sentence.clear();
         }
@@ -265,6 +264,19 @@ pub fn mark_questions(text: &str) -> String {
         out.push_str(&question_form(&sentence));
     }
     out
+}
+
+/// True when the mark at `i` ends a sentence: a full stop, question or
+/// exclamation mark or an ellipsis, with a space or the end of the text after
+/// it. An ellipsis with a lower-case word after it ends nothing: the sentence
+/// goes on after the pause ("Πού θα το... βάλουμε;").
+fn ends_sentence(chars: &[char], i: usize) -> bool {
+    let c = chars[i];
+    if !matches!(c, '.' | '!' | '?' | ';' | '…') || !(i + 1 == chars.len() || chars[i + 1].is_whitespace()) {
+        return false;
+    }
+    let ellipsis = c == '…' || (c == '.' && i >= 2 && chars[i - 1] == '.' && chars[i - 2] == '.');
+    !(ellipsis && chars[i + 1..].iter().find(|ch| !ch.is_whitespace()).is_some_and(|ch| ch.is_lowercase()))
 }
 
 fn words(sentence: &str) -> Vec<String> {
@@ -442,7 +454,9 @@ fn question_form(sentence: &str) -> String {
     let trimmed = sentence.trim_end();
     let trailing_ws = &sentence[trimmed.len()..];
     let last = trimmed.chars().last();
-    // keep whatever mark the engine wrote itself
+    // keep whatever mark the engine wrote itself. An ellipsis gives way to the
+    // question mark: in Lu's history a question that trailed off before the
+    // next sentence was a real one 4 times in 6 (8 October 2026).
     if matches!(last, Some(';') | Some('?')) {
         return sentence.to_string();
     }
@@ -464,6 +478,17 @@ mod tests {
 
     fn q(s: &str) -> String {
         mark_questions(s)
+    }
+
+    /// 8 October 2026: an ellipsis now stays in the text. One with a small
+    /// letter after it is a pause inside the sentence, never its end.
+    #[test]
+    fn an_ellipsis_before_a_small_letter_does_not_end_the_sentence() {
+        assert_eq!(q("Πού θα το... βάλουμε τελικά."), "Πού θα το... βάλουμε τελικά;");
+        assert_eq!(q("Πού… θα πάμε."), "Πού… θα πάμε;");
+        assert_eq!(q("Τι είναι αυτό... Δεν ξέρω."), "Τι είναι αυτό; Δεν ξέρω.");
+        assert_eq!(q("Θα δούμε... πότε έρχεται."), "Θα δούμε... πότε έρχεται.");
+        assert_eq!(soften_inner_semicolons("Πήγα... στο σπίτι; και μετά έφυγα."), "Πήγα... στο σπίτι, και μετά έφυγα.");
     }
 
     #[test]

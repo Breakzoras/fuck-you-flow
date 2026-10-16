@@ -29,7 +29,10 @@ export interface Pick {
 
 /** Room for large-v3 (about 2 GB) next to whatever else the card is showing. */
 const BIG_CARD_MB = 3000;
-/** Room for turbo (about 1 GB). Below this the processor does the work. */
+/** Room for turbo (about 1 GB). Below this the processor does the work, with
+ * the small model: on the processor turbo needs four seconds per second of
+ * speech and small about one (12 October 2026). Same line as
+ * `CARD_WORTH_USING_MB` in `hw.rs`. */
 const SMALL_CARD_MB = 1500;
 
 export function machineFrom(profile: { gpus?: { vram_mb: number }[]; vulkan_runtime?: boolean; cuda_driver?: boolean } | undefined | null): Machine {
@@ -49,7 +52,7 @@ export function speakLangFrom(language: { mode: string; primary?: string } | und
 export function recommend(m: Machine, lang: SpeakLang, priority: Priority): Pick {
   const card = !m.usableGpu || m.vramMb < SMALL_CARD_MB ? "none" : m.vramMb >= BIG_CARD_MB ? "big" : "small";
   if (card === "none") {
-    return { modelId: "large-v3-turbo-q5_0", backend: "cpu", whyKey: "guide_why_cpu" };
+    return { modelId: "small-q5_1", backend: "cpu", whyKey: "guide_why_cpu" };
   }
   if (priority === "light") {
     return { modelId: "large-v3-turbo-q5_0", backend: "auto", whyKey: "guide_why_light" };
@@ -72,6 +75,7 @@ export const MODEL_EXPLAIN: Record<string, { who: string; gain: string; cost: st
   "large-v3-turbo-q8_0": { who: "mx_turbo8_who", gain: "mx_turbo8_gain", cost: "mx_turbo8_cost" },
   "large-v3-turbo-q5_0": { who: "mx_turbo5_who", gain: "mx_turbo5_gain", cost: "mx_turbo5_cost" },
   "medium-q5_0": { who: "mx_medium_who", gain: "mx_medium_gain", cost: "mx_medium_cost" },
+  "small-q5_1": { who: "mx_small_who", gain: "mx_small_gain", cost: "mx_small_cost" },
 };
 
 /** The plain explanation of each place the engine can run. */

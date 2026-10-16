@@ -21,7 +21,7 @@ export default function Stats() {
         <Stat label={t("total_minutes")} value={mins(s.total_minutes)} />
         <Stat label={t("avg_wpm")} value={s.avg_wpm.toFixed(0)} />
         <Stat label={t("dictations")} value={s.dictations.toLocaleString()} />
-        <Stat label={t("time_saved")} value={mins(s.time_saved_minutes)} sub={`${t("formula")}: ${s.time_saved_formula}`} />
+        <Stat label={t("time_saved")} value={mins(s.time_saved_minutes)} sub={`${t("formula")}: ${formulaText(s.time_saved_formula, t)}`} />
         <Stat label={t("streak")} value={String(s.current_streak)} sub={`${t("longest_streak")}: ${s.longest_streak}`} />
         <Stat label={t("corrections")} value={String(s.corrections_applied)} />
         <Stat label={`${t("retries")} / ${t("edits")}`} value={`${s.retries} / ${s.edits}`} />
@@ -44,4 +44,11 @@ export default function Stats() {
       )}
     </>
   );
+}
+
+/// The backend writes the formula in Greek only; the English menu showed it so.
+/// Its one number is the typing speed, and the sentence comes from the menu.
+function formulaText(formula: string, t: ReturnType<typeof useApp>["t"]): string {
+  const wpm = /(\d+)/.exec(formula)?.[1];
+  return wpm ? t("formula_text", { wpm }) : formula;
 }

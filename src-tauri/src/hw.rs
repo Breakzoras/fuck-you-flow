@@ -31,10 +31,35 @@ impl MachineProfile {
         self.gpus.iter().max_by_key(|g| g.vram_mb)
     }
 
+    /// The best card, when it has room enough to be faster than the processor.
+    /// Below [`CARD_WORTH_USING_MB`] the processor does the work: the one
+    /// report from such a card (Intel HD Graphics 530, 128 MB, 12 October
+    /// 2026) took 105 seconds for two words on Vulkan and dropped the engine
+    /// once. Same line as `SMALL_CARD_MB` in the model guide (`modelChoice.ts`).
+    pub fn useful_gpu(&self) -> Option<&GpuInfo> {
+        self.best_gpu().filter(|g| g.vram_mb >= CARD_WORTH_USING_MB)
+    }
+
+    /// The model this machine should start with: large-v3 on a card with room
+    /// for it, turbo on a smaller card, and the light small model when the
+    /// processor does the work (turbo there needs four seconds per second of
+    /// speech, small about one; measured 12 October 2026).
+    pub fn model_for_machine(&self) -> &'static str {
+        match self.useful_gpu() {
+            Some(g) if g.vram_mb >= 3000 => "large-v3-q5_0",
+            Some(_) => "large-v3-turbo-q5_0",
+            None => crate::models::SMALL_MODEL,
+        }
+    }
+
     /// Threads for the CPU side of the engine. On the 8-core/16-thread Ryzen
     /// used for development, 12 threads beat both 8 and 16 by about 15%.
+    /// One core always stays free for the microphone: on a 4-core machine the
+    /// old floor of 4 took every core, and the one report from such a machine
+    /// (12 October 2026) had the sound card missing its deadline up to eight
+    /// times a minute while the engine worked.
     pub fn engine_threads(&self) -> u32 {
-        ((self.logical_cores * 3 / 4) as u32).clamp(4, 16)
+        engine_threads_for(self.logical_cores)
     }
 
     pub fn summary(&self) -> String {
@@ -44,6 +69,22 @@ impl MachineProfile {
         };
         format!("{gpu}; {} logical cores; {} MB RAM; vulkan {}; nvidia driver {}", self.logical_cores, self.ram_mb, self.vulkan_runtime, self.cuda_driver)
     }
+}
+
+/// Dedicated memory a card needs before the engine is put on it.
+pub const CARD_WORTH_USING_MB: u64 = 1500;
+
+pub fn engine_threads_for(logical_cores: usize) -> u32 {
+    // Two cores keep both: one thread would halve the engine, and the
+    // microphone needs little.
+    let spare = if logical_cores > 2 { logical_cores - 1 } else { logical_cores.max(1) };
+    (logical_cores * 3 / 4).max(4).min(spare).clamp(1, 16) as u32
+}
+
+/// What 0.9.14 and earlier chose, so startup can tell a value the app picked
+/// from one the user typed in, and move only the first.
+pub fn engine_threads_before_spare_core(logical_cores: usize) -> u32 {
+    ((logical_cores * 3 / 4) as u32).clamp(4, 16)
 }
 
 /// Whether startup should put the engine back on the graphics card.
@@ -381,8 +422,55 @@ mod tests {
     fn threads_follow_the_measured_sweet_spot() {
         assert_eq!(profile(vec![], 16).engine_threads(), 12);
         assert_eq!(profile(vec![], 8).engine_threads(), 6);
-        assert_eq!(profile(vec![], 4).engine_threads(), 4);
         assert_eq!(profile(vec![], 32).engine_threads(), 16);
+    }
+
+    fn card(name: &str, vendor: &str, vram_mb: u64) -> GpuInfo {
+        GpuInfo { name: name.into(), vendor: vendor.into(), vram_mb }
+    }
+
+    #[test]
+    fn each_machine_gets_the_model_it_can_carry() {
+        // Lu's own machine stays on the accurate model, on the card.
+        let rtx = profile(vec![card("NVIDIA GeForce RTX 3070", "nvidia", 8192)], 16);
+        assert_eq!(rtx.model_for_machine(), "large-v3-q5_0");
+        assert!(rtx.useful_gpu().is_some());
+        // A small discrete card: turbo, still on the card.
+        assert_eq!(profile(vec![card("GTX 1050", "nvidia", 2048)], 8).model_for_machine(), "large-v3-turbo-q5_0");
+        // The one report from a weak machine (12 October 2026): the card built
+        // into the processor, 128 MB, four cores. The processor does the work
+        // and the model is the light one.
+        let hd530 = profile(vec![card("Intel(R) HD Graphics 530", "intel", 128)], 4);
+        assert!(hd530.best_gpu().is_some(), "Windows does list it as a card");
+        assert!(hd530.useful_gpu().is_none(), "too small to beat the processor");
+        assert_eq!(hd530.model_for_machine(), crate::models::SMALL_MODEL);
+        assert_eq!(hd530.engine_threads(), 3);
+        // No card at all.
+        assert_eq!(profile(vec![], 4).model_for_machine(), crate::models::SMALL_MODEL);
+        // A built-in card next to a real one: the real one decides.
+        let both = profile(vec![card("iGPU", "intel", 128), card("RX", "amd", 8192)], 16);
+        assert_eq!(both.model_for_machine(), "large-v3-q5_0");
+    }
+
+    #[test]
+    fn a_small_card_does_not_switch_the_engine_to_it() {
+        let hd530 = profile(vec![card("Intel(R) HD Graphics 530", "intel", 128)], 4);
+        assert!(!should_switch_to_gpu(false, "auto", false, hd530.useful_gpu().is_some(), true, true));
+        let rtx = profile(vec![card("RTX", "nvidia", 8192)], 16);
+        assert!(should_switch_to_gpu(false, "auto", false, rtx.useful_gpu().is_some(), true, true));
+    }
+
+    #[test]
+    fn a_small_machine_keeps_one_core_for_the_microphone() {
+        // Was 4 of 4 until 12 October 2026.
+        assert_eq!(profile(vec![], 4).engine_threads(), 3);
+        assert_eq!(profile(vec![], 6).engine_threads(), 4);
+        assert_eq!(profile(vec![], 2).engine_threads(), 2);
+        assert_eq!(profile(vec![], 1).engine_threads(), 1);
+        // Only the machines the old floor overfilled change.
+        for cores in [8, 12, 16, 24, 32] {
+            assert_eq!(engine_threads_for(cores), engine_threads_before_spare_core(cores), "{cores} cores");
+        }
     }
 
     #[test]

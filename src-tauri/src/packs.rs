@@ -368,6 +368,9 @@ pub async fn check(shared: &Arc<Shared>, force: bool) -> anyhow::Result<Applied>
         let mut next = current.clone();
         next.packs.language = lang.clone();
         next.packs.version = pack.version;
+        if let Some(n) = notice_for(force, packs.version, pack.version, &done) {
+            next.packs.notice = Some(n);
+        }
         next.save(&crate::paths::settings_file())?;
         *current = next;
     }
@@ -379,13 +382,27 @@ pub async fn check(shared: &Arc<Shared>, force: bool) -> anyhow::Result<Applied>
     Ok(done)
 }
 
+/// The line on the first screen after the daily check took in a newer pack.
+/// Only for an update the user did not ask for: the first download and the
+/// button already say what they did.
+fn notice_for(force: bool, had: u64, got: u64, done: &Applied) -> Option<crate::settings::PackNotice> {
+    (!force && had > 0 && got > had && done.added + done.updated > 0)
+        .then(|| crate::settings::PackNotice { version: got, added: done.added, updated: done.updated, withdrawn: done.withdrawn })
+}
+
 /// Two minutes after start, then once a day, for as long as the app runs.
-pub fn spawn(shared: Arc<Shared>) {
+pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>) {
+    use tauri::Emitter as _;
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_secs(120)).await;
         loop {
-            if let Err(e) = check(&shared, false).await {
-                tracing::info!("packs: no check today: {e}");
+            match check(&shared, false).await {
+                // an open window shows the line about the update right away
+                Ok(done) if done.changed() => {
+                    let _ = app.emit_to("main", "lalia://settings-changed", ());
+                }
+                Ok(_) => {}
+                Err(e) => tracing::info!("packs: no check today: {e}"),
             }
             tokio::time::sleep(std::time::Duration::from_secs(24 * 3600)).await;
         }
@@ -400,6 +417,19 @@ mod tests {
     // Invented words of the same shapes as the real list.
     fn pack(version: u64, rules: &[(&str, &str)]) -> Pack {
         Pack { format: 1, language: "el".into(), version, rules: rules.iter().map(|(w, c)| PackRule { wrong: w.to_string(), correct: c.to_string() }).collect() }
+    }
+
+    #[test]
+    fn only_a_quiet_daily_update_leaves_a_notice() {
+        let some = Applied { added: 3, updated: 1, withdrawn: 0 };
+        let n = notice_for(false, 1, 2, &some).unwrap();
+        assert_eq!((n.version, n.added, n.updated), (2, 3, 1));
+        // the first download and the button say it themselves
+        assert!(notice_for(false, 0, 1, &some).is_none());
+        assert!(notice_for(true, 1, 2, &some).is_none());
+        // nothing new for this user, or the same version again
+        assert!(notice_for(false, 1, 2, &Applied::default()).is_none());
+        assert!(notice_for(false, 2, 2, &some).is_none());
     }
 
     fn v1() -> Pack {

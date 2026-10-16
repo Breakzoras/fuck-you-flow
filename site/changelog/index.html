@@ -482,6 +482,44 @@ border-radius:50%;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.
 
   <section>
     <div class="wrap">
+      <article class="rel" id="v0.9.15">
+        <div class="rel-head"><h2>0.9.15</h2><span class="rel-date"><time datetime="2026-10-16">2026-10-16</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.15">Release page</a></div>
+        <p class="rel-sum">Runs better on computers with a small or older graphics card, ships a newer speech engine, and keeps the pauses you speak.</p>
+        <div class="kind">
+          <h3>New</h3>
+          <ul>
+            <li>Computers with a small graphics card, or none, get a lighter speech model that runs on the processor and leaves one core free for your other programs. If you already use a heavier model there, the first screen offers the switch and changes nothing until you agree.</li>
+            <li>When the graphics card fails to start, dictation carries on with the processor. On a computer where speech never started, the app fetches the lighter model by itself and tells you.</li>
+            <li>A line on the first screen tells you when the ready-made dictionary updated itself.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Improved</h3>
+          <ul>
+            <li>Newer speech engine (whisper.cpp 1.9.5), with fixes for AMD, Intel and NVIDIA cards.</li>
+            <li>When the graphics card is busy, long dictations go to the engine in fewer pieces and the text arrives sooner.</li>
+            <li>Faster paste in programs that read the clipboard on their own, such as remote desktop and some chat apps.</li>
+            <li>Model downloads are steadier: a stalled download stops after a minute and leaves no half file behind.</li>
+            <li>If you keep recordings, they are deleted after 30 days. The text in History stays.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Fixed</h3>
+          <ul>
+            <li>A pause you speak stays as "..." where the engine heard it, and the next word keeps its small letter.</li>
+            <li>A rising voice adds a question mark only to a short sentence or to one with a question word.</li>
+            <li>Quitting while a dictation is being written waits for it to reach the cursor and History.</li>
+            <li>Smaller fixes: a question mark at the end of an English sentence stays, a web address keeps its small letters at the start of a sentence, History names the engine of every dictation, and two-core computers use both cores.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Known issues</h3>
+          <ul>
+            <li>This version is for Windows. Ubuntu Linux stays on 0.9.12 for now.</li>
+            <li>The first dictation after the update can take a few seconds longer while the new engine prepares your graphics card.</li>
+          </ul>
+        </div>
+      </article>
       <article class="rel" id="v0.9.14">
         <div class="rel-head"><h2>0.9.14</h2><span class="rel-date"><time datetime="2026-10-05">2026-10-05</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.14">Release page</a></div>
         <p class="rel-sum">Ready-made dictionaries for your language, an Edit button for suggestions, and more accurate punctuation.</p>

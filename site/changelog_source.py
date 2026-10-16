@@ -27,6 +27,94 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.15",
+        "date": "2026-10-16",
+        "summary": (
+            "Runs better on computers with a small or older graphics card, ships a newer speech "
+            "engine, and keeps the pauses you speak.",
+            "Δουλεύει καλύτερα σε υπολογιστές με μικρή ή παλιότερη κάρτα γραφικών, έρχεται με "
+            "νεότερη μηχανή ομιλίας και κρατά τις παύσεις σου.",
+        ),
+        "lines": [
+            ("added",
+             "Computers with a small graphics card, or none, get a lighter speech model that runs "
+             "on the processor and leaves one core free for your other programs. If you already "
+             "use a heavier model there, the first screen offers the switch and changes nothing "
+             "until you agree.",
+             "Οι υπολογιστές με μικρή κάρτα γραφικών, ή χωρίς κάρτα, παίρνουν ένα ελαφρύτερο "
+             "μοντέλο ομιλίας που τρέχει στον επεξεργαστή και αφήνει έναν πυρήνα ελεύθερο για τα "
+             "άλλα σου προγράμματα. Αν εκεί χρησιμοποιείς ήδη βαρύτερο μοντέλο, η αρχική οθόνη "
+             "σου προτείνει την αλλαγή και τίποτα δεν αλλάζει χωρίς το ναι σου."),
+            ("added",
+             "When the graphics card fails to start, dictation carries on with the processor. On "
+             "a computer where speech never started, the app fetches the lighter model by itself "
+             "and tells you.",
+             "Όταν η κάρτα γραφικών δεν ξεκινά, η υπαγόρευση συνεχίζει με τον επεξεργαστή. Σε "
+             "υπολογιστή όπου η ομιλία δεν ξεκίνησε ποτέ, η εφαρμογή κατεβάζει μόνη της το "
+             "ελαφρύτερο μοντέλο και σε ενημερώνει."),
+            ("added",
+             "A line on the first screen tells you when the ready-made dictionary updated itself.",
+             "Μια γραμμή στην αρχική οθόνη σε ενημερώνει όταν το έτοιμο λεξικό ενημερώθηκε μόνο του."),
+            ("improved",
+             "Newer speech engine (whisper.cpp 1.9.5), with fixes for AMD, Intel and NVIDIA cards.",
+             "Νεότερη μηχανή ομιλίας (whisper.cpp 1.9.5), με διορθώσεις για κάρτες AMD, Intel και "
+             "NVIDIA."),
+            ("improved",
+             "When the graphics card is busy, long dictations go to the engine in fewer pieces and "
+             "the text arrives sooner.",
+             "Όταν η κάρτα γραφικών είναι απασχολημένη, οι μεγάλες υπαγορεύσεις πηγαίνουν στη "
+             "μηχανή σε λιγότερα κομμάτια και το κείμενο έρχεται νωρίτερα."),
+            ("improved",
+             "Faster paste in programs that read the clipboard on their own, such as remote "
+             "desktop and some chat apps.",
+             "Πιο γρήγορη επικόλληση σε προγράμματα που διαβάζουν μόνα τους το πρόχειρο, όπως η "
+             "απομακρυσμένη επιφάνεια εργασίας και κάποιες εφαρμογές συνομιλίας."),
+            ("improved",
+             "Model downloads are steadier: a stalled download stops after a minute and leaves no "
+             "half file behind.",
+             "Οι λήψεις μοντέλων είναι πιο σταθερές: μια λήψη που κόλλησε σταματά σε ένα λεπτό "
+             "και δεν αφήνει μισό αρχείο πίσω."),
+            ("improved",
+             "If you keep recordings, they are deleted after 30 days. The text in History stays.",
+             "Αν κρατάς ηχογραφήσεις, σβήνονται μετά από 30 μέρες. Το κείμενο στο Ιστορικό μένει."),
+            ("improved",
+             None,
+             "Το ελληνικό έτοιμο λεξικό έφτασε τις 373 διορθώσεις. Περισσότερα μηνύματα της "
+             "εφαρμογής βγαίνουν πια στα ελληνικά όταν το μενού είναι στα ελληνικά."),
+            ("fixed",
+             "A pause you speak stays as \"...\" where the engine heard it, and the next word keeps "
+             "its small letter.",
+             "Μια παύση που κάνεις μένει ως «...» εκεί που την άκουσε η μηχανή και η επόμενη λέξη "
+             "κρατά το μικρό της γράμμα."),
+            ("fixed",
+             "A rising voice adds a question mark only to a short sentence or to one with a "
+             "question word.",
+             "Η φωνή που ανεβαίνει βάζει ερωτηματικό μόνο σε μικρή πρόταση ή σε πρόταση με λέξη "
+             "ερώτησης."),
+            ("fixed",
+             "Quitting while a dictation is being written waits for it to reach the cursor and "
+             "History.",
+             "Το κλείσιμο της εφαρμογής την ώρα που γράφεται μια υπαγόρευση περιμένει να φτάσει "
+             "στον κέρσορα και στο Ιστορικό."),
+            ("fixed",
+             "Smaller fixes: a question mark at the end of an English sentence stays, a web "
+             "address keeps its small letters at the start of a sentence, History names the "
+             "engine of every dictation, and two-core computers use both cores.",
+             "Μικρότερες διορθώσεις: το ερωτηματικό στο τέλος αγγλικής πρότασης μένει, μια "
+             "διεύθυνση web κρατά τα μικρά της στην αρχή πρότασης, το «κάθετος» πριν από "
+             "λατινικά γράμματα γίνεται «/», το Ιστορικό γράφει τη μηχανή κάθε υπαγόρευσης και "
+             "οι υπολογιστές με δύο πυρήνες χρησιμοποιούν και τους δύο."),
+            ("known",
+             "This version is for Windows. Ubuntu Linux stays on 0.9.12 for now.",
+             "Αυτή η έκδοση είναι για Windows. Το Ubuntu Linux μένει προς το παρόν στην 0.9.12."),
+            ("known",
+             "The first dictation after the update can take a few seconds longer while the new "
+             "engine prepares your graphics card.",
+             "Η πρώτη υπαγόρευση μετά την ενημέρωση μπορεί να αργήσει λίγα δευτερόλεπτα, όσο η "
+             "νέα μηχανή προετοιμάζει την κάρτα γραφικών σου."),
+        ],
+    },
+    {
         "version": "0.9.14",
         "date": "2026-10-05",
         "summary": (

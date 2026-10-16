@@ -48,12 +48,16 @@ export interface Settings {
     share_dictionary?: boolean; share_dictionary_asked?: boolean; share_install_id?: string;
   };
   /** The ready-made dictionary for the user's language, downloaded per language. */
-  packs?: { enabled: boolean; asked: boolean; language: string; version: number };
+  packs?: { enabled: boolean; asked: boolean; language: string; version: number; notice?: PackNotice | null };
 }
 
 /** Which ready-made dictionary this user would get; empty language when none. */
 export interface PackStatus { language: string; rules: number; version: number; online: boolean }
 export interface PackApplied { added: number; updated: number; withdrawn: number }
+/** A newer pack the daily check took in on its own, until the user has seen it. */
+export interface PackNotice { version: number; added: number; updated: number; withdrawn: number }
+/** The light model the first screen offers on a machine without a graphics card worth using. */
+export interface LightOffer { model_id: string; display_name: string; size_bytes: number }
 
 /** One Dictionary correction as it leaves the computer when sharing is on. */
 export interface SharedRule { wrong: string; correct: string; language: string | null; match_mode: string }
@@ -211,6 +215,10 @@ export const api = {
   packStatus: () => invoke<PackStatus>("pack_status"),
   packInstall: () => invoke<PackApplied>("pack_install"),
   packDecline: () => invoke<Settings>("pack_decline"),
+  packNoticeSeen: () => invoke<Settings>("pack_notice_seen"),
+  lightModelOffer: () => invoke<LightOffer | null>("light_model_offer"),
+  lightModelAccept: () => invoke<Settings>("light_model_accept"),
+  lightModelDecline: () => invoke<Settings>("light_model_decline"),
   packRemove: () => invoke<number>("pack_remove"),
   recentKeys: () => invoke<SeenKey[]>("recent_keys"),
   foregroundApp: () => invoke<Record<string, unknown>>("current_foreground_app"),

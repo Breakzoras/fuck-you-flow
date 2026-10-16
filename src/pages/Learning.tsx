@@ -51,7 +51,7 @@ export default function Learning() {
         {pending.map((s) => (
           <div className="suggestion" key={s.id}>
             <div><strong>{s.wrong}</strong> → <strong>{s.correct}</strong> <Badge tone="warn">{t("evidence")}: {s.evidence_count}</Badge></div>
-            <div className="hint">{s.reason}</div>
+            <div className="hint">{reasonText(s.reason, t)}</div>
             {editing?.id === s.id ? (
               <div className="inline-form" style={{ marginTop: 8 }}>
                 <label>
@@ -79,11 +79,11 @@ export default function Learning() {
         ))}
       </Card>
       {resolved.length > 0 && (
-        <Card title="—">
+        <Card title={t("suggestions_answered")}>
           <table>
             <tbody>
               {resolved.map((s) => (
-                <tr key={s.id}><td>{s.wrong}</td><td>{s.correct}</td><td><Badge>{s.status}</Badge></td><td className="hint">{s.reason}</td></tr>
+                <tr key={s.id}><td>{s.wrong}</td><td>{s.correct}</td><td><Badge>{statusText(s.status, t)}</Badge></td><td className="hint">{reasonText(s.reason, t)}</td></tr>
               ))}
             </tbody>
           </table>
@@ -91,4 +91,16 @@ export default function Learning() {
       )}
     </>
   );
+}
+
+/// The backend stores the reason in English ("You changed ... after
+/// dictating"), which the Greek menu showed as it was. Read the one shape it
+/// writes and say it in the menu's language; anything else is shown unchanged.
+function reasonText(reason: string, t: ReturnType<typeof useApp>["t"]): string {
+  const m = /^You changed "(.*)" to "(.*)" after dictating \((\d+) time\(s\)\)\.$/.exec(reason);
+  return m ? t("reason_changed", { wrong: m[1], correct: m[2], n: m[3] }) : reason;
+}
+
+function statusText(status: string, t: ReturnType<typeof useApp>["t"]): string {
+  return status === "accepted" ? t("st_accepted") : status === "dismissed" ? t("st_dismissed") : status === "ignored" ? t("st_ignored") : status;
 }

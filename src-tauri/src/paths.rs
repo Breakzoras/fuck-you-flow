@@ -394,6 +394,36 @@ pub fn remove_kept_audio(path: &str) {
     }
 }
 
+/// How long a kept recording stays in the recordings folder.
+pub const KEPT_AUDIO_DAYS: u64 = 30;
+
+/// Deletes kept recordings older than `days`, and only the `.wav` files this
+/// app wrote into its own recordings folder. The history rows stay: the text
+/// is the user's record, the sound behind it is not kept forever. Before
+/// 0.9.15 the folder only grew (753 MB on one machine after two weeks).
+pub fn prune_kept_audio(days: u64) -> usize {
+    prune_wavs_older_than(&audio_dir(), std::time::Duration::from_secs(days * 86_400))
+}
+
+fn prune_wavs_older_than(dir: &std::path::Path, age: std::time::Duration) -> usize {
+    let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
+    let now = std::time::SystemTime::now();
+    let mut removed = 0;
+    for e in entries.flatten() {
+        let p = e.path();
+        if p.extension().and_then(|x| x.to_str()) != Some("wav") {
+            continue;
+        }
+        let old = e.metadata().and_then(|m| m.modified()).ok()
+            .and_then(|t| now.duration_since(t).ok())
+            .is_some_and(|d| d > age);
+        if old && std::fs::remove_file(&p).is_ok() {
+            removed += 1;
+        }
+    }
+    removed
+}
+
 fn remove_if_inside(path: &std::path::Path, dir: &std::path::Path) -> bool {
     match (path.canonicalize(), dir.canonicalize()) {
         (Ok(f), Ok(d)) if f.starts_with(&d) => std::fs::remove_file(f).is_ok(),
@@ -426,6 +456,29 @@ mod kept_audio_tests {
         assert!(theirs.exists());
 
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn only_old_recordings_go() {
+        let dir = std::env::temp_dir().join(format!("fyf-prune-audio-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let old = dir.join("old.wav");
+        let new = dir.join("new.wav");
+        let other = dir.join("old.txt");
+        for p in [&old, &new, &other] {
+            std::fs::write(p, b"x").unwrap();
+        }
+        let long_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(40 * 86_400);
+        for p in [&old, &other] {
+            std::fs::File::options().write(true).open(p).unwrap().set_modified(long_ago).unwrap();
+        }
+
+        assert_eq!(prune_wavs_older_than(&dir, std::time::Duration::from_secs(30 * 86_400)), 1);
+        assert!(!old.exists());
+        assert!(new.exists(), "a recent recording stays");
+        assert!(other.exists(), "only recordings are ours to prune");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 

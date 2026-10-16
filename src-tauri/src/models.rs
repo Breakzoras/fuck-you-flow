@@ -112,8 +112,32 @@ pub fn catalog() -> Vec<ModelSpec> {
             notes_key: "model_note_medium".into(),
             recommended: false,
         },
+        // For a machine whose processor does the work. Measured 12 October 2026
+        // on the processor with 3 threads and beam 3 (`eval/bench-summary.md`):
+        // 29 Greek errors in 100 words against turbo's 26 in the same run, and
+        // it keeps up with the voice (1.1 s per second of speech) where turbo
+        // needs 4.1 s. Never measured on a card, hence no `median_ms`; `vram_mb`
+        // is what the card would hold, scaled from medium by file size.
+        ModelSpec {
+            id: SMALL_MODEL.into(),
+            file_name: "ggml-small-q5_1.bin".into(),
+            display_name: "Whisper small (q5_1)".into(),
+            url: format!("{HF}ggml-small-q5_1.bin"),
+            sha256: "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb".into(),
+            size_bytes: 190_085_487,
+            vram_mb: 330,
+            ram_mb: 600,
+            greek_errors_pct: Some(29),
+            median_ms: None,
+            languages_key: "model_langs_99".into(),
+            notes_key: "model_note_small".into(),
+            recommended: false,
+        },
     ]
 }
+
+/// The light model a machine without a graphics card worth using gets.
+pub const SMALL_MODEL: &str = "small-q5_1";
 
 pub fn vad_spec() -> ModelSpec {
     ModelSpec {
@@ -469,26 +493,20 @@ pub async fn download_verified(app: &tauri::AppHandle, id: &str, url: &str, dest
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
     }
+    // One download per file. The background fetch of the light model and a
+    // press on Download in Speech models used to write the same `.part` at once.
+    let _one = DownloadSlot::take(dest)?;
     let part = dest.with_extension("part");
-    let client = reqwest::Client::builder().user_agent("FuckYouFlow/1.0").build()?;
-    let resp = client.get(url).send().await?.error_for_status()?;
-    let total = resp.content_length().unwrap_or(total_hint);
-    let mut stream = resp.bytes_stream();
-    let mut file = tokio::fs::File::create(&part).await?;
-    let mut received = 0u64;
-    let mut last_emit = std::time::Instant::now();
-    use tokio::io::AsyncWriteExt;
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        file.write_all(&chunk).await?;
-        received += chunk.len() as u64;
-        if last_emit.elapsed().as_millis() > 200 {
-            let _ = app.emit("lalia://download", DownloadProgress { id: id.into(), received, total, phase: "downloading".into(), message: None });
-            last_emit = std::time::Instant::now();
+    let (received, total) = match fetch_to_part(app, id, url, &part, total_hint).await {
+        Ok(got) => got,
+        Err(err) => {
+            // A dropped connection or a full disk left up to the whole file
+            // behind, on a disk that may have no room for it.
+            let _ = std::fs::remove_file(&part);
+            let _ = app.emit("lalia://download", DownloadProgress { id: id.into(), received: 0, total: total_hint, phase: "error".into(), message: Some(err.to_string()) });
+            return Err(err);
         }
-    }
-    file.flush().await?;
-    drop(file);
+    };
     let _ = app.emit("lalia://download", DownloadProgress { id: id.into(), received, total, phase: "verifying".into(), message: None });
     let part2 = part.clone();
     let expected = expected_sha.to_string();
@@ -502,6 +520,57 @@ pub async fn download_verified(app: &tauri::AppHandle, id: &str, url: &str, dest
     let _ = std::fs::write(marker_path(dest), expected_sha);
     let _ = app.emit("lalia://download", DownloadProgress { id: id.into(), received, total, phase: "done".into(), message: None });
     Ok(())
+}
+
+/// No byte for this long means the connection is gone. Without it a Wi-Fi that
+/// drops without a reset left the download, and the light-model offer behind
+/// it, waiting until the app closed.
+const STALL_SECS: u64 = 60;
+
+async fn fetch_to_part(app: &tauri::AppHandle, id: &str, url: &str, part: &Path, total_hint: u64) -> anyhow::Result<(u64, u64)> {
+    let client = reqwest::Client::builder().user_agent("FuckYouFlow/1.0").connect_timeout(std::time::Duration::from_secs(30)).build()?;
+    let stall = std::time::Duration::from_secs(STALL_SECS);
+    let resp = tokio::time::timeout(stall, client.get(url).send()).await.map_err(|_| anyhow::anyhow!("no answer from the server"))??.error_for_status()?;
+    let total = resp.content_length().unwrap_or(total_hint);
+    let mut stream = resp.bytes_stream();
+    let mut file = tokio::fs::File::create(part).await?;
+    let mut received = 0u64;
+    let mut last_emit = std::time::Instant::now();
+    use tokio::io::AsyncWriteExt;
+    while let Some(chunk) = tokio::time::timeout(stall, stream.next()).await.map_err(|_| anyhow::anyhow!("the download stalled"))? {
+        let chunk = chunk?;
+        file.write_all(&chunk).await?;
+        received += chunk.len() as u64;
+        if last_emit.elapsed().as_millis() > 200 {
+            let _ = app.emit("lalia://download", DownloadProgress { id: id.into(), received, total, phase: "downloading".into(), message: None });
+            last_emit = std::time::Instant::now();
+        }
+    }
+    file.flush().await?;
+    Ok((received, total))
+}
+
+/// Holds a file's place while it downloads; the place is given back on drop,
+/// on every path out.
+struct DownloadSlot(std::path::PathBuf);
+
+static DOWNLOADING: parking_lot::Mutex<Vec<std::path::PathBuf>> = parking_lot::Mutex::new(Vec::new());
+
+impl DownloadSlot {
+    fn take(dest: &Path) -> anyhow::Result<Self> {
+        let mut busy = DOWNLOADING.lock();
+        if busy.iter().any(|p| p == dest) {
+            anyhow::bail!("this model is already downloading");
+        }
+        busy.push(dest.to_path_buf());
+        Ok(Self(dest.to_path_buf()))
+    }
+}
+
+impl Drop for DownloadSlot {
+    fn drop(&mut self) {
+        DOWNLOADING.lock().retain(|p| p != &self.0);
+    }
 }
 
 pub async fn download_model(app: &tauri::AppHandle, id: &str) -> anyhow::Result<()> {
@@ -591,11 +660,10 @@ pub fn preferred_installed_model(default_id: &str) -> Option<String> {
     // large-v3 needs about 2.6 GB of graphics memory; below that, or on the
     // CPU, the turbo model is the one that stays usable.
     let hw = crate::hw::detect();
-    let strong_gpu = hw.best_gpu().map(|g| g.vram_mb >= 3000).unwrap_or(false);
-    let order: &[&str] = if strong_gpu {
-        &["large-v3-q5_0", "large-v3-turbo-q5_0", "medium-q5_0"]
-    } else {
-        &["large-v3-turbo-q5_0", "medium-q5_0", "large-v3-q5_0"]
+    let order: &[&str] = match hw.model_for_machine() {
+        "large-v3-q5_0" => &["large-v3-q5_0", "large-v3-turbo-q5_0", "medium-q5_0", SMALL_MODEL],
+        SMALL_MODEL => &[SMALL_MODEL, "medium-q5_0", "large-v3-turbo-q5_0", "large-v3-q5_0"],
+        _ => &["large-v3-turbo-q5_0", "medium-q5_0", SMALL_MODEL, "large-v3-q5_0"],
     };
     if let Some((_, p)) = find_model(default_id) {
         if p.exists() {
@@ -603,6 +671,62 @@ pub fn preferred_installed_model(default_id: &str) -> Option<String> {
         }
     }
     order.iter().find(|id| find_model(id).map(|(_, p)| p.exists()).unwrap_or(false)).map(|id| id.to_string())
+}
+
+/// The light model is downloading in the background; the first screen keeps
+/// its offer back meanwhile.
+static LIGHT_FETCHING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether the first screen offers the light model: the machine should have
+/// it, the user runs something heavier on this computer's own engine, and they
+/// have not said no. A heavier model they already have keeps running until they
+/// choose; nothing is switched behind their back (Lu, 12 October 2026).
+pub fn light_model_offer_due(machine_model: &str, current: &str, provider: &str, declined: bool, fetching: bool) -> bool {
+    machine_model == SMALL_MODEL && current != SMALL_MODEL && provider == "whisper_local" && !declined && !fetching
+}
+
+pub fn light_model_fetching() -> bool {
+    LIGHT_FETCHING.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// Downloads the light model (checked against its SHA-256) and then moves the
+/// settings from `from_id` to it, but only while the model in use is still
+/// `from_id`: a user who picked another one in the meantime keeps theirs.
+/// Returns whether the switch happened.
+pub async fn fetch_light_model(app: &tauri::AppHandle, shared: &std::sync::Arc<crate::pipeline::Shared>, from_id: &str) -> anyhow::Result<bool> {
+    use std::sync::atomic::Ordering;
+    if LIGHT_FETCHING.swap(true, Ordering::SeqCst) {
+        anyhow::bail!("the light model is already downloading");
+    }
+    let have = list_status().into_iter().any(|m| m.spec.id == SMALL_MODEL && m.verified);
+    let got = if have { Ok(()) } else { download_model(app, SMALL_MODEL).await };
+    LIGHT_FETCHING.store(false, Ordering::SeqCst);
+    got?;
+    let next = {
+        let mut current = shared.settings.write();
+        if current.asr.model_id != from_id {
+            return Ok(false);
+        }
+        let mut next = current.clone();
+        next.asr.model_id = SMALL_MODEL.into();
+        if !crate::settings::read_failed() {
+            next.save(&crate::paths::settings_file())?;
+        }
+        *current = next.clone();
+        next
+    };
+    let _ = shared.tx.send(crate::pipeline::PipelineMsg::SettingsChanged);
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    // Not in the middle of a dictation: restarting the engine there failed the
+    // piece being heard, and on a new weak machine that is the first dictation.
+    for _ in 0..1200 {
+        if shared.snapshot.lock().phase == crate::pipeline::Phase::Idle {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+    shared.engine.apply(app, &next).await;
+    Ok(true)
 }
 
 pub fn cuda_driver_present() -> bool {
@@ -688,5 +812,41 @@ mod move_models_tests {
         assert!(move_models(&from, &to));
         assert!(from.join("readme.txt").exists());
         assert!(!to.join("readme.txt").exists());
+    }
+}
+
+#[cfg(test)]
+mod light_model_tests {
+    use super::*;
+
+    #[test]
+    fn the_light_model_is_offered_only_where_it_belongs() {
+        // The weak machine of 12 October 2026, still on turbo: offered.
+        assert!(light_model_offer_due(SMALL_MODEL, "large-v3-turbo-q5_0", "whisper_local", false, false));
+        // Already on it, said no, downloading, or using a cloud engine: not.
+        assert!(!light_model_offer_due(SMALL_MODEL, SMALL_MODEL, "whisper_local", false, false));
+        assert!(!light_model_offer_due(SMALL_MODEL, "large-v3-turbo-q5_0", "whisper_local", true, false));
+        assert!(!light_model_offer_due(SMALL_MODEL, "large-v3-turbo-q5_0", "whisper_local", false, true));
+        assert!(!light_model_offer_due(SMALL_MODEL, "large-v3-turbo-q5_0", "openai_compatible", false, false));
+        // A machine with a real card never sees it.
+        assert!(!light_model_offer_due("large-v3-q5_0", "large-v3-q5_0", "whisper_local", false, false));
+        assert!(!light_model_offer_due("large-v3-turbo-q5_0", "large-v3-q5_0", "whisper_local", false, false));
+    }
+
+    #[test]
+    fn the_card_warning_stays_off_while_the_processor_works() {
+        assert_eq!(crate::commands::gauge_state_for_backend("cpu", "spilled"), "ok");
+        assert_eq!(crate::commands::gauge_state_for_backend("vulkan", "spilled"), "spilled");
+        // Not started yet: the measurement stands.
+        assert_eq!(crate::commands::gauge_state_for_backend("", "tight"), "tight");
+    }
+
+    #[test]
+    fn the_light_model_is_in_the_catalog_with_its_real_file() {
+        let (spec, _) = find_model(SMALL_MODEL).expect("in the catalog");
+        assert_eq!(spec.file_name, "ggml-small-q5_1.bin");
+        assert_eq!(spec.size_bytes, 190_085_487);
+        assert_eq!(spec.sha256.len(), 64);
+        assert!(spec.url.ends_with(&spec.file_name));
     }
 }

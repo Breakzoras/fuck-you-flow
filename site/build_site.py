@@ -46,7 +46,7 @@ COMMON_LINKS = """<link rel="icon" href="/assets/favicon.ico" sizes="48x48">
 <meta property="og:image:alt" content="{og_alt}">
 <meta name="twitter:card" content="summary_large_image">""".format(base=BASE, og=OG_IMAGE, og_alt=OG_ALT)
 
-HEAD_EN = """<title>Free Voice to Text for Windows: Offline Dictation | FU Flow</title>
+HEAD_EN = """<title>Replaces Wispr Flow: Free Voice to Text for Windows | FU Flow</title>
 <meta name="description" content="Free voice to text for Windows 10 and 11. Talk and it types in any app: offline speech to text and voice typing with local Whisper. No subscription or word limit.">
 <link rel="canonical" href="{base}/">
 {common}
@@ -285,6 +285,8 @@ FAQ_EL = [('Υπάρχει δωρεάν φωνητική πληκτρολόγη�
 # ---------------------------------------------------------------- translations
 # Ordered. Longer strings first where one contains another.
 TR = [('Skip to content', 'Στο περιεχόμενο'),
+ ('Speed depends on your graphics card: the more modern the card, the faster FU Flow runs. On older cards and on computers without one, it runs on the processor, more slowly.',
+  'Η ταχύτητα εξαρτάται από την κάρτα γραφικών: όσο πιο σύγχρονη κάρτα έχετε, τόσο πιο γρήγορα δουλεύει το FU Flow. Σε παλιότερες κάρτες ή σε υπολογιστές χωρίς κάρτα δουλεύει στον επεξεργαστή, πιο αργά.'),
  ('>Feature<', '>Χαρακτηριστικό<'),
  ('Windows 10 and 11', 'Windows 10 και 11'),
  ('Free voice to text for Windows.', 'Δωρεάν υπαγόρευση στα ελληνικά για Windows.'),

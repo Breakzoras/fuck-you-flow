@@ -27,7 +27,7 @@ pub struct DetResult {
 /// "em" is also "them" ("beat em ups", 2 October 2026): it goes only as a pause
 /// with its comma, see `EM_PAUSE`.
 const FILLERS_EN: &[&str] = &["um", "umm", "uh", "uhh", "uhm", "erm", "er", "ehm", "ah", "hmm", "mmm", "mm"];
-const FILLERS_EL: &[&str] = &["ε", "εε", "εεε", "εμ", "εμμ", "μμ", "μμμ", "αα", "ααα", "χμ", "χμμ"];
+const FILLERS_EL: &[&str] = &["ε", "εε", "εεε", "εεεε", "εεεεε", "εεεεεε", "εμ", "εμμ", "μμ", "μμμ", "αα", "ααα", "χμ", "χμμ"];
 /// Phrases removed only at Normal/Strong intensity.
 const FILLER_PHRASES_EN: &[&str] = &["you know", "i mean", "sort of", "kind of"];
 const FILLER_PHRASES_EL: &[&str] = &["ας πούμε", "να πούμε", "ξέρω γω", "πώς το λένε", "πώς να το πω"];
@@ -41,13 +41,21 @@ static WS: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap());
 /// out as "όνομα σε.gr" (2 October 2026). A dot followed by a space, another
 /// mark, a capital or the end of the text is a full stop and loses the space.
 static SPACE_BEFORE_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+([,;:!?…]|\.(?!\p{Ll}))").unwrap());
-static DOUBLE_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"([,.;:!?])\1+").unwrap());
+/// A mark the engine doubled (",,", "??"). Three or more dots are an ellipsis
+/// and have their own rules below; two dots are one full stop.
+static DOUBLE_PUNCT: Lazy<Regex> = Lazy::new(|| Regex::new(r"([,;:!?])\1+|(?<!\.)\.\.(?!\.)").unwrap());
+/// One ellipsis, or several in a row with or without spaces between them.
+static ELLIPSIS_RUN: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:\.{3,}|…)(?:\s*(?:\.{3,}|…))*").unwrap());
+/// An ellipsis right after a mark that already stops ("έτοιμο. ... Πάμε"):
+/// the pause of a filler that went ("Εμ..."), or a pause after a comma.
+static ELLIPSIS_AFTER_MARK: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?<!\.)([.!?;,])\s+(?:\.{3,}|…)").unwrap());
 static REPEAT_WORD: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(\p{L}{2,})\s+\1\b").unwrap());
 /// A stutter with a pause between the two copies: "από; από", "κάποια... κάποια".
 /// The pause mark goes further down and the two copies used to stay glued
 /// together (7 dictations, 28 September to 3 October 2026). Lower case only, so
 /// "Τι; Τι λες;" keeps its echo.
-static STUTTER_ACROSS_PAUSE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\b(\p{Ll}\p{L}*)\s*(?:;|\.{3,}|…)\s+\1\b").unwrap());
+static STUTTER_ACROSS_PAUSE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\b(\p{Ll}\p{L}*)\s*(?:;|\.{3,}|…)(?:\s*(?:\.{3,}|…))*\s+\1\b").unwrap());
 /// Joining words said twice in a row ("σε σε", "από από"): never meant, at any
 /// intensity. Words that can also stand as a pronoun ("το", "τα", "με") are left
 /// out, because "δώσ' το το κλειδί" and "βοήθησέ με με αυτό" double them on
@@ -129,6 +137,11 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
     if text != before {
         applied.push("normalized spacing".into());
     }
+    let before = text.clone();
+    text = spoken_slash(&text);
+    if text != before {
+        applied.push("spoken slash".into());
+    }
 
     if looks_greek(&text) {
         let before = text.clone();
@@ -136,9 +149,11 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
         if text != before {
             applied.push("joined a sentence the engine stopped".into());
         }
-        // Whisper often writes a Latin "?" in Greek sentences; Greek uses ";"
+        // Whisper often writes a Latin "?" in Greek sentences; Greek uses ";".
+        // Only in the sentences written in Greek: an English sentence inside
+        // a Greek dictation keeps its "?" (it used to get a ";").
         let before = text.clone();
-        text = text.replace('?', ";");
+        text = greek_question_marks(&text);
         if text != before {
             applied.push("greek question mark".into());
         }
@@ -212,11 +227,12 @@ fn strip_noise_tags(text: &str) -> String {
 /// inside a sentence, the engine opens the next piece with "..." glued to its
 /// first word ("στο... ...σπίτι", "αρχεία, ...τα"). The later rules made that
 /// "στο.σπίτι" and "αρχεία.τα" (11 of 1054 real dictations, 27 September
-/// 2026). The opening mark goes before those rules run; a pause mark in front
-/// of it is then handled like any other pause. Only before a lower-case word:
-/// before a capital the old sentence break stays.
+/// 2026). The opening mark goes before those rules run, and the closing mark
+/// of the piece before it ("στο...") goes too: both mark the cut, and the
+/// phrase runs on across it. Only before a lower-case word: before a capital
+/// the pause stays.
 fn drop_piece_openers(text: &str) -> String {
-    static OPENER: Lazy<Regex> = Lazy::new(|| Regex::new(r"(^|\s)(?:\.{3,}|…)(?=\p{Ll})").unwrap());
+    static OPENER: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:\.{3,}|…)?(^|\s)(?:\.{3,}|…)(?=\p{Ll})").unwrap());
     super::replace_all_or_keep(&OPENER, text, "$1").trim_start().to_string()
 }
 
@@ -308,14 +324,22 @@ fn resolve_self_corrections(text: &str) -> String {
 
 fn normalize_spacing(text: &str) -> String {
     let t = super::replace_all_or_keep(&WS, text.trim(), " ").to_string();
-    // A pause in the middle of a sentence arrives as "..." with the next word
-    // in lower case. The rules below folded it into one full stop and the next
-    // word got a capital: a sentence break nobody said (102 of 1037 real
-    // dictations, 27 September 2026). The pause simply goes.
-    static MID_ELLIPSIS: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*(?:\.{3,}|…)(?:\s*(?:\.{3,}|…))*\s+(?=\p{Ll})").unwrap());
-    let t = super::replace_all_or_keep(&MID_ELLIPSIS, &t, " ").to_string();
+    // An ellipsis the engine wrote stays, once, where it was. It marks a
+    // pause, a thought left unfinished or one taken back ("με το... να
+    // στήσουμε"). Folding it into a full stop made a sentence break nobody
+    // said (102 of 1037 real dictations, 27 September 2026), and dropping it
+    // joined two thoughts into one ("με το να στήσουμε", 8 October 2026):
+    // until then none of the 216 dictations whose transcript held one kept it.
+    let t = super::replace_all_or_keep(&ELLIPSIS_AFTER_MARK, &t, "$1").to_string();
+    let t = super::replace_all_or_keep(&ELLIPSIS_RUN, &t, |c: &fancy_regex::Captures<'_, str>| {
+        if c[0].starts_with('…') { "…" } else { "..." }
+    })
+    .to_string();
     let t = super::replace_all_or_keep(&SPACE_BEFORE_PUNCT, &t, "$1").to_string();
-    let t = super::replace_all_or_keep(&DOUBLE_PUNCT, &t, "$1").to_string();
+    let t = super::replace_all_or_keep(&DOUBLE_PUNCT, &t, |c: &fancy_regex::Captures<'_, str>| {
+        c.get(1).map(|m| m.as_str().to_string()).unwrap_or_else(|| ".".to_string())
+    })
+    .to_string();
     // ensure a space after sentence punctuation when followed by a letter; for the
     // period only when an uppercase letter follows, so "example.com" and
     // "file.bin" stay intact
@@ -381,6 +405,12 @@ fn capitalize_sentences(text: &str) -> String {
     let mut chars = text.chars().peekable();
     while let Some(c) = chars.next() {
         if capitalize_next && c.is_alphabetic() {
+            let rest: String = std::iter::once(c).chain(chars.clone().take_while(|x| !x.is_whitespace())).collect();
+            if starts_with_web_address(&rest) {
+                out.push(c);
+                capitalize_next = false;
+                continue;
+            }
             for u in c.to_uppercase() {
                 out.push(u);
             }
@@ -390,7 +420,11 @@ fn capitalize_sentences(text: &str) -> String {
         if c == '.' || c == '!' || c == '?' || c == ';' {
             // Greek question mark is ';' but also used as semicolon in English text.
             // Only treat as sentence end when followed by whitespace.
-            if c == '.' && ends_in_known_abbreviation(&out) {
+            if c == '.' && out.ends_with('.') {
+                // the last dot of an ellipsis: the word after it keeps the
+                // case the engine gave it ("με το... να", "Γράφεις... Πρώτα")
+                capitalize_next = false;
+            } else if c == '.' && ends_in_known_abbreviation(&out) {
                 // "π.χ. ένα κουμπί": the full stop belongs to the abbreviation
                 // (3 of 3 such dictations got a capital, 1 October 2026).
                 capitalize_next = false;
@@ -438,6 +472,49 @@ fn lower_inner_function_words(text: &str) -> String {
     super::replace_all_or_keep(&INNER, text, |c: &fancy_regex::Captures<'_, str>| format!(" {}", c[1].to_lowercase())).to_string()
 }
 
+fn is_greek_letter(c: char) -> bool {
+    ('\u{0370}'..='\u{03FF}').contains(&c) || ('\u{1F00}'..='\u{1FFF}').contains(&c)
+}
+
+/// Every "?" closing a sentence that has Greek letters becomes ";"; one closing
+/// an English sentence stays.
+fn greek_question_marks(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut sentence_greek = false;
+    for c in text.chars() {
+        if c == '?' {
+            out.push(if sentence_greek { ';' } else { '?' });
+            sentence_greek = false;
+            continue;
+        }
+        if matches!(c, '.' | '!' | ';' | '\n') {
+            sentence_greek = false;
+        } else if is_greek_letter(c) {
+            sentence_greek = true;
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// "κάθετος" said before a word in Latin letters is a slash: "example.com
+/// κάθετος docs" is "example.com/docs", "πήγαινε στο κάθετος settings" is
+/// "πήγαινε στο /settings". Before a Greek word it is the adjective and stays.
+fn spoken_slash(text: &str) -> String {
+    static GLUED: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)([A-Za-z0-9_\-./]+)\s+κάθετος\s+(?=[A-Za-z0-9])").unwrap());
+    static LOOSE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)(^|\s)κάθετος\s+(?=[A-Za-z0-9])").unwrap());
+    let glued = super::replace_all_or_keep(&GLUED, text, "$1/").into_owned();
+    super::replace_all_or_keep(&LOOSE, &glued, "$1/").into_owned()
+}
+
+/// A web address at the start of a sentence keeps its small letters
+/// ("example.com" used to become "Example.com").
+fn starts_with_web_address(rest: &str) -> bool {
+    static ADDRESS: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-z0-9][a-z0-9\-]*(?:\.[a-z0-9\-]+)*\.[a-z]{2,}(?:/\S*)?[,.;:!?)]*$").unwrap());
+    let token: String = rest.chars().take_while(|c| !c.is_whitespace()).collect();
+    ADDRESS.is_match(&token).unwrap_or(false)
+}
+
 pub fn looks_greek(text: &str) -> bool {
     let greek = text.chars().filter(|c| ('\u{0370}'..='\u{03FF}').contains(c) || ('\u{1F00}'..='\u{1FFF}').contains(c)).count();
     let latin = text.chars().filter(|c| c.is_ascii_alphabetic()).count();
@@ -482,6 +559,26 @@ pub fn word_count(text: &str) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_english_sentence_keeps_its_question_mark() {
+        assert_eq!(greek_question_marks("Τι κάνεις? Did the train leave early? Ναι"), "Τι κάνεις; Did the train leave early? Ναι");
+        assert_eq!(greek_question_marks("Is it done? Ναι, έγινε. Πότε έρχεσαι?"), "Is it done? Ναι, έγινε. Πότε έρχεσαι;");
+    }
+
+    #[test]
+    fn a_spoken_slash_before_latin_letters() {
+        assert_eq!(spoken_slash("άνοιξε το example.com κάθετος docs αύριο"), "άνοιξε το example.com/docs αύριο");
+        assert_eq!(spoken_slash("πήγαινε στο κάθετος settings πρώτα"), "πήγαινε στο /settings πρώτα");
+        // the adjective stays
+        assert_eq!(spoken_slash("ο κάθετος άξονας"), "ο κάθετος άξονας");
+    }
+
+    #[test]
+    fn a_web_address_keeps_small_letters_at_a_sentence_start() {
+        assert_eq!(capitalize_sentences("κοίτα. example.com είναι η σελίδα"), "Κοίτα. example.com είναι η σελίδα");
+        assert_eq!(capitalize_sentences("εκεί. και μετά"), "Εκεί. Και μετά");
+    }
 
     fn opts(intensity: CleanupIntensity) -> DetOptions {
         DetOptions { intensity, remove_fillers: true, resolve_self_corrections: true, auto_punctuate: true, auto_capitalize: true, language: "auto".into() }
@@ -567,11 +664,40 @@ mod tests {
     #[test]
     fn a_pause_inside_a_sentence_is_not_a_full_stop() {
         let o = opts(CleanupIntensity::Normal);
-        assert_eq!(clean("όταν ανοίγεις... παλιά αρχεία, κράτα αντίγραφο", &o).text, "Όταν ανοίγεις παλιά αρχεία, κράτα αντίγραφο.");
-        assert_eq!(clean("πήγα στο... ... στο γραφείο", &o).text, "Πήγα στο στο γραφείο.");
-        assert_eq!(clean("I was… thinking about it", &o).text, "I was thinking about it.");
-        // before a capital it still ends the sentence, as it did
-        assert_eq!(clean("Περίμενε... Τώρα πάμε", &o).text, "Περίμενε. Τώρα πάμε.");
+        assert_eq!(clean("όταν ανοίγεις... παλιά αρχεία, κράτα αντίγραφο", &o).text, "Όταν ανοίγεις... παλιά αρχεία, κράτα αντίγραφο.");
+        assert_eq!(clean("πήγα στο... ... στο γραφείο", &o).text, "Πήγα στο γραφείο.");
+        assert_eq!(clean("I was… thinking about it", &o).text, "I was… thinking about it.");
+        // before a capital the next sentence keeps it, after the same pause
+        assert_eq!(clean("Περίμενε... Τώρα πάμε", &o).text, "Περίμενε... Τώρα πάμε.");
+    }
+
+    /// 8 October 2026: the ellipsis went in every one of 216 dictations that
+    /// had one. "με το... να στήσουμε" became "με το να στήσουμε", two
+    /// thoughts read as one, and "Γράφεις... Πρώτα" became "Γράφεις. Πρώτα",
+    /// an unfinished sentence shown as a finished one.
+    #[test]
+    fn an_ellipsis_stays_where_the_engine_wrote_it() {
+        let o = opts(CleanupIntensity::Normal);
+        assert_eq!(clean("Όχι, κάτσε. Γράφεις... Πρώτα απ' όλα δες το αρχείο", &o).text, "Όχι, κάτσε. Γράφεις... Πρώτα απ' όλα δες το αρχείο.");
+        assert_eq!(
+            clean("να το συνδέσουμε με το... να στήσουμε και ένα δεύτερο πρόγραμμα", &o).text,
+            "Να το συνδέσουμε με το... να στήσουμε και ένα δεύτερο πρόγραμμα."
+        );
+        assert_eq!(clean("θα το δούμε… αύριο ίσως", &o).text, "Θα το δούμε… αύριο ίσως.");
+        assert_eq!(clean("και μετά θα δούμε...", &o).text, "Και μετά θα δούμε...");
+        assert_eq!(clean("we could try the old... no, the other one", &o).text, "We could try the old... no, the other one.");
+        // several in a row are one, with or without spaces between them
+        assert_eq!(clean("περίμενε... ... τώρα", &o).text, "Περίμενε... τώρα.");
+        assert_eq!(clean("περίμενε.... τώρα", &o).text, "Περίμενε... τώρα.");
+        // a question goes on across the pause and is marked at its end
+        assert_eq!(clean("πού θα το... βάλουμε τελικά", &o).text, "Πού θα το... βάλουμε τελικά;");
+        // a question that trails off before the next sentence gets its mark
+        assert_eq!(clean("Τι είναι αυτό... Δεν το καταλαβαίνω", &o).text, "Τι είναι αυτό; Δεν το καταλαβαίνω.");
+        // right after a mark that already stops, the pause adds nothing
+        assert_eq!(clean("Τελείωσε το πρώτο. Εμ... Τώρα το δεύτερο", &o).text, "Τελείωσε το πρώτο. Τώρα το δεύτερο.");
+        assert_eq!(clean("Θέλει ρύθμιση; ... Μετά το βλέπουμε", &o).text, "Θέλει ρύθμιση; Μετά το βλέπουμε.");
+        // two dots are one full stop, as before
+        assert_eq!(clean("Τελείωσε.. Πάμε", &o).text, "Τελείωσε. Πάμε.");
     }
 
     /// 27 September 2026: a piece of a long dictation that starts inside a
@@ -587,8 +713,8 @@ mod tests {
         let mut plain = opts(CleanupIntensity::Normal);
         plain.remove_fillers = false;
         assert_eq!(clean("...και μετά κλείνουμε", &plain).text, "Και μετά κλείνουμε.");
-        // before a capital it still ends the sentence, as it did
-        assert_eq!(clean("Περίμενε... ...Τώρα πάμε", &o).text, "Περίμενε. Τώρα πάμε.");
+        // before a capital the pause stays, once
+        assert_eq!(clean("Περίμενε... ...Τώρα πάμε", &o).text, "Περίμενε... Τώρα πάμε.");
     }
 
     /// 27 September 2026: Whisper wrote "μόνο σου; να το ελέγχεις" for a pause

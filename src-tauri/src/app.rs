@@ -188,19 +188,29 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
         }),
     );
     let mut changed = false;
+    // The model the hardware calls for. On a fresh install it is taken as it
+    // is; on a machine that already runs something heavier it is only offered.
+    let machine_model = hw.model_for_machine();
+    // A fresh install that should run the light model, which the installer
+    // does not carry: it is downloaded after startup and taken once verified.
+    let mut fetch_light = false;
     // First start on this machine: threads and model from the hardware.
     if !settings.general.machine_profiled {
         settings.asr.threads = hw.engine_threads();
-        if let Some(g) = hw.best_gpu() {
-            if g.vram_mb < 3000 && settings.asr.model_id == "large-v3-q5_0" {
-                settings.asr.model_id = "large-v3-turbo-q5_0".into();
-            }
-        } else {
+        settings.general.threads_spare_core = true;
+        let tier = match machine_model {
+            "large-v3-q5_0" => "strong",
+            "large-v3-turbo-q5_0" => "middle",
+            _ => "weak",
+        };
+        // Only ever lighter than the default, never heavier.
+        if tier != "strong" && settings.asr.model_id == "large-v3-q5_0" {
             settings.asr.model_id = "large-v3-turbo-q5_0".into();
         }
+        fetch_light = tier == "weak";
         settings.general.machine_profiled = true;
         changed = true;
-        tracing::info!("machine profiled: {} threads, model {}", settings.asr.threads, settings.asr.model_id);
+        tracing::info!("machine profiled ({tier}): {} threads, model {}, wants {machine_model}", settings.asr.threads, settings.asr.model_id);
         // The one record that tells us, from a stranger's machine, what the app
         // decided on its own and whether that decision was right.
         crate::journal::info(
@@ -215,8 +225,25 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
                 "cuda": hw.cuda_driver,
                 "chose_threads": settings.asr.threads,
                 "chose_model": settings.asr.model_id,
+                "tier": tier,
+                "wants_model": machine_model,
+                "card_used": hw.useful_gpu().is_some(),
             }),
         );
+    }
+    // Machines profiled by 0.9.14 or earlier: a thread count the app chose
+    // that took every core moves to the one that leaves a core free. Once only,
+    // and never a number the user typed in.
+    if !settings.general.threads_spare_core {
+        let old = crate::hw::engine_threads_before_spare_core(hw.logical_cores);
+        let new = hw.engine_threads();
+        if settings.asr.threads == old && old != new {
+            tracing::info!("threads {old} -> {new}: one core stays free for the microphone");
+            crate::journal::info("threads.spare_core", serde_json::json!({ "from": old, "to": new, "logical_cores": hw.logical_cores }));
+            settings.asr.threads = new;
+        }
+        settings.general.threads_spare_core = true;
+        changed = true;
     }
     // The configured model is not on disk (fresh install): take a shipped one.
     if let Some(id) = crate::models::preferred_installed_model(&settings.asr.model_id) {
@@ -240,11 +267,12 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             settings.asr.use_gpu,
             &settings.asr.backend,
             settings.general.gpu_choice_by_user,
-            hw.best_gpu().is_some(),
+            // a card too small to beat the processor is left alone
+            hw.useful_gpu().is_some(),
             hw.vulkan_runtime,
             vulkan_build,
         ) {
-            let card = hw.best_gpu().map(|g| g.name.clone()).unwrap_or_default();
+            let card = hw.useful_gpu().map(|g| g.name.clone()).unwrap_or_default();
             settings.asr.use_gpu = true;
             settings.asr.backend = "auto".into();
             changed = true;
@@ -254,6 +282,13 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
                 serde_json::json!({ "card": card, "vendor": hw.best_gpu().map(|g| g.vendor.clone()), "vulkan": hw.vulkan_runtime, "cuda": hw.cuda_driver }),
             );
         }
+    }
+    // A card remembered as failed is tried again once the machine shows a
+    // different one (a new card, or the settings file carried to another PC).
+    if !settings.general.gpu_failed_card.is_empty() && hw.best_gpu().map(|g| g.name.as_str()) != Some(settings.general.gpu_failed_card.as_str()) {
+        tracing::info!("the card that failed ({}) is not the best one any more; trying cards again", settings.general.gpu_failed_card);
+        settings.general.gpu_failed_card.clear();
+        changed = true;
     }
     // Sharing the Dictionary's corrections is on unless the user switched it
     // off. When their file could not be read their choice is unknown, and
@@ -277,6 +312,16 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     let settings = settings;
     crate::logging::set_redaction(settings.privacy.redact_logs);
     let db = Arc::new(Db::open(&crate::paths::db_file())?);
+    // Installations from before 0.9.15 did not keep `engine_ever_ready`: one
+    // dictation in History is proof enough that the engine worked here.
+    let mut settings = settings;
+    if !settings.general.engine_ever_ready && db.has_history().unwrap_or(false) {
+        settings.general.engine_ever_ready = true;
+        if !crate::settings::read_failed() {
+            let _ = settings.save(&crate::paths::settings_file());
+        }
+    }
+    let settings = settings;
     // 0.9.12: every rule takes the language its letters show, and edits that
     // taught nothing under the old rules are read once more. Both are safe to
     // repeat; the second one runs once, behind a marker file.
@@ -332,6 +377,11 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             }
         }
     }
+    let pruned = crate::paths::prune_kept_audio(crate::paths::KEPT_AUDIO_DAYS);
+    if pruned > 0 {
+        tracing::info!("deleted {pruned} kept recordings older than {} days", crate::paths::KEPT_AUDIO_DAYS);
+        crate::journal::info("audio.pruned", serde_json::json!({ "files": pruned }));
+    }
 
     let audio = AudioCapture::new(settings.audio.preroll_ms, settings.audio.max_recording_seconds);
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMsg>();
@@ -364,7 +414,28 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     // Dictionary corrections, for a user who agreed to share them. It does
     // nothing at all until they have.
     crate::sharing::spawn(shared.clone());
-    crate::packs::spawn(shared.clone());
+    crate::packs::spawn(app.handle().clone(), shared.clone());
+
+    // The light model: fetched on its own for a fresh install that needs it,
+    // offered on the first screen to one that already runs a heavier model.
+    if fetch_light && settings.asr.model_id != crate::models::SMALL_MODEL {
+        let (handle, shared2, from) = (app.handle().clone(), shared.clone(), settings.asr.model_id.clone());
+        tauri::async_runtime::spawn(async move {
+            match crate::models::fetch_light_model(&handle, &shared2, &from).await {
+                Ok(switched) => {
+                    tracing::info!("light model ready; switched from {from}: {switched}");
+                    crate::journal::info("model.light_auto", serde_json::json!({ "from": from, "switched": switched }));
+                }
+                Err(err) => {
+                    // The first screen offers it again from here on.
+                    tracing::warn!("light model not downloaded: {err}");
+                    crate::journal::warn("model.light_auto_failed", serde_json::json!({ "from": from, "error": err.to_string() }));
+                }
+            }
+        });
+    } else if crate::models::light_model_offer_due(machine_model, &settings.asr.model_id, &settings.asr.provider, settings.general.light_model_declined, false) {
+        crate::journal::info("model.light_offered", serde_json::json!({ "model": settings.asr.model_id, "card": hw.best_gpu().map(|g| g.name.clone()) }));
+    }
 
     // clipboard owner thread, warm early
     crate::insertion::ensure_started();
@@ -382,10 +453,22 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
             crate::local_api::apply(shared2.engine.clone(), s.privacy.local_api, s.privacy.local_api_port);
             shared2.engine.apply(&handle, &s).await;
             let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
+            // The light model is fetched after a failure at most once a run.
+            let mut light_tried = false;
             loop {
                 tick.tick().await;
                 let s = shared2.settings.read().clone();
                 shared2.engine.ensure_alive(&handle, &s).await;
+                let status = shared2.engine.info().status;
+                if status == crate::asr::EngineStatus::Ready && !s.general.engine_ever_ready {
+                    remember_engine_worked(&handle, &shared2);
+                }
+                if !light_tried
+                    && crate::engine::light_model_due_after_failure(s.general.engine_ever_ready, shared2.engine.gpu_failed_this_run(), status, &s.asr.model_id, &s.asr.provider)
+                {
+                    light_tried = true;
+                    take_light_model_after_failure(&handle, &shared2, &s.asr.model_id);
+                }
                 // microphone watchdog: re-open if the warm stream stopped delivering
                 let idle = shared2.snapshot.lock().phase == Phase::Idle;
                 if s.audio.keep_stream_warm && idle && (!shared2.audio.is_open() || !shared2.audio.is_alive()) {
@@ -409,12 +492,130 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// The engine was ready: from now on nothing changes the model on its own.
+fn remember_engine_worked(app: &tauri::AppHandle, shared: &Arc<Shared>) {
+    let mut current = shared.settings.write();
+    if current.general.engine_ever_ready {
+        return;
+    }
+    current.general.engine_ever_ready = true;
+    if !crate::settings::read_failed() {
+        let _ = current.save(&crate::paths::settings_file());
+    }
+    drop(current);
+    crate::journal::info("engine.first_ready", serde_json::json!({}));
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+}
+
+/// The card failed and the heavier model did not start on the processor
+/// either, on a machine where the engine never worked: fetch the light model
+/// and take it, and keep the card off for "auto" from now on. The user sees
+/// what is happening on the first screen and in the dictation window.
+fn take_light_model_after_failure(app: &tauri::AppHandle, shared: &Arc<Shared>, from: &str) {
+    let card = crate::hw::detect().best_gpu().map(|g| g.name.clone()).unwrap_or_default();
+    {
+        let mut current = shared.settings.write();
+        current.general.gpu_failed_card = card.clone();
+        if !crate::settings::read_failed() {
+            let _ = current.save(&crate::paths::settings_file());
+        }
+    }
+    tracing::warn!("the engine never worked here (card {card} failed, {from} too slow on the processor); fetching the light model");
+    crate::journal::warn("model.light_after_failure", serde_json::json!({ "from": from, "card": card }));
+    let _ = app.emit(
+        "lalia://engine",
+        crate::asr::EngineInfo {
+            status: crate::asr::EngineStatus::Starting,
+            provider: "whisper_local".into(),
+            model_id: crate::models::SMALL_MODEL.into(),
+            gpu: false,
+            message: Some("engine_light_switch".into()),
+            warm_ms: None,
+            backend: "cpu".into(),
+        },
+    );
+    let (handle, shared2, from) = (app.clone(), shared.clone(), from.to_string());
+    tauri::async_runtime::spawn(async move {
+        match crate::models::fetch_light_model(&handle, &shared2, &from).await {
+            Ok(switched) => {
+                tracing::info!("light model after failure: switched from {from}: {switched}");
+                crate::journal::info("model.light_auto", serde_json::json!({ "from": from, "switched": switched, "after_failure": true }));
+            }
+            Err(err) => {
+                tracing::warn!("light model after failure not downloaded: {err}");
+                crate::journal::warn("model.light_auto_failed", serde_json::json!({ "from": from, "error": err.to_string(), "after_failure": true }));
+                let _ = handle.emit(
+                    "lalia://engine",
+                    crate::asr::EngineInfo {
+                        status: crate::asr::EngineStatus::Failed,
+                        provider: "whisper_local".into(),
+                        model_id: from.clone(),
+                        gpu: false,
+                        message: Some("engine_light_failed".into()),
+                        warm_ms: None,
+                        backend: "cpu".into(),
+                    },
+                );
+            }
+        }
+    });
+}
+
 /// Holds the one tray icon for the lifetime of the process. Tauri drops a tray
 /// icon when its last handle goes away, so the handle is parked here.
 static TRAY: Mutex<Option<tauri::tray::TrayIcon>> = Mutex::new(None);
 
 /// Takes the icon out of the notification area. Called on every exit path, so a
 /// closing the app never leaves an icon painted on the taskbar.
+/// Longest a quit waits for a dictation that is being turned into text.
+const QUIT_WAIT_MS: u64 = 60_000;
+
+/// Lets a dictation that is already being transcribed reach History and the
+/// cursor before the engine goes down. On 10 October 2026 a quit four seconds
+/// after the user stopped talking stopped the engine mid-request: no text, no
+/// history row, no recording. A recording still in progress is not waited
+/// for, since in hands-free mode it could last for minutes.
+pub async fn let_dictation_finish(shared: &Shared) {
+    let busy = || shared.snapshot.lock().phase == Phase::Processing;
+    if !busy() {
+        return;
+    }
+    let waited_ms = wait_while(busy, QUIT_WAIT_MS).await;
+    tracing::info!("quit waited {waited_ms} ms for a dictation to finish");
+    crate::journal::info("quit.waited", serde_json::json!({ "ms": waited_ms, "finished": !busy() }));
+}
+
+/// Waits while `busy` holds, at most `max_ms`; returns how long it waited.
+async fn wait_while(busy: impl Fn() -> bool, max_ms: u64) -> u64 {
+    let started = std::time::Instant::now();
+    while busy() && (started.elapsed().as_millis() as u64) < max_ms {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    started.elapsed().as_millis() as u64
+}
+
+#[cfg(test)]
+mod quit_wait_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[tokio::test]
+    async fn quit_waits_for_the_dictation_and_no_longer() {
+        let busy = Arc::new(AtomicBool::new(true));
+        let b = busy.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            b.store(false, Ordering::SeqCst);
+        });
+        let waited = wait_while(|| busy.load(Ordering::SeqCst), 5_000).await;
+        assert!((250..2_000).contains(&waited), "waited {waited} ms");
+
+        // An engine that never answers does not hold the quit forever.
+        let waited = wait_while(|| true, 400).await;
+        assert!((400..2_000).contains(&waited), "waited {waited} ms");
+    }
+}
+
 pub fn drop_tray(app: &tauri::AppHandle) {
     let _ = app.remove_tray_by_id("main");
     let icon = TRAY.lock().take();
@@ -471,14 +672,15 @@ fn build_tray(app: &tauri::App) -> anyhow::Result<()> {
                     let _ = state.shared.tx.send(PipelineMsg::PasteLast);
                 }
                 "quit" => {
-                    let _ = state.shared.tx.send(PipelineMsg::Shutdown);
                     // Remove the icon before anything can fail, so quitting never
                     // leaves a ghost behind.
                     drop_tray(app);
-                    let engine = state.shared.engine.clone();
+                    let shared = state.shared.clone();
                     let app2 = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        engine.stop().await;
+                        let_dictation_finish(&shared).await;
+                        let _ = shared.tx.send(PipelineMsg::Shutdown);
+                        shared.engine.stop().await;
                         app2.exit(0);
                     });
                 }

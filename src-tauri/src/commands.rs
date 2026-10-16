@@ -53,7 +53,8 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
     let old = state.shared.settings.read().clone();
     // Once the user has touched the card switch or the acceleration, startup
     // stops correcting them: their choice outranks our hardware guess.
-    if old.asr.use_gpu != settings.asr.use_gpu || old.asr.backend != settings.asr.backend {
+    let gpu_moved_by_user = old.asr.use_gpu != settings.asr.use_gpu || old.asr.backend != settings.asr.backend;
+    if gpu_moved_by_user {
         settings.general.gpu_choice_by_user = true;
     }
     {
@@ -70,6 +71,13 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
         settings.packs = current.packs.clone();
         // The GitHub card: once pressed, an older copy never brings it back.
         settings.general.rated_on_github |= current.general.rated_on_github;
+        // The same for the light-model line and the one-time thread move.
+        settings.general.light_model_declined |= current.general.light_model_declined;
+        settings.general.threads_spare_core |= current.general.threads_spare_core;
+        // And the two the engine writes after a start: whether it ever worked
+        // here, and which card failed. Picking a backend by hand clears the card.
+        settings.general.engine_ever_ready |= current.general.engine_ever_ready;
+        settings.general.gpu_failed_card = if gpu_moved_by_user { String::new() } else { current.general.gpu_failed_card.clone() };
         settings.save(&crate::paths::settings_file()).map_err(e)?;
         *current = settings.clone();
     }
@@ -172,6 +180,8 @@ pub fn engine_info(state: State<'_, Arc<AppState>>) -> crate::asr::EngineInfo {
 #[tauri::command]
 pub async fn engine_restart(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<()> {
     let settings = state.shared.settings.read().clone();
+    // A restart asked for by hand tries the card again this run.
+    state.shared.engine.forget_gpu_failure();
     state.shared.engine.apply(&app, &settings).await;
     Ok(())
 }
@@ -270,6 +280,10 @@ pub fn gpu_gauge(state: State<'_, Arc<AppState>>) -> GpuGauge {
         }
         _ => "ok",
     };
+    // The card's room says nothing while the processor does the work. On the
+    // weak machine of 12 October 2026 the engine moved to the processor and
+    // the card's 128 MB would otherwise have kept this warning lit for good.
+    let state_word = gauge_state_for_backend(&state.shared.engine.info().backend, state_word);
 
     // Offered only when the current model does not fit: the most accurate one
     // already on disk that would. A model with no measured accuracy is skipped
@@ -298,6 +312,16 @@ pub fn gpu_gauge(state: State<'_, Arc<AppState>>) -> GpuGauge {
         state: state_word.into(),
         fits_instead_name: fits.as_ref().map(|m| m.spec.display_name.clone()),
         fits_instead: fits.map(|m| m.spec.id),
+    }
+}
+
+/// The gauge state, given where the running engine is: on the processor the
+/// card is never the reason dictation is slow.
+pub fn gauge_state_for_backend<'a>(backend: &str, measured: &'a str) -> &'a str {
+    if backend == "cpu" {
+        "ok"
+    } else {
+        measured
     }
 }
 
@@ -823,11 +847,16 @@ pub fn local_api_status() -> crate::local_api::LocalApiStatus {
 
 #[tauri::command]
 pub fn quit_app(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) {
-    let _ = state.shared.tx.send(PipelineMsg::Shutdown);
     crate::app::drop_tray(&app);
-    let engine = state.shared.engine.clone();
-    tauri::async_runtime::block_on(async move { engine.stop().await });
-    app.exit(0);
+    // Off the calling thread: waiting for a dictation to finish must not hold
+    // up the window or the paste that ends it.
+    let shared = state.shared.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::app::let_dictation_finish(&shared).await;
+        let _ = shared.tx.send(PipelineMsg::Shutdown);
+        shared.engine.stop().await;
+        app.exit(0);
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -1141,6 +1170,62 @@ pub fn pack_decline(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R
     Ok(settings)
 }
 
+/// The light model, as the first screen offers it.
+#[derive(serde::Serialize)]
+pub struct LightOffer {
+    pub model_id: String,
+    pub display_name: String,
+    pub size_bytes: u64,
+}
+
+/// Whether to show the line that offers the light model: a machine without a
+/// graphics card worth using, running a heavier model, that has not said no.
+#[tauri::command(async)]
+pub fn light_model_offer(state: State<'_, Arc<AppState>>) -> Option<LightOffer> {
+    let s = state.shared.settings.read().clone();
+    let machine = crate::hw::detect().model_for_machine();
+    if !crate::models::light_model_offer_due(machine, &s.asr.model_id, &s.asr.provider, s.general.light_model_declined, crate::models::light_model_fetching()) {
+        return None;
+    }
+    crate::models::find_model(crate::models::SMALL_MODEL).map(|(spec, _)| LightOffer { model_id: spec.id, display_name: spec.display_name, size_bytes: spec.size_bytes })
+}
+
+/// "Switch to it": download the light model, check it, then use it.
+#[tauri::command]
+pub async fn light_model_accept(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<Settings> {
+    let shared = state.shared.clone();
+    let from = shared.settings.read().asr.model_id.clone();
+    crate::journal::info("model.light_accepted", serde_json::json!({ "from": from }));
+    let switched = crate::models::fetch_light_model(&app, &shared, &from).await.map_err(e)?;
+    tracing::info!("light model taken by the user's choice; switched from {from}: {switched}");
+    let settings = shared.settings.read().clone();
+    Ok(settings)
+}
+
+/// "No, thanks": the line goes away for good and the model stays.
+#[tauri::command]
+pub fn light_model_decline(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<Settings> {
+    let settings = {
+        let mut current = state.shared.settings.write();
+        let mut next = current.clone();
+        next.general.light_model_declined = true;
+        next.save(&crate::paths::settings_file()).map_err(e)?;
+        *current = next.clone();
+        next
+    };
+    crate::journal::info("model.light_declined", serde_json::json!({ "model": settings.asr.model_id }));
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    Ok(settings)
+}
+
+/// OK on the line that says the ready-made dictionary updated itself.
+#[tauri::command]
+pub fn pack_notice_seen(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<Settings> {
+    let settings = set_packs(&state, |p| p.notice = None)?;
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    Ok(settings)
+}
+
 /// Takes the ready-made dictionary out again and stops the daily check. Rules
 /// the user changed stay, as their own.
 #[tauri::command]
@@ -1153,6 +1238,7 @@ pub async fn pack_remove(app: tauri::AppHandle, state: State<'_, Arc<AppState>>)
         p.asked = true;
         p.language = String::new();
         p.version = 0;
+        p.notice = None;
     })?;
     crate::app::reload_engines(&state);
     crate::journal::info("packs.removed", serde_json::json!({ "rules": removed }));

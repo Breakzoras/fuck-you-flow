@@ -26,8 +26,12 @@ test("a small card never gets the model that does not fit", () => {
   }
 });
 
-test("without a usable card the processor runs the lightest good model", () => {
-  assert.deepEqual(recommend(noCard, "el_mixed", "accuracy"), { modelId: "large-v3-turbo-q5_0", backend: "cpu", whyKey: "guide_why_cpu" });
+test("without a usable card the processor runs the light small model", () => {
+  assert.deepEqual(recommend(noCard, "el_mixed", "accuracy"), { modelId: "small-q5_1", backend: "cpu", whyKey: "guide_why_cpu" });
+  // The one report from such a machine (12 October 2026): the card built into
+  // the processor, 128 MB, with Vulkan present.
+  const builtIn = machineFrom({ gpus: [{ vram_mb: 128 }], vulkan_runtime: true });
+  assert.deepEqual(recommend(builtIn, "el_mixed", "speed"), { modelId: "small-q5_1", backend: "cpu", whyKey: "guide_why_cpu" });
   // A card with memory but no driver the engine can use counts as none.
   assert.equal(recommend(machineFrom({ gpus: [{ vram_mb: 8000 }] }), "el_mixed", "accuracy").backend, "cpu");
 });

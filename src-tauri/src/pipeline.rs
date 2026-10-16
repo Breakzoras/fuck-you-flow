@@ -112,6 +112,19 @@ const SEGMENT_MAX_MS: usize = 12_000;
 /// 2.5 seconds. A middle piece shorter than this waits for more speech; a last
 /// piece shorter than this is heard again together with the piece before it.
 const MIN_PIECE_MS: usize = 2500;
+/// While the engine still works on the last piece, the next one waits and grows
+/// up to this length instead of joining a queue. The engine pads every request
+/// to a 30-second window, so a 5-second piece costs it as much as a long one.
+/// On 11 October 2026 the card ran about ten times slower than usual and up to
+/// eight pieces queued at once: the text came 64 and 73 seconds after the key
+/// was released. Held back, the same speech goes in a few long requests.
+const BUSY_MAX_MS: usize = 24_000;
+
+/// True when a stretch of `stretch_samples` should wait for the engine to finish
+/// the piece it is working on. Past BUSY_MAX_MS it goes anyway.
+fn hold_for_engine(busy: bool, stretch_samples: usize) -> bool {
+    busy && stretch_samples < BUSY_MAX_MS * 16
+}
 
 /// Where the last request starts: a last piece too short to be heard on its
 /// own goes back to the start of the piece before it, so the engine hears it
@@ -140,6 +153,21 @@ fn mic_sounds_dead(loudest: f32, secs: f32) -> bool {
 }
 
 type SegmentJob = tokio::task::JoinHandle<(Result<crate::asr::TranscriptionResult, crate::asr::AsrError>, Option<(f32, f32)>)>;
+
+/// When everything was heard while the user spoke (only silence after the last
+/// pause), or the last piece failed and the earlier ones are kept, no last
+/// piece is heard and its empty result named no engine and no model in the
+/// History entry (230 of 1612 entries, 5 September to 8 October 2026). The
+/// engine and model that heard the pieces before it go in the entry.
+fn name_engine_from_pieces(result: &mut crate::asr::TranscriptionResult, pieces: Option<(String, String)>, kept_pieces: bool) {
+    if !result.engine.is_empty() || !kept_pieces {
+        return;
+    }
+    if let Some((engine, model)) = pieces {
+        result.engine = engine;
+        result.model = model;
+    }
+}
 
 /// Joins phrases transcribed separately. A phrase that starts with a comma or
 /// a semicolon after one that ended in a period ("κάνει." + ", σε pixel") loses
@@ -214,9 +242,34 @@ fn apply_intonation(text: &str, pitch: Option<(f32, f32)>, enabled: bool) -> Str
         return t.to_string();
     }
     let body = t.trim_end_matches(|c: char| matches!(c, '.' | '!' | '…'));
+    if !pitch_mark_fits(body) {
+        tracing::info!("intonation: no mark, a long piece without a question word (peak {peak:+.1} st, end {end:+.1} st)");
+        return t.to_string();
+    }
     let mark = if crate::cleanup::deterministic::looks_greek(body) { ';' } else { '?' };
     tracing::info!("intonation: question mark added (peak {peak:+.1} st, end {end:+.1} st)");
     format!("{body}{mark}")
+}
+
+/// Where a rising voice may still mean a question: one short sentence (a
+/// yes/no question is mostly that), or a last sentence with a question word.
+/// Measured on a week of dictations (8 to 14 October 2026), the voice alone
+/// gave 51 wrong marks for 24 right ones; this keeps 15 of the right ones and
+/// drops 41 of the wrong.
+fn pitch_mark_fits(body: &str) -> bool {
+    // With their accents: "που" (that) and "ποτέ" (never) are in most
+    // statements, "πού" and "πότε" ask.
+    const QUESTION_WORDS: &[&str] = &[
+        "τι", "τί", "πώς", "πού", "πότε", "ποιος", "ποια", "ποιο", "ποιοι", "ποιες", "ποιον", "ποιου", "ποιων", "ποιανού", "ποιανής", "γιατί", "μήπως",
+        "έχεις", "έχετε", "μπορείς",
+    ];
+    fn plain(w: &str) -> String {
+        w.to_lowercase().chars().filter(|c| c.is_alphabetic()).collect()
+    }
+    let sentences: Vec<&str> = body.split(|c: char| matches!(c, '.' | '!' | '?' | ';')).map(str::trim).filter(|x| !x.is_empty()).collect();
+    let Some(last) = sentences.last() else { return false };
+    let words: Vec<String> = last.split_whitespace().map(plain).filter(|w| !w.is_empty()).collect();
+    (sentences.len() == 1 && words.len() <= 8) || words.iter().any(|w| QUESTION_WORDS.contains(&w.as_str()))
 }
 
 #[derive(Default)]
@@ -234,6 +287,13 @@ struct Segmenter {
     jobs: Vec<SegmentJob>,
     /// Text of the last finished segment, given to the next request as context.
     last_text: String,
+}
+
+impl Segmenter {
+    /// A piece is still with the engine.
+    fn engine_busy(&self) -> bool {
+        self.jobs.iter().any(|j| !j.is_finished())
+    }
 }
 
 fn join_prompt(hints: Option<String>, previous: &str) -> Option<String> {
@@ -275,12 +335,22 @@ fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: 
     let seg2 = seg.clone();
     let audio_ms = a.trimmed.len() / 16;
     let language = language.clone();
+    let engine_on_cpu = engine.info().backend == "cpu";
     let handle = tokio::spawn(async move {
         let label = format!("segment {n}");
         let r = transcribe_in_chosen_languages(&language, req, &label, |q| engine.transcribe(q)).await;
         match &r {
             Ok(t) => {
                 tracing::debug!("segment {n}: {audio_ms} ms audio, {} ms inference", t.inference_ms);
+                // Slower than the speech itself: the card is busy with something
+                // else. Kept in the journal so a slow morning can be found later.
+                // On the processor the light model runs at about the speed of
+                // the voice, so "behind" there starts at twice the audio.
+                let behind_ms = if engine_on_cpu { audio_ms as u64 * 2 } else { audio_ms as u64 };
+                if t.inference_ms > behind_ms {
+                    tracing::warn!("engine behind: segment {n} took {} ms for {audio_ms} ms of audio", t.inference_ms);
+                    crate::journal::warn("engine.slow", serde_json::json!({ "piece": n, "audio_ms": audio_ms, "took_ms": t.inference_ms }));
+                }
                 if let Some((peak, end)) = pitch {
                     tracing::info!("prosody: segment {n} tail peak {peak:+.1} st, end {end:+.1} st | {}", crate::logging::redact(t.text.trim()));
                 }
@@ -559,12 +629,15 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
             // Every ~250 ms: has the user paused after saying enough for a segment?
             if segment_enabled && n % 8 == 0 {
                 let len = shared2.audio.recorded_len();
-                let (cut, last_try) = { let g = seg.lock(); (g.cut, g.last_try) };
+                let (cut, last_try, busy) = { let g = seg.lock(); (g.cut, g.last_try, g.engine_busy()) };
+                // The engine has not finished the last piece: let this one grow.
+                // The cut stays where it is, so no audio is skipped.
+                let hold = hold_for_engine(busy, len.saturating_sub(cut));
                 let pause = SEGMENT_PAUSE_MS * 16;
                 // A refused stretch is worth another look only once it has
                 // grown by a whole segment's worth of new audio.
                 let retry_ready = len >= last_try + SEGMENT_MIN_MS * 16;
-                if retry_ready && len >= cut + SEGMENT_MIN_MS * 16 + pause {
+                if !hold && retry_ready && len >= cut + SEGMENT_MIN_MS * 16 + pause {
                     let tail = shared2.audio.recorded_range(len - pause, len);
                     if crate::audio::is_silent(&tail) {
                         // cut in the middle of the pause: the segment keeps some
@@ -602,6 +675,9 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
 }
 
 async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
+    // A cancelled recording used to leave a start and then nothing in the
+    // journal, the same trace as one that was lost.
+    crate::journal::info("record.cancelled", serde_json::json!({ "pieces": s.segments.lock().jobs.len() }));
     drop_recording(shared, s, level_task);
     crate::hotkey::reset_pressed_state();
     overlay::emit_state(app, OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
@@ -782,9 +858,16 @@ async fn process(
     if !shared.engine.is_ready() {
         let info = shared.engine.info();
         let (state, msg) = match info.status {
-            crate::asr::EngineStatus::Starting => (OverlayState::ModelUnavailable, Some("the speech model is still loading".to_string())),
+            crate::asr::EngineStatus::Starting => (
+                OverlayState::ModelUnavailable,
+                Some(if info.message.as_deref() == Some("engine_light_switch") { "engine_light_switch" } else { "engine_starting" }.to_string()),
+            ),
             crate::asr::EngineStatus::Missing => (OverlayState::ModelUnavailable, info.message.clone()),
-            _ => (OverlayState::Failed, info.message.clone()),
+            // The engine's own words here are technical English ("warm-up
+            // failed: engine request failed: error sending request..."), and
+            // that is all the 14 October 2026 reporter saw, for three seconds.
+            // Keys the screens translate say what is going on instead.
+            _ => (OverlayState::Failed, Some(engine_failed_hint(info.message.as_deref()).to_string())),
         };
         // wait a little for a starting engine (up to 8 s)
         if info.status == crate::asr::EngineStatus::Starting {
@@ -796,6 +879,10 @@ async fn process(
             }
         }
         if !shared.engine.is_ready() {
+            // Without this a report shows the recording start and then nothing:
+            // the four dictations of 14 October 2026 left no trace of why.
+            let now = shared.engine.info();
+            crate::journal::warn("record.engine_not_ready", serde_json::json!({ "status": format!("{:?}", now.status), "message": now.message, "model": now.model_id, "audio_ms": audio_ms }));
             overlay::emit_state(app, OverlayPayload { state, message: msg, preview: None, can_retry: true, seconds: 0.0, movable: false });
             shared.snapshot.lock().last_error = Some("engine not ready".into());
             finish_idle(shared, app, idle_timer, 3000);
@@ -821,6 +908,9 @@ async fn process(
     let mut tail_wav: Option<Vec<u8>> = None;
     let mut tail_prompt: Option<String> = None;
     let mut tail_silent = false;
+    // The engine and model that heard the pieces, for the History entry when
+    // no last piece is heard after them (see below).
+    let mut head_engine: Option<(String, String)> = None;
     if let Some(seg) = segments.as_ref() {
         let (jobs, cut, prev_cut, last_text) = {
             let mut g = seg.lock();
@@ -836,6 +926,9 @@ async fn process(
                 match j.await {
                     Ok((Ok(t), pitch)) => {
                         parts_ms += t.inference_ms;
+                        if !t.engine.is_empty() {
+                            head_engine = Some((t.engine.clone(), t.model.clone()));
+                        }
                         let text = t.text.trim().to_string();
                         last_piece_kept = !text.is_empty() && !is_hallucination(&text);
                         if last_piece_kept {
@@ -973,6 +1066,8 @@ async fn process(
             crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
         }
     };
+    let mut result = result;
+    name_engine_from_pieces(&mut result, head_engine.take(), !head_parts.is_empty());
     // The shared language guard validates each accepted piece and its retry.
     let tail_pitch = crate::audio::tail_pitch_features(&speech);
     if let Some((peak, end)) = tail_pitch {
@@ -1233,6 +1328,17 @@ async fn process(
     finish_idle(shared, app, idle_timer, if state == OverlayState::Success { 1400 } else { 4000 });
 }
 
+/// The line under "failed" in the dictation window when the engine is not
+/// running: an i18n key. The light-model messages keep their own key; every
+/// other failure says the engine did not start and where to look.
+fn engine_failed_hint(message: Option<&str>) -> &'static str {
+    match message {
+        Some("engine_light_switch") => "engine_light_switch",
+        Some("engine_light_failed") => "engine_light_failed",
+        _ => "msg_engine_failed",
+    }
+}
+
 fn finish_idle(shared: &Arc<Shared>, app: &tauri::AppHandle, idle_timer: &mut Option<tokio::task::JoinHandle<()>>, ms: u64) {
     CAPTURE_ESCAPE.store(false, std::sync::atomic::Ordering::Relaxed);
     set_phase(shared, Phase::Idle, false);
@@ -1312,9 +1418,41 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn a_rising_voice_marks_only_short_or_asking_pieces() {
+        // a short yes/no question
+        assert!(pitch_mark_fits("Το έστειλες"));
+        assert!(pitch_mark_fits("Is it ready"));
+        // a question word in the last sentence
+        assert!(pitch_mark_fits("Το είδα χθες στο γραφείο. Πότε θα το στείλεις στον πελάτη τελικά"));
+        // a long statement that only ends high
+        assert!(!pitch_mark_fits("Το πρωί πήγαμε στη λαϊκή με τη γιαγιά. Πήραμε ντομάτες και λίγα φρέσκα φασολάκια"));
+        assert!(!pitch_mark_fits("Η βροχή σταμάτησε νωρίς και ο δρόμος στέγνωσε μέχρι το μεσημέρι"));
+        // "που" and "ποτέ" are not questions; "πού" and "πότε" are
+        assert!(!pitch_mark_fits("Ο φίλος μου που μένει στη Λάρισα δεν έρχεται ποτέ το καλοκαίρι εδώ"));
+        assert!(pitch_mark_fits("Ο φίλος σου ο Νίκος μένει ακόμα στη Λάρισα ή πού μένει τώρα"));
+    }
     use crate::asr::{AsrError, TranscriptionResult};
     use crate::settings::{LanguageMode, LanguageModeSetting};
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn a_dictation_heard_in_pieces_names_its_engine_without_a_last_piece() {
+        let pieces = || Some(("whisper_local".to_string(), "large-v3-q5_0".to_string()));
+        // silence after the last pause: no last piece was heard
+        let mut r = TranscriptionResult::default();
+        name_engine_from_pieces(&mut r, pieces(), true);
+        assert_eq!((r.engine.as_str(), r.model.as_str()), ("whisper_local", "large-v3-q5_0"));
+        // a last piece that was heard keeps its own names
+        let mut r = TranscriptionResult { engine: "openai".into(), model: "whisper-1".into(), ..Default::default() };
+        name_engine_from_pieces(&mut r, pieces(), true);
+        assert_eq!((r.engine.as_str(), r.model.as_str()), ("openai", "whisper-1"));
+        // nothing kept from the pieces: nothing to name
+        let mut r = TranscriptionResult::default();
+        name_engine_from_pieces(&mut r, pieces(), false);
+        assert!(r.engine.is_empty() && r.model.is_empty());
+    }
 
     /// On 21 September 2026 a muted headset sent a peak of 0.00002 for 54
     /// seconds and the user only learned at the end that nothing was heard.
@@ -1469,7 +1607,10 @@ mod tests {
         assert_eq!(apply_intonation("Λοιπόν, δεν θέλω το μπλε πουκάμισο, θέλω το άσπρο με τις ρίγες.", q, true), "Λοιπόν, δεν θέλω το μπλε πουκάμισο, θέλω το άσπρο με τις ρίγες.");
         // without the repeated word the voice still decides
         assert_eq!(apply_intonation("Είναι η Τετάρτη το πρωί.", q, true), "Είναι η Τετάρτη το πρωί;");
-        assert_eq!(apply_intonation("Δεν σου αρέσει το φαγητό εδώ, θέλεις να πάμε κάπου αλλού.", q, true), "Δεν σου αρέσει το φαγητό εδώ, θέλεις να πάμε κάπου αλλού;");
+        assert_eq!(apply_intonation("Δεν σου αρέσει εδώ, θέλεις να πάμε αλλού.", q, true), "Δεν σου αρέσει εδώ, θέλεις να πάμε αλλού;");
+        // From 14 October 2026 a long piece needs a question word as well:
+        // the voice alone was wrong two times in three (`pitch_mark_fits`).
+        assert_eq!(apply_intonation("Δεν σου αρέσει το φαγητό εδώ, θέλεις να πάμε κάπου αλλού.", q, true), "Δεν σου αρέσει το φαγητό εδώ, θέλεις να πάμε κάπου αλλού.");
     }
 
     #[test]
@@ -1495,6 +1636,34 @@ mod tests {
         // no piece before it to lean on
         assert_eq!(last_request_start(cut, prev, 16 * 1_100, false), cut);
         assert_eq!(last_request_start(cut, cut, 16 * 1_100, true), cut);
+    }
+
+    /// 11 October 2026, 08:45: the card ran ten times slower and eight pieces
+    /// queued. A piece waits while the engine works on the one before it, and
+    /// goes anyway once it reaches BUSY_MAX_MS.
+    #[test]
+    fn a_piece_waits_while_the_engine_is_busy() {
+        assert!(hold_for_engine(true, 16 * 5_000));
+        assert!(hold_for_engine(true, 16 * 23_900));
+        assert!(!hold_for_engine(true, 16 * BUSY_MAX_MS));
+        assert!(!hold_for_engine(false, 16 * 5_000));
+    }
+
+    #[tokio::test]
+    async fn the_engine_is_busy_only_while_a_piece_runs() {
+        let mut s = Segmenter::default();
+        assert!(!s.engine_busy());
+        let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        s.jobs.push(tokio::spawn(async move {
+            let _ = rx.await;
+            (Err(crate::asr::AsrError::NotReady("test".into())), None)
+        }));
+        assert!(s.engine_busy());
+        tx.send(()).unwrap();
+        while !s.jobs[0].is_finished() {
+            tokio::task::yield_now().await;
+        }
+        assert!(!s.engine_busy());
     }
 
     #[test]

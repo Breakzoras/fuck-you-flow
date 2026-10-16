@@ -1113,7 +1113,7 @@ pub mod win {
                 return v;
             }
             let now = Instant::now();
-            if now >= deadline {
+            if now >= deadline || unknown_is_settled(v, by_target, after_key, budget.saturating_sub(deadline - now)) {
                 return v;
             }
             let _ = rx.recv_timeout(deadline - now);
@@ -1313,6 +1313,20 @@ pub mod win {
         Unknown,
     }
 
+    /// How long the target gets to read the words after somebody else did.
+    /// A confirmed paste took a median of 66 ms on the development machine (8 to 14
+    /// October 2026), so a quarter of a second covers a target reading at the
+    /// same moment as the other program.
+    const UNKNOWN_GRACE_MS: u64 = 250;
+
+    /// Somebody else already read the words after Ctrl+V and the target has
+    /// not: the promise is spent, so waiting longer cannot turn the answer into
+    /// Taken. With the Remote Desktop client or Viber syncing the clipboard,
+    /// that was 97% of the dictations measured, each one waiting the full second.
+    pub(crate) fn unknown_is_settled(v: Receipt, by_target: u32, after_key: u32, waited: Duration) -> bool {
+        v == Receipt::Unknown && by_target == 0 && after_key > 0 && waited >= Duration::from_millis(UNKNOWN_GRACE_MS)
+    }
+
     /// `by_target`: requests from the process that had the focus when Ctrl+V
     /// went out (a reader with no window counts, see `render_pending`).
     /// `after_key`: requests from anyone after the key. `promise_intact`: nobody
@@ -1360,6 +1374,18 @@ pub mod win {
         #[test]
         fn nobody_asking_means_nothing_was_pasted() {
             assert_eq!(receipt_verdict(0, 0, true, false), Receipt::NotRead);
+        }
+
+        #[test]
+        fn an_unknown_receipt_stops_waiting_once_settled() {
+            let ms = Duration::from_millis;
+            // somebody else read after the key, the target did not: settled after the grace
+            assert!(unknown_is_settled(Receipt::Unknown, 0, 1, ms(250)));
+            assert!(!unknown_is_settled(Receipt::Unknown, 0, 1, ms(100)));
+            // nobody read after the key (only before it): keep waiting for the target
+            assert!(!unknown_is_settled(Receipt::Unknown, 0, 0, ms(900)));
+            assert!(!unknown_is_settled(Receipt::NotRead, 0, 0, ms(900)));
+            assert!(!unknown_is_settled(Receipt::Taken, 1, 1, ms(900)));
         }
 
         /// A clipboard monitor asking first spends the promise (Handy #502

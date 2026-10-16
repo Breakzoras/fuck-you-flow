@@ -825,6 +825,13 @@ impl Db {
         Ok(())
     }
 
+    /// Whether History holds any dictation at all.
+    pub fn has_history(&self) -> anyhow::Result<bool> {
+        let conn = self.conn.lock();
+        let n: i64 = conn.query_row("SELECT EXISTS(SELECT 1 FROM history)", [], |r| r.get(0))?;
+        Ok(n != 0)
+    }
+
     pub fn count_learning_pairs(&self, kind: &str, before: &str, after: &str) -> anyhow::Result<u64> {
         let conn = self.conn.lock();
         let n: i64 = conn.query_row(
@@ -1192,6 +1199,15 @@ mod tests {
         assert_eq!(db.recent_final_texts(30, 10).unwrap(), vec!["Velmora today".to_string()]);
         db.insert_test_history("newer", "Velmora again");
         assert_eq!(db.recent_final_texts(30, 1).unwrap(), vec!["Velmora again".to_string()]);
+    }
+
+    // Proof the engine worked on an installation older than 0.9.15.
+    #[test]
+    fn has_history_sees_one_dictation() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(!db.has_history().unwrap());
+        db.insert_test_history("one", "γεια");
+        assert!(db.has_history().unwrap());
     }
 
     #[test]

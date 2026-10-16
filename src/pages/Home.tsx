@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, LANGUAGE_CHOICES, languageName, ModelStatus, PipelineSnapshot, RuntimeStatus, StatsSummary } from "../api";
+import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, LANGUAGE_CHOICES, languageName, LightOffer, ModelStatus, PipelineSnapshot, RuntimeStatus, StatsSummary } from "../api";
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Select } from "../ui";
 import ModelGuide, { MachineProfile } from "../ModelGuide";
@@ -14,6 +14,11 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [models, setModels] = useState<ModelStatus[]>([]);
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
+  // The light model, offered once on a machine without a graphics card worth
+  // using that runs a heavier one. Asked again whenever the settings move.
+  const [lightOffer, setLightOffer] = useState<LightOffer | null>(null);
+  const [lightBusy, setLightBusy] = useState(false);
+  useEffect(() => { api.lightModelOffer().then(setLightOffer).catch(() => setLightOffer(null)); }, [settings]);
   const [busy, setBusy] = useState<string | null>(null);
   const [recent, setRecent] = useState<HistoryEntry[]>([]);
   const [stats, setStats] = useState<StatsSummary | null>(null);
@@ -127,7 +132,7 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
     : t("engine_missing");
   const engineLine = engine?.status === "ready"
     ? <><b>{engine.model_id}</b> {engine.gpu ? t("gpu_on") : t("gpu_off")}{engine.warm_ms ? `, ${t("warm_in", { s: (engine.warm_ms / 1000).toFixed(1) })}` : ""}</>
-    : <span>{engine?.message ?? state}</span>;
+    : <span>{engine?.message ? tk(engine.message) : state}</span>;
   // The "today" row is today only: its words and minutes saved come from today's line of
   // stats_daily. The all-time total stays on the Statistics page.
   const today = stats?.daily?.length ? todayFacts(stats.daily, localDayKey(new Date())) : null;
@@ -137,6 +142,35 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
   return (
     <>
       <h1>{state.toLowerCase()}</h1>
+      {lightOffer && (
+        <Card>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <span>
+              {t("light_offer", { size: fmtBytes(lightOffer.size_bytes) })}
+              {lightBusy && progress[lightOffer.model_id]?.total ? ` ${Math.round((progress[lightOffer.model_id].received / progress[lightOffer.model_id].total) * 100)}%` : ""}
+            </span>
+            <div className="row" style={{ gap: 4 }}>
+              <Button kind="primary" disabled={lightBusy} onClick={() => {
+                setLightBusy(true);
+                api.lightModelAccept().then(setSettings).catch(() => toast(t("light_offer_failed"), "err")).finally(() => setLightBusy(false));
+              }}>{t("light_offer_yes")}</Button>
+              <Button disabled={lightBusy} onClick={() => api.lightModelDecline().then(setSettings).catch(() => {})}>{t("light_offer_no")}</Button>
+            </div>
+          </div>
+        </Card>
+      )}
+      {settings.packs?.notice && (
+        // The daily check took in a newer ready-made dictionary on its own.
+        // One line says so until the user has seen it.
+        <Card>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <span>{settings.packs.notice.added + settings.packs.notice.updated === 1
+              ? t("pack_updated_one", { v: settings.packs.notice.version })
+              : t("pack_updated", { n: settings.packs.notice.added + settings.packs.notice.updated, v: settings.packs.notice.version })}</span>
+            <Button onClick={() => api.packNoticeSeen().then(setSettings).catch(() => {})}>{t("pack_updated_ok")}</Button>
+          </div>
+        </Card>
+      )}
       {!settings.general.first_run_done && (
         <Card title={t("first_lang_title")}>
           <p className="hint">{t("first_lang_hint")}</p>

@@ -20,15 +20,29 @@ pub struct EngineManager {
     /// runner picks them up and goes round again rather than dropping them.
     queued: RwLock<Option<Settings>>,
     port: std::sync::atomic::AtomicU16,
+    /// A start on the graphics card failed during this run. "auto" then stays
+    /// on the processor until the app restarts, instead of losing another
+    /// fifteen seconds to the card on every restart and settings change (the
+    /// 14 October 2026 report tried the card twice in four minutes).
+    gpu_failed: std::sync::atomic::AtomicBool,
 }
 
-/// Which engine build to run. "auto" prefers Vulkan on any real graphics card
+/// Whether "auto" should leave the card alone: it failed on this run, or it
+/// failed on a machine where the engine never worked (`gpu_failed_card`). A
+/// backend the user named is always tried.
+pub fn auto_skips_card(wish: &str, gpu_failed_card: &str, failed_this_run: bool) -> bool {
+    wish == "auto" && (failed_this_run || !gpu_failed_card.is_empty())
+}
+
+/// Which engine build to run. "auto" prefers Vulkan on a graphics card with room
 /// (it measured as fast as CUDA on the RTX 3070 and it is the only option on
 /// AMD and Intel), then CUDA, then the CPU. A wish for a backend whose build is
 /// missing falls through to the next one.
 fn choose_backend(wish: &str, use_gpu: bool) -> (String, Option<std::path::PathBuf>) {
     let hw = crate::hw::detect();
-    let has_gpu = hw.best_gpu().is_some();
+    // "auto" uses a card only when it has room enough to beat the processor
+    // (`useful_gpu`); a user who asked for Vulkan by name gets any card.
+    let has_gpu = if wish == "vulkan" { hw.best_gpu().is_some() } else { hw.useful_gpu().is_some() };
     let order: Vec<&str> = match wish {
         "cpu" => vec!["cpu"],
         "cuda" => vec!["cuda", "vulkan", "cpu"],
@@ -51,6 +65,16 @@ fn choose_backend(wish: &str, use_gpu: bool) -> (String, Option<std::path::PathB
     ("cpu".into(), crate::asr::whisper_server::find_runtime_exe())
 }
 
+/// Whether the light model should be fetched and taken on its own: on a
+/// machine where the engine has never been ready, the card failed and the
+/// heavier model then failed on the processor too. Nothing else changes a
+/// model without the user (decided 14 October 2026). The report that led here: an
+/// AMD Radeon R7 M260 that did not start, then turbo on four cores that could
+/// not warm up in two minutes, twice, and four dictations that wrote nothing.
+pub fn light_model_due_after_failure(ever_ready: bool, gpu_failed: bool, status: EngineStatus, model_id: &str, provider: &str) -> bool {
+    !ever_ready && gpu_failed && status == EngineStatus::Failed && provider == "whisper_local" && model_id != crate::models::SMALL_MODEL
+}
+
 impl EngineManager {
     pub fn new() -> Self {
         Self {
@@ -60,6 +84,7 @@ impl EngineManager {
             starting: std::sync::atomic::AtomicBool::new(false),
             queued: RwLock::new(None),
             port: std::sync::atomic::AtomicU16::new(0),
+            gpu_failed: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -117,7 +142,8 @@ impl EngineManager {
             tracing::info!("engine change queued: one is already starting");
             return false;
         }
-        let (backend, exe) = choose_backend(&settings.asr.backend, settings.asr.use_gpu);
+        let skip_card = auto_skips_card(&settings.asr.backend, &settings.general.gpu_failed_card, self.gpu_failed_this_run());
+        let (backend, exe) = if skip_card { choose_backend("cpu", false) } else { choose_backend(&settings.asr.backend, settings.asr.use_gpu) };
         let model = crate::models::find_model(&settings.asr.model_id);
         let (Some(exe), Some((spec, model_path))) = (exe, model) else {
             let has_runtime = find_runtime_exe().is_some();
@@ -195,11 +221,13 @@ impl EngineManager {
         // 7 September 2026. Say what is actually happening.
         let mut starting_info = server.info();
         starting_info.status = EngineStatus::Starting;
-        starting_info.message = Some("the speech model is loading".into());
+        starting_info.message = Some("engine_starting".into());
         let _ = app.emit("lalia://engine", starting_info);
         let mut result = server.start().await;
         if result.is_err() && use_gpu {
             tracing::warn!("GPU start failed, retrying on CPU");
+            self.gpu_failed.store(true, std::sync::atomic::Ordering::SeqCst);
+            crate::journal::warn("engine.gpu_failed", serde_json::json!({ "backend": backend, "model": spec.id }));
             // Stop the one that failed first. A warm-up failure leaves its child
             // alive, and the fallback used to reuse the same port, so its own
             // port probe answered against the corpse of the first attempt and
@@ -215,7 +243,8 @@ impl EngineManager {
             result = cpu.start().await;
             let mut info = cpu.info();
             if result.is_ok() {
-                info.message = Some("The graphics card did not respond; running on the CPU (slower).".into());
+                // An i18n key: the screens translate it (`tk`).
+                info.message = Some("engine_cpu_fallback".into());
             }
             let _ = app.emit("lalia://engine", info);
         } else {
@@ -226,6 +255,16 @@ impl EngineManager {
         }
         self.starting.store(false, std::sync::atomic::Ordering::SeqCst);
         true
+    }
+
+    /// The user pressed Restart engine: the card gets another try.
+    pub fn forget_gpu_failure(&self) {
+        self.gpu_failed.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// A start on the graphics card failed at some point during this run.
+    pub fn gpu_failed_this_run(&self) -> bool {
+        self.gpu_failed.load(std::sync::atomic::Ordering::SeqCst)
     }
 
     pub fn emit(&self, app: &tauri::AppHandle) {
@@ -317,5 +356,38 @@ impl EngineManager {
             tracing::warn!("the speech engine stopped on its own, starting it again");
             self.apply(app, settings).await;
         }
+    }
+}
+
+#[cfg(test)]
+mod failed_card_tests {
+    use super::{auto_skips_card, light_model_due_after_failure};
+    use crate::asr::EngineStatus;
+
+    #[test]
+    fn auto_leaves_a_card_that_failed_alone() {
+        assert!(!auto_skips_card("auto", "", false));
+        assert!(auto_skips_card("auto", "", true));
+        assert!(auto_skips_card("auto", "AMD Radeon R7 M260", false));
+        // a backend the user named is always tried
+        assert!(!auto_skips_card("vulkan", "AMD Radeon R7 M260", true));
+        assert!(!auto_skips_card("cuda", "", true));
+    }
+
+    // The 14 October 2026 report: the card failed, turbo did not warm up on the
+    // processor, and the engine had never worked on that machine.
+    #[test]
+    fn light_model_only_where_nothing_ever_worked() {
+        let turbo = "large-v3-turbo-q8_0";
+        assert!(light_model_due_after_failure(false, true, EngineStatus::Failed, turbo, "whisper_local"));
+        // a machine where dictation worked keeps its model
+        assert!(!light_model_due_after_failure(true, true, EngineStatus::Failed, turbo, "whisper_local"));
+        // the card did not fail: not this case
+        assert!(!light_model_due_after_failure(false, false, EngineStatus::Failed, turbo, "whisper_local"));
+        // still starting on the processor: wait for the answer
+        assert!(!light_model_due_after_failure(false, true, EngineStatus::Starting, turbo, "whisper_local"));
+        // already on the light model, or on a cloud provider
+        assert!(!light_model_due_after_failure(false, true, EngineStatus::Failed, crate::models::SMALL_MODEL, "whisper_local"));
+        assert!(!light_model_due_after_failure(false, true, EngineStatus::Failed, turbo, "openai_compatible"));
     }
 }
