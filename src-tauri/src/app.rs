@@ -43,11 +43,55 @@ pub fn reload_engines(state: &AppState) {
     *state.shared.snippets.write() = SnippetEngine::new(snippets);
 }
 
-pub fn set_autostart(app: &tauri::AppHandle, enabled: bool) {
+/// Windows starts whatever path the entry names, so only the installed copy may
+/// ever write it. A run from the build folder used to claim the entry, and then
+/// every boot started that build while the installed copy sat unused and could
+/// never update itself (measured 10 September 2026). Switching autostart off is
+/// always allowed, from any copy.
+/// Returns whether the Windows entry now matches what was asked. A caller that
+/// gets `false` must not leave the switch showing on: it did nothing, and a
+/// switch that lies is worse than one that refuses.
+pub fn set_autostart(app: &tauri::AppHandle, enabled: bool) -> bool {
+    if enabled && !is_installed_copy() {
+        tracing::info!(
+            "startup entry left alone: this copy is not the installed one ({})",
+            std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default()
+        );
+        return false;
+    }
     let manager = app.autolaunch();
     let r = if enabled { manager.enable() } else { manager.disable() };
     if let Err(e) = r {
         tracing::warn!("autostart change failed: {e}");
+        return false;
+    }
+    true
+}
+
+/// Whether `exe` is the copy the installer put down. The installer leaves its
+/// uninstaller next to the program and nothing else does, so that file is the
+/// marker. A run from the build folder or a loose copy has no such neighbour.
+pub fn installed_marker(exe: &std::path::Path) -> bool {
+    exe.parent().map(|dir| dir.join("uninstall.exe").is_file()).unwrap_or(false)
+}
+
+fn is_installed_copy() -> bool {
+    std::env::current_exe().map(|p| installed_marker(&p)).unwrap_or(false)
+}
+
+#[cfg(test)]
+mod startup_tests {
+    use super::installed_marker;
+
+    #[test]
+    fn only_a_folder_with_the_uninstaller_counts_as_installed() {
+        let dir = std::env::temp_dir().join(format!("fuckyouflow-marker-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("fuckyouflow.exe");
+        assert!(!installed_marker(&exe), "a bare folder is a developer run");
+        std::fs::write(dir.join("uninstall.exe"), b"").unwrap();
+        assert!(installed_marker(&exe), "the uninstaller next to it marks the installed copy");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 
@@ -55,12 +99,27 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     crate::paths::ensure_all()?;
     // The installer ships the engine and the models next to the executable; the
     // app must know that folder before anything looks for either of them.
-    if let Ok(res) = app.path().resource_dir() {
-        let bundled = res.join("bundled");
-        if bundled.exists() {
-            tracing::info!("bundled engine and models found at {}", bundled.display());
-            crate::paths::set_bundled_dir(bundled);
+    let resource_dir = match app.path().resource_dir() {
+        Ok(res) => {
+            let bundled = res.join("bundled");
+            if bundled.exists() {
+                tracing::info!("bundled engine and models found at {}", bundled.display());
+                crate::paths::set_bundled_dir(bundled);
+            }
+            Some(res)
         }
+        Err(err) => {
+            // Without this we cannot tell an installed copy from a developer
+            // run, and the update flow has to assume the worst.
+            tracing::warn!("cannot find where the program lives: {err}");
+            None
+        }
+    };
+    // Get the models out of the install folder before anything looks for them.
+    // On the same disk this is a rename and costs nothing; see the function for
+    // why it has to happen at all.
+    if !crate::models::migrate_bundled_models(resource_dir.as_deref()) {
+        tracing::warn!("a model is still inside the install folder; this copy updates from the site");
     }
     // A fresh install has no settings file yet. That is the only moment the
     // machine's own language may choose the defaults; after it, the user's
@@ -68,6 +127,14 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     let fresh_install = !crate::paths::settings_file().exists();
     let mut settings = Settings::load(&crate::paths::settings_file());
     crate::journal::set_verbose(settings.general.debug_mode);
+    // Point the Windows startup entry at this copy. It used to be written only
+    // when the user saved the settings, so after an install it still named the
+    // old path and Windows started a program that was no longer there
+    // (8 September 2026). `set_autostart` decides whether this copy is allowed
+    // to claim the entry.
+    if settings.general.autostart {
+        set_autostart(&app.handle().clone(), true);
+    }
     if fresh_install {
         let locale = crate::hw::user_locale();
         let greek = locale.starts_with("el");
@@ -132,6 +199,35 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
         tracing::info!("model {} is not present; switching to the bundled {}", settings.asr.model_id, id);
         settings.asr.model_id = id;
         changed = true;
+    }
+    // A graphics card that is sitting right there should be doing the work.
+    // Any modern card can, through Vulkan, AMD and Intel included; the engine
+    // runs roughly six times faster on one than on the processor. The first
+    // AMD tester, on 7 September 2026, found the card switched off with the
+    // engine reported as missing and had to turn it on by hand before the app
+    // did anything useful. So: correct it at startup, once, and say so in the
+    // journal. A user who deliberately turned the card off is never overruled
+    // (`gpu_choice_by_user`).
+    {
+        let vulkan_build = crate::asr::whisper_server::find_runtime_exe_for("vulkan").is_some();
+        if crate::hw::should_switch_to_gpu(
+            settings.asr.use_gpu,
+            &settings.asr.backend,
+            settings.general.gpu_choice_by_user,
+            hw.best_gpu().is_some(),
+            hw.vulkan_runtime,
+            vulkan_build,
+        ) {
+            let card = hw.best_gpu().map(|g| g.name.clone()).unwrap_or_default();
+            settings.asr.use_gpu = true;
+            settings.asr.backend = "auto".into();
+            changed = true;
+            tracing::info!("graphics card found ({card}) while the engine was set to the processor; switching it on");
+            crate::journal::info(
+                "gpu.auto_enabled",
+                serde_json::json!({ "card": card, "vendor": hw.best_gpu().map(|g| g.vendor.clone()), "vulkan": hw.vulkan_runtime, "cuda": hw.cuda_driver }),
+            );
+        }
     }
     if changed {
         let _ = settings.save(&crate::paths::settings_file());
@@ -224,7 +320,7 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
 static TRAY: Mutex<Option<tauri::tray::TrayIcon>> = Mutex::new(None);
 
 /// Takes the icon out of the notification area. Called on every exit path, so a
-/// closing Lalia never leaves an icon painted on the taskbar.
+/// closing the app never leaves an icon painted on the taskbar.
 pub fn drop_tray(app: &tauri::AppHandle) {
     let _ = app.remove_tray_by_id("main");
     let icon = TRAY.lock().take();
@@ -233,7 +329,7 @@ pub fn drop_tray(app: &tauri::AppHandle) {
 
 /// The single tray icon. It is built here and nowhere else: declaring
 /// `app.trayIcon` in tauri.conf.json as well makes Tauri create a second,
-/// menu-less icon, and the user sees two Lalia icons in the notification area.
+/// menu-less icon, and the user sees two of our icons in the notification area.
 fn build_tray(app: &tauri::App) -> anyhow::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open Fuck You Flow", true, None::<&str>)?;
     let toggle = MenuItem::with_id(app, "toggle", "Start / stop dictation", true, None::<&str>)?;

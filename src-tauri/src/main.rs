@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    lalia_lib::run()
+    fuckyouflow_lib::run()
 }

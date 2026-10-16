@@ -88,12 +88,12 @@ export default function History() {
                 <div>
                   <textarea value={editing.text} onChange={(e) => setEditing({ id: h.id, text: e.target.value })} />
                   <div className="row" style={{ marginTop: 8 }}>
-                    <Button kind="primary" onClick={saveEdit}>{t("save_edit")}</Button>
+                    <Button kind="primary" onClick={saveEdit} disabled={!editing.text.trim()}>{t("save_edit")}</Button>
                     <Button onClick={() => setEditing(null)}>{t("cancel")}</Button>
                   </div>
                 </div>
               ) : (
-                <div className="history-text" onMouseUp={() => {}}>{h.edited_text ?? h.final_text}</div>
+                <div className="history-text" onMouseUp={() => {}}>{h.edited_text || h.final_text}</div>
               )}
               <div className="history-meta">
                 <span>{fmtDate(h.created_at, lang)}</span>
@@ -122,7 +122,7 @@ export default function History() {
                 </div>
               )}
               <div className="history-actions">
-                <Button onClick={() => copy(h.edited_text ?? h.final_text)}>{t("copy")}</Button>
+                <Button onClick={() => copy(h.edited_text || h.final_text)}>{t("copy")}</Button>
                 <Button onClick={() => api.pasteHistory(h.id)}>{t("paste")}</Button>
                 <Button onClick={() => setShowRaw((s) => ({ ...s, [h.id]: !s[h.id] }))}>{t("raw")}</Button>
                 <Button onClick={async () => { await api.recleanHistory(h.id); load(); }}>{t("reclean")}</Button>

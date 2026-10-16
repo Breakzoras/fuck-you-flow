@@ -42,3 +42,8 @@ __pycache__/
 /src-tauri/bundled/
 /vendor/whisper.cpp-src/
 /site/variants/
+
+# The update signing key. It lives in ~/.tauri and must never end up here:
+# anyone holding it can push an "update" to every installed copy.
+*.key
+*.key.pub

@@ -7,6 +7,7 @@
 //! pre-roll ring buffer is copied first so the first syllable survives.
 
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -320,9 +321,30 @@ fn build_stream(
     let channels = config.channels as usize;
     tracing::info!("opening microphone '{resolved}' at {in_rate} Hz, {channels} ch, {sample_format:?}");
 
+    static XRUNS: AtomicU32 = AtomicU32::new(0);
+    static XRUN_REPORTED: once_cell::sync::Lazy<Mutex<Instant>> =
+        once_cell::sync::Lazy::new(|| Mutex::new(Instant::now() - Duration::from_secs(3600)));
+
     let err_status = status.clone();
     let err_cb = move |e: cpal::Error| {
-        if matches!(e.kind(), cpal::ErrorKind::Xrun | cpal::ErrorKind::DeviceChanged | cpal::ErrorKind::RealtimeDenied) {
+        if matches!(e.kind(), cpal::ErrorKind::Xrun) {
+            // A buffer over- or underrun while the microphone sits warm and
+            // idle. Measured over two days: 2176 of these on 6 September and
+            // 686 on 7 September, and not one of them fell inside any of the
+            // 109 recordings that could be paired with an end event. They are
+            // harmless, and at 40 percent of the file they were burying the
+            // lines that matter. Counted here, reported once a minute.
+            let n = XRUNS.fetch_add(1, Ordering::Relaxed) + 1;
+            let now = std::time::Instant::now();
+            let mut last = XRUN_REPORTED.lock();
+            if now.duration_since(*last) >= Duration::from_secs(60) {
+                *last = now;
+                let total = XRUNS.swap(0, Ordering::Relaxed);
+                tracing::warn!("audio stream notification: {total} buffer over- or underruns in the last minute ({e})");
+            } else {
+                let _ = n;
+            }
+        } else if matches!(e.kind(), cpal::ErrorKind::DeviceChanged | cpal::ErrorKind::RealtimeDenied) {
             // CPAL reports these while the stream remains active. The callback
             // watchdog will reopen it if samples actually stop arriving.
             tracing::warn!("audio stream notification: {e}");
@@ -438,8 +460,18 @@ impl Resampler {
 }
 
 fn design_lowpass(in_rate: u32, out_rate: u32) -> Vec<f32> {
-    // cutoff a bit under the new Nyquist
-    let cutoff = 0.45 * out_rate as f64 / in_rate as f64; // fraction of input rate
+    // A bit under the lower of the two Nyquist limits, as a fraction of the
+    // input rate.
+    //
+    // The output rate alone was used here, which is right going down and wrong
+    // going up. A microphone running at 8 kHz, which is what a Bluetooth
+    // headset gives while it is also being used as a headset, asked for a
+    // cutoff of 0.9 of its own sample rate. Nothing above 0.5 exists to filter,
+    // so the shape folded back on itself and made speech nearly twice as loud
+    // as it should be: measured 10 September 2026, a 1 kHz tone came out at
+    // 0.678 where 0.354 went in.
+    let limit = in_rate.min(out_rate) as f64;
+    let cutoff = 0.45 * limit / in_rate as f64; // fraction of input rate
     let n = 63usize;
     let m = (n - 1) as f64 / 2.0;
     let mut taps = Vec::with_capacity(n);
@@ -731,6 +763,53 @@ mod tests {
         let mut r = Resampler::new(48_000, 16_000);
         let out = r.process(&input);
         assert!((out.len() as i64 - 16_000).abs() < 200, "len={}", out.len());
+    }
+
+    /// A microphone that runs slower than the engine must still be heard.
+    ///
+    /// The filter's cutoff was worked out from the output rate alone. Going up,
+    /// from an 8 or 11 kHz microphone to the engine's 16 kHz, that put the
+    /// cutoff above half the input rate, where the maths that builds the filter
+    /// folds back on itself and the sound comes out quiet and distorted.
+    ///
+    /// Loudness and pitch are checked rather than the waveform itself, because
+    /// any honest filter delays the sound a little and the shift alone would
+    /// fail a sample by sample comparison.
+    #[test]
+    fn a_slow_microphone_still_comes_through() {
+        for rate in [8_000u32, 11_025, 16_000, 22_050, 44_100, 48_000] {
+            // 300 Hz and 1 kHz both sit in the middle of a speaking voice.
+            for tone in [300.0f32, 1000.0] {
+                let n = rate / 2;
+                let input: Vec<f32> = (0..n)
+                    .map(|i| (2.0 * std::f32::consts::PI * tone * i as f32 / rate as f32).sin() * 0.5)
+                    .collect();
+                let out = Resampler::new(rate, TARGET_RATE).process(&input);
+                assert!(out.len() > 1000, "rate={rate} produced only {} samples", out.len());
+
+                // Past the filter's warm up.
+                let body = &out[200..out.len() - 200];
+
+                let rms = (body.iter().map(|a| a * a).sum::<f32>() / body.len() as f32).sqrt();
+                let want_rms = 0.5 / 2f32.sqrt();
+                assert!(
+                    rms < want_rms * 1.05,
+                    "rate={rate} tone={tone}: came back louder than it went in ({rms:.3} against {want_rms:.3})"
+                );
+                assert!(
+                    rms > want_rms * 0.8,
+                    "rate={rate} tone={tone}: came back too quiet ({rms:.3} against {want_rms:.3})"
+                );
+
+                // The pitch is unchanged, whatever the rate it arrived at.
+                let crossings = body.windows(2).filter(|w| (w[0] < 0.0) != (w[1] < 0.0)).count();
+                let want_crossings = 2.0 * tone * body.len() as f32 / TARGET_RATE as f32;
+                assert!(
+                    (crossings as f32 - want_crossings).abs() < want_crossings * 0.1,
+                    "rate={rate} tone={tone}: the pitch changed ({crossings} crossings, expected about {want_crossings:.0})"
+                );
+            }
+        }
     }
 
     #[test]
