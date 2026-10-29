@@ -1,11 +1,11 @@
 {
-  "version": "0.9.15",
-  "notes": "Runs better on computers with a small or older graphics card, ships a newer speech engine, and keeps the pauses you speak.",
-  "pub_date": "2026-10-16T08:19:31Z",
+  "version": "0.9.16",
+  "notes": "A Milestones page with levels and badges, faster paste, and a History that shows what really reached your text.",
+  "pub_date": "2026-10-29T16:51:11Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUW96NXFWRlAwRVpUbUdaakcvMUFhYmIvblRTdHVFbjFDc3NzZmR6OWJYNnZjUnJIZDJ2N0tpWDZPakM5MHB1YnRvVHByZzYzdUxvdEtiYitTd24vY1FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMTM4NDI3CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTVfeDY0LXNldHVwLmV4ZQpYRC92eDJWVm81dDY5b0t3dmx4UzN2WWdkZTRHMnJLRnRSZE9jeUVJQzlWQ2M5Nmk1cVF0T0dSYnRiYUlhNHBsVUNhaGZwOWxMK04ydldFbWZhdnBCUT09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.15/Fuck.You.Flow.Update.0.9.15.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWxHWTlCYmlZdUh5NUNnb0ZxaC9LODBpYkwvQmFoNUN5dExkd1BhTXVCZ2NHdWw2dmdiNlFKdmVpTDVOVGFjTEU5UHYzdjE5QmUreGRyNkhacFUwYlFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjkyMzkzCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTZfeDY0LXNldHVwLmV4ZQovZDdhMjE3N1hzQmdFdHFaNDkxWGJ5VlhXa01uWE1RMitCV3F3TWtDSmRYMzdpemtYOUk0YmRjSDNDRGVWSDlrVnJxT3hJM2I0UVExRzAwSktGUVNDUT09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.16/Fuck.You.Flow.Update.0.9.16.exe"
     }
   }
 }
