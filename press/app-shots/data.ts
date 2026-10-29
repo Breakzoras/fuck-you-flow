@@ -127,7 +127,10 @@ export const gauge: GpuGaugeInfo = (GAUGE_FULL
 
 export const microphones: DeviceInfo[] = [{ name: "Microphone (USB Headset)", is_default: true } as DeviceInfo];
 export const localApi: LocalApiStatus = { enabled: false, listening: false, port: 47600, error: null };
-export const update: UpdateInfo = { available: false, version: "", current: APP_VERSION, notes: null, date: null, small_download: true } as UpdateInfo;
+// ?update=1 shows a newer version waiting, as the Settings > Updates card sees it.
+export const update: UpdateInfo = (q.get("update") === "1"
+  ? { available: true, version: "9.9.9", current: APP_VERSION, notes: "A Milestones page with levels and badges, faster paste, and a History that shows what really reached your text.", date: null, small_download: true }
+  : { available: false, version: "", current: APP_VERSION, notes: null, date: null, small_download: true }) as UpdateInfo;
 
 // ------------------------------------------------------------ sample content
 

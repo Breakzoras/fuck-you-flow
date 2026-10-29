@@ -27,6 +27,22 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.17",
+        "date": "2026-10-29",
+        "summary": (
+            "A small fix to the Updates section in Settings.",
+            "Μικρή διόρθωση στην ενότητα Ενημερώσεις των Ρυθμίσεων.",
+        ),
+        "lines": [
+            ("fixed",
+             "In Settings, the Update now button no longer presses against the line above it. "
+             "Rows of buttons that sit one under the other get room to breathe.",
+             "Στις Ρυθμίσεις, το κουμπί «Ενημέρωση τώρα» στέκεται πια με άνεση κάτω από τη γραμμή "
+             "της έκδοσης. Οι γραμμές με κουμπιά που μπαίνουν η μία κάτω από την άλλη έχουν πλέον "
+             "κενό ανάμεσά τους."),
+        ],
+    },
+    {
         "version": "0.9.16",
         "date": "2026-10-29",
         "summary": (

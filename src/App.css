@@ -160,6 +160,8 @@ a { color: var(--accent); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+/* Two rows in a row, each with a button, touched each other (Settings > Updates, 29 Oct). */
+.row + .row { margin-top: 14px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }

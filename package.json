@@ -1,7 +1,7 @@
 {
   "name": "fuckyouflow",
   "private": true,
-  "version": "0.9.16",
+  "version": "0.9.17",
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",

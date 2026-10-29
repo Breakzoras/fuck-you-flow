@@ -33,7 +33,7 @@ const CHROME = [
 ].find((p) => p && existsSync(p));
 
 // nav: position of the menu button (home, history, dictionary, snippets,
-// suggestions, statistics, settings, diagnostics).
+// suggestions, statistics, milestones, settings, diagnostics).
 const SHOTS = [
   { stem: "1-home", nav: 0, ready: `document.querySelectorAll('.log > div').length >= 5 && !!document.querySelector('.facts b')` },
   { stem: "2-history", nav: 1, ready: `document.querySelectorAll('.history-item').length >= 5` },
@@ -44,7 +44,7 @@ const SHOTS = [
   { stem: "4-suggestions", nav: 4, ready: `document.querySelector('.main').innerText.includes('n8n')` },
   { stem: "5-statistics", nav: 5, ready: `document.querySelectorAll('.stat').length >= 6` },
   // Speech models opens with "Help me choose" and the engine card; the picture shows the models.
-  { stem: "6-settings", nav: 6, tab: 3, ready: `document.querySelectorAll('.main table tbody tr').length >= 3 && !!document.querySelector('.guide-result')`,
+  { stem: "6-settings", nav: 7, tab: 3, ready: `document.querySelectorAll('.main table tbody tr').length >= 3 && !!document.querySelector('.guide-result')`,
     scroll: `document.querySelector('.main table').closest('.card')` },
   { stem: "7-card-full", nav: 0, query: "gauge=full", ready: `document.querySelectorAll('.log > div').length >= 5 && !!document.querySelector('.gauge-switch')` },
 ];
