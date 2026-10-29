@@ -27,6 +27,79 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.16",
+        "date": "2026-10-29",
+        "summary": (
+            "A Milestones page with levels and badges, faster paste, and a History that shows "
+            "what really reached your text.",
+            "Σελίδα Ορόσημα με επίπεδα και σήματα, πιο γρήγορη επικόλληση και Ιστορικό που "
+            "δείχνει τι έφτασε πραγματικά στο κείμενό σου.",
+        ),
+        "lines": [
+            ("added",
+             "Milestones: your level grows with the words you dictate and the days you use the "
+             "app, with titles, 15 badges and a look back over the last 7 days, 30 days or all "
+             "time. The button with your level is on the first screen.",
+             "Ορόσημα: το επίπεδό σου ανεβαίνει με τις λέξεις που υπαγορεύεις και τις μέρες που "
+             "χρησιμοποιείς την εφαρμογή, με τίτλους, 15 σήματα και αναδρομή στις τελευταίες 7 "
+             "μέρες, στις 30 ή σε όλο το διάστημα. Το κουμπί με το επίπεδό σου είναι στην αρχική "
+             "οθόνη."),
+            ("improved",
+             "Paste is up to a second faster in programs that read the clipboard on their own, "
+             "such as remote desktop and some chat apps.",
+             "Η επικόλληση είναι ως ένα δευτερόλεπτο πιο γρήγορη σε προγράμματα που διαβάζουν "
+             "μόνα τους το πρόχειρο, όπως η απομακρυσμένη επιφάνεια εργασίας και κάποιες "
+             "εφαρμογές συνομιλίας."),
+            ("improved",
+             "When Ctrl+V reached the right window but another program read the clipboard first, "
+             "History now says pasted (likely) and the dictation counts in your statistics. The "
+             "text also stays on the clipboard.",
+             "Όταν το Ctrl+V έφτασε στο σωστό παράθυρο αλλά άλλο πρόγραμμα διάβασε πρώτο το "
+             "πρόχειρο, το Ιστορικό γράφει πλέον «μπήκε (μάλλον)» και η υπαγόρευση μετράει στα "
+             "στατιστικά σου. Το κείμενο μένει επίσης στο πρόχειρο."),
+            ("improved",
+             "Statistics count every dictation that reached you, and keep counting when History "
+             "is switched off. Only numbers are kept then, never the text.",
+             "Τα στατιστικά μετράνε κάθε υπαγόρευση που σου έφτασε και συνεχίζουν να μετράνε "
+             "όταν το Ιστορικό είναι κλειστό. Τότε κρατιούνται μόνο αριθμοί, ποτέ το κείμενο."),
+            ("fixed",
+             "Chat apps such as Slack, Telegram and Discord get question marks again. Only the "
+             "final period follows the app's style.",
+             "Οι εφαρμογές συνομιλίας όπως Slack, Telegram και Discord παίρνουν ξανά ερωτηματικό. "
+             "Μόνο η τελική τελεία ακολουθεί το ύφος της εφαρμογής."),
+            ("fixed",
+             None,
+             "Το «γιατί» γράφεται «επειδή» όταν λες τη γνώμη σου («γιατί νομίζω ότι...»). Κάθε "
+             "πρόταση με ελληνικά γράμματα παίρνει ελληνικό ερωτηματικό."),
+            ("fixed",
+             "Run cleanup again in History uses the language and the app style of the original dictation.",
+             "Το «Ξανακαθάρισμα» στο Ιστορικό χρησιμοποιεί τη γλώσσα και το ύφος εφαρμογής της "
+             "αρχικής υπαγόρευσης."),
+            ("fixed",
+             "A long dictation heard in pieces no longer repeats words where two pieces meet, and "
+             "History keeps its language and timing.",
+             "Μια μεγάλη υπαγόρευση που ακούστηκε σε κομμάτια δεν επαναλαμβάνει πια λέξεις εκεί "
+             "που ενώνονται δύο κομμάτια και το Ιστορικό κρατά τη γλώσσα και τον χρόνο της."),
+            ("fixed",
+             "Smaller fixes: when one piece fails the rest stop at once and the whole recording is "
+             "read again sooner, saving a kept recording no longer delays your next dictation, the "
+             "badge for a language mix-up goes away after 30 seconds, and a Windows shutdown is no "
+             "longer reported as a crash.",
+             "Μικρότερες διορθώσεις: όταν ένα κομμάτι αποτύχει τα υπόλοιπα σταματούν αμέσως και η "
+             "ηχογράφηση ξαναδιαβάζεται νωρίτερα, η αποθήκευση ηχογράφησης δεν καθυστερεί πια την "
+             "επόμενη υπαγόρευση, η ένδειξη για μπέρδεμα γλωσσών φεύγει μετά από 30 δευτερόλεπτα "
+             "και το κλείσιμο των Windows δεν καταγράφεται πια ως σφάλμα."),
+            ("known",
+             "The update check now also sends the version number you have installed, so we can "
+             "count how many copies run each version. No account, name or text goes with it.",
+             "Ο έλεγχος ενημερώσεων στέλνει πλέον και τον αριθμό της έκδοσης που έχεις, ώστε να "
+             "μετράμε πόσα αντίγραφα τρέχουν κάθε έκδοση. Δεν στέλνει λογαριασμό, όνομα ή κείμενο."),
+            ("known",
+             "This version is for Windows. Ubuntu Linux stays on 0.9.12 for now.",
+             "Η έκδοση αυτή είναι για Windows. Το Ubuntu Linux μένει προς το παρόν στην 0.9.12."),
+        ],
+    },
+    {
         "version": "0.9.15",
         "date": "2026-10-16",
         "summary": (

@@ -12,6 +12,10 @@ pub struct DetOptions {
     pub remove_fillers: bool,
     pub resolve_self_corrections: bool,
     pub auto_punctuate: bool,
+    /// The target's style wants a final full stop. Chat apps do not: there a
+    /// single trailing period goes, while question marks stay, because a
+    /// question in a chat is still a question.
+    pub trailing_period: bool,
     pub auto_capitalize: bool,
     pub language: String,
 }
@@ -187,7 +191,7 @@ pub fn clean(input: &str, o: &DetOptions) -> DetResult {
         }
     }
 
-    if o.auto_punctuate {
+    if o.auto_punctuate && o.trailing_period {
         let before = text.clone();
         text = ensure_terminal_punctuation(&text, &o.language);
         if text != before {
@@ -472,7 +476,7 @@ fn lower_inner_function_words(text: &str) -> String {
     super::replace_all_or_keep(&INNER, text, |c: &fancy_regex::Captures<'_, str>| format!(" {}", c[1].to_lowercase())).to_string()
 }
 
-fn is_greek_letter(c: char) -> bool {
+pub(crate) fn is_greek_letter(c: char) -> bool {
     ('\u{0370}'..='\u{03FF}').contains(&c) || ('\u{1F00}'..='\u{1FFF}').contains(&c)
 }
 
@@ -581,7 +585,7 @@ mod tests {
     }
 
     fn opts(intensity: CleanupIntensity) -> DetOptions {
-        DetOptions { intensity, remove_fillers: true, resolve_self_corrections: true, auto_punctuate: true, auto_capitalize: true, language: "auto".into() }
+        DetOptions { intensity, remove_fillers: true, resolve_self_corrections: true, auto_punctuate: true, trailing_period: true, auto_capitalize: true, language: "auto".into() }
     }
 
     #[test]
@@ -942,7 +946,7 @@ mod tests {
 
     #[test]
     fn off_is_identity_except_trim() {
-        let r = clean("  εε γεια  ", &DetOptions { intensity: CleanupIntensity::Off, remove_fillers: false, resolve_self_corrections: false, auto_punctuate: false, auto_capitalize: false, language: "el".into() });
+        let r = clean("  εε γεια  ", &DetOptions { intensity: CleanupIntensity::Off, remove_fillers: false, resolve_self_corrections: false, auto_punctuate: false, trailing_period: false, auto_capitalize: false, language: "el".into() });
         assert_eq!(r.text, "εε γεια");
     }
 }

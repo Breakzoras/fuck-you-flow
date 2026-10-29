@@ -482,6 +482,40 @@ border-radius:50%;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.
 
   <section>
     <div class="wrap">
+      <article class="rel" id="v0.9.16">
+        <div class="rel-head"><h2>0.9.16</h2><span class="rel-date"><time datetime="2026-10-29">2026-10-29</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.16">Release page</a></div>
+        <p class="rel-sum">A Milestones page with levels and badges, faster paste, and a History that shows what really reached your text.</p>
+        <div class="kind">
+          <h3>New</h3>
+          <ul>
+            <li>Milestones: your level grows with the words you dictate and the days you use the app, with titles, 15 badges and a look back over the last 7 days, 30 days or all time. The button with your level is on the first screen.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Improved</h3>
+          <ul>
+            <li>Paste is up to a second faster in programs that read the clipboard on their own, such as remote desktop and some chat apps.</li>
+            <li>When Ctrl+V reached the right window but another program read the clipboard first, History now says pasted (likely) and the dictation counts in your statistics. The text also stays on the clipboard.</li>
+            <li>Statistics count every dictation that reached you, and keep counting when History is switched off. Only numbers are kept then, never the text.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Fixed</h3>
+          <ul>
+            <li>Chat apps such as Slack, Telegram and Discord get question marks again. Only the final period follows the app's style.</li>
+            <li>Run cleanup again in History uses the language and the app style of the original dictation.</li>
+            <li>A long dictation heard in pieces no longer repeats words where two pieces meet, and History keeps its language and timing.</li>
+            <li>Smaller fixes: when one piece fails the rest stop at once and the whole recording is read again sooner, saving a kept recording no longer delays your next dictation, the badge for a language mix-up goes away after 30 seconds, and a Windows shutdown is no longer reported as a crash.</li>
+          </ul>
+        </div>
+        <div class="kind">
+          <h3>Known issues</h3>
+          <ul>
+            <li>The update check now also sends the version number you have installed, so we can count how many copies run each version. No account, name or text goes with it.</li>
+            <li>This version is for Windows. Ubuntu Linux stays on 0.9.12 for now.</li>
+          </ul>
+        </div>
+      </article>
       <article class="rel" id="v0.9.15">
         <div class="rel-head"><h2>0.9.15</h2><span class="rel-date"><time datetime="2026-10-16">2026-10-16</time></span><a href="https://github.com/Breakzoras/fuck-you-flow/releases/tag/v0.9.15">Release page</a></div>
         <p class="rel-sum">Runs better on computers with a small or older graphics card, ships a newer speech engine, and keeps the pauses you speak.</p>

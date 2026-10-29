@@ -399,16 +399,24 @@ pub fn delete_all_history(state: State<'_, Arc<AppState>>) -> R<()> {
 pub fn reclean_history(state: State<'_, Arc<AppState>>, id: String) -> R<HistoryEntry> {
     let h = state.shared.db.get_history(&id).map_err(e)?.ok_or("not found")?;
     let settings = state.shared.settings.read().clone();
+    // The same language and app style the live dictation used. The stored
+    // detected language names the last piece only, and the language column is
+    // "auto" in the mixed mode, so a Greek dictation that ended in English
+    // lost its Greek rules here; and every row came back with a final period,
+    // chat rows included (29 October 2026).
+    let language = settings.language.effective(h.detected_language.as_deref(), &h.raw_text);
+    let styles = state.shared.db.list_app_styles().unwrap_or_default();
+    let (trailing_punctuation, capitalize_first) = crate::context::stored_style(h.app_process.as_deref(), h.app_category.as_deref(), &styles);
     let opts = crate::cleanup::CleanupOptions {
         intensity: settings.cleanup.intensity.clone(),
         remove_fillers: settings.cleanup.remove_fillers,
         resolve_self_corrections: settings.cleanup.resolve_self_corrections,
         auto_punctuate: settings.cleanup.auto_punctuate,
         auto_capitalize: settings.cleanup.auto_capitalize,
-        trailing_punctuation: true,
-        capitalize_first: true,
-        language: h.detected_language.clone().unwrap_or_else(|| h.language.clone()),
-        dictionary_language: Some(settings.language.dictionary_code(&h.detected_language.clone().unwrap_or_else(|| h.language.clone()))),
+        trailing_punctuation,
+        capitalize_first,
+        dictionary_language: Some(settings.language.dictionary_code(&language)),
+        language,
     };
     let out = {
         let d = state.shared.dict.read();
@@ -653,6 +661,36 @@ pub fn delete_app_style(state: State<'_, Arc<AppState>>, id: String) -> R<()> {
 #[tauri::command]
 pub fn get_stats(state: State<'_, Arc<AppState>>) -> R<StatsSummary> {
     state.shared.db.stats_summary(40.0).map_err(e)
+}
+
+/// The level alone, for the small badge on Home. Reads one row per day.
+#[tauri::command(async)]
+pub fn get_level(state: State<'_, Arc<AppState>>) -> R<crate::milestones::LevelInfo> {
+    let days = state.shared.db.milestone_days().map_err(e)?;
+    Ok(crate::milestones::level_info(&days, chrono::Local::now().date_naive()))
+}
+
+#[derive(serde::Serialize)]
+pub struct MilestonesView {
+    pub level: crate::milestones::LevelInfo,
+    pub badges: Vec<crate::milestones::Badge>,
+    pub reflect: crate::milestones::Reflect,
+}
+
+/// The Milestones page: level, badges and the Reflect look-back for one period
+/// ("7", "30" or "all"). All of it is computed here, on this PC.
+#[tauri::command(async)]
+pub fn get_milestones(state: State<'_, Arc<AppState>>, period: String) -> R<MilestonesView> {
+    let db = &state.shared.db;
+    let days = db.milestone_days().map_err(e)?;
+    let history = db.milestone_history().map_err(e)?;
+    let extras = db.milestone_extras().map_err(e)?;
+    let now = chrono::Local::now().naive_local();
+    Ok(MilestonesView {
+        level: crate::milestones::level_info(&days, now.date()),
+        badges: crate::milestones::badges(&history, &days, &extras, now.date()),
+        reflect: crate::milestones::reflect(&history, &days, &extras, crate::milestones::Period::parse(&period), now),
+    })
 }
 
 // Runs off the window thread. A Tauri command declared without `async`
@@ -953,7 +991,8 @@ fn bundle_text(state: &AppState) -> String {
     // death and belongs at the top of anything sent to us.
     if let Ok(panics) = std::fs::read_to_string(crate::paths::logs_dir().join("panic.log")) {
         let _ = writeln!(out, "\n== crashes recorded (panic.log) ==");
-        for line in panics.lines().rev().take(20) {
+        // A panic while Windows shuts down is no crash (see `SHUTDOWN_MARK`).
+        for line in panics.lines().rev().filter(|l| !l.contains(crate::SHUTDOWN_MARK)).take(20) {
             let _ = writeln!(out, "{line}");
         }
     }

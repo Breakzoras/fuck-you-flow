@@ -10,6 +10,7 @@ import Dictionary from "./pages/Dictionary";
 import Snippets from "./pages/Snippets";
 import Learning from "./pages/Learning";
 import Stats from "./pages/Stats";
+import Milestones from "./pages/Milestones";
 import SettingsPage from "./pages/SettingsPage";
 import Diagnostics from "./pages/Diagnostics";
 import GpuGauge from "./GpuGauge";
@@ -27,7 +28,7 @@ const TEST_BUILD = testBuildStamp(import.meta.env.VITE_FYF_TEST_BUILD);
 // The same rule the .deb installs, for the AppImage or a missed step.
 const PERM_CMD = "printf '%s\\n' 'KERNEL==\"uinput\", SUBSYSTEM==\"misc\", TAG+=\"uaccess\", OPTIONS+=\"static_node=uinput\"' 'SUBSYSTEM==\"input\", KERNEL==\"event*\", ENV{ID_INPUT_KEYBOARD}==\"1\", TAG+=\"uaccess\"' 'SUBSYSTEM==\"input\", KERNEL==\"event*\", ENV{ID_INPUT_MOUSE}==\"1\", TAG+=\"uaccess\"' | sudo tee /etc/udev/rules.d/70-fuckyouflow.rules && sudo modprobe uinput && sudo udevadm control --reload-rules && sudo udevadm trigger";
 
-type Page = "home" | "history" | "dictionary" | "snippets" | "learning" | "stats" | "settings" | "diagnostics";
+type Page = "home" | "history" | "dictionary" | "snippets" | "learning" | "stats" | "milestones" | "settings" | "diagnostics";
 
 export default function App() {
   const [settings, setSettingsState] = useState<Settings | null>(null);
@@ -236,6 +237,7 @@ export default function App() {
     ["snippets", t("nav_snippets")],
     ["learning", t("nav_learning")],
     ["stats", t("nav_stats")],
+    ["milestones", t("nav_milestones")],
     ["settings", t("nav_settings")],
     ["diagnostics", t("nav_diagnostics")],
   ];
@@ -382,12 +384,13 @@ export default function App() {
             </div>
           )}
           <div className="page">
-            {page === "home" && <Home engine={engine} snap={snap} goSettings={() => setPage("settings")} />}
+            {page === "home" && <Home engine={engine} snap={snap} goSettings={() => setPage("settings")} goMilestones={() => setPage("milestones")} />}
             {page === "history" && <History />}
             {page === "dictionary" && <Dictionary />}
             {page === "snippets" && <Snippets />}
             {page === "learning" && <Learning />}
             {page === "stats" && <Stats />}
+            {page === "milestones" && <Milestones />}
             {page === "settings" && <SettingsPage engine={engine} />}
             {page === "diagnostics" && <Diagnostics engine={engine} />}
           </div>

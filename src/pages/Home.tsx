@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, LANGUAGE_CHOICES, languageName, LightOffer, ModelStatus, PipelineSnapshot, RuntimeStatus, StatsSummary } from "../api";
+import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, LANGUAGE_CHOICES, languageName, LevelInfo, LightOffer, ModelStatus, PipelineSnapshot, RuntimeStatus, StatsSummary } from "../api";
 import { useApp } from "../hooks";
+import type { Strings } from "../i18n";
 import { Badge, Button, Card, Select } from "../ui";
 import ModelGuide, { MachineProfile } from "../ModelGuide";
 import PackOffer from "../PackOffer";
@@ -9,8 +10,10 @@ import { localDayKey, todayFacts } from "../todayStats";
 
 // Home in the Mono style: a state word, a few lines of facts, the last
 // transcripts as a log. Setup only appears while something is missing.
-export default function Home({ engine, snap, goSettings }: { engine: EngineInfo | null; snap: PipelineSnapshot | null; goSettings: () => void }) {
+export default function Home({ engine, snap, goSettings, goMilestones }: { engine: EngineInfo | null; snap: PipelineSnapshot | null; goSettings: () => void; goMilestones?: () => void }) {
   const { settings, setSettings, t, tk, toast } = useApp();
+  // The level, one quiet line under the heading. It never pops up on its own.
+  const [level, setLevel] = useState<LevelInfo | null>(null);
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [models, setModels] = useState<ModelStatus[]>([]);
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
@@ -68,6 +71,7 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
   const refreshLog = () => {
     api.history(undefined).then((h) => setRecent(h.slice(0, 6))).catch(() => {});
     api.stats().then(setStats).catch(() => {});
+    api.level().then(setLevel).catch(() => {});
   };
   useEffect(() => {
     refresh();
@@ -137,11 +141,16 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
   // stats_daily. The all-time total stays on the Statistics page.
   const today = stats?.daily?.length ? todayFacts(stats.daily, localDayKey(new Date())) : null;
   const fmtTime = (iso: string) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
-  const statusClass = (s: string) => (s === "success" ? "ok" : s === "copied" ? "warn" : "err");
+  const statusClass = (s: string) => (s === "success" || s === "likely" ? "ok" : s === "copied" ? "warn" : "err");
 
   return (
     <>
       <h1>{state.toLowerCase()}</h1>
+      {level && level.xp > 0 && goMilestones && (
+        <button type="button" className="home-level" onClick={goMilestones}>
+          <b>{t("ms_home_chip", { n: level.level })}</b> · {t(`ms_title_${level.title}` as keyof Strings)}
+        </button>
+      )}
       {lightOffer && (
         <Card>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -291,7 +300,7 @@ export default function Home({ engine, snap, goSettings }: { engine: EngineInfo 
         {recent.map((h) => (
           <div key={h.id}>
             <span className="t">{fmtTime(h.created_at)}</span>{" "}
-            <span className={statusClass(h.status)}>{h.status === "success" ? "ok" : h.status}</span>{" "}
+            <span className={statusClass(h.status)}>{h.status === "success" ? "ok" : h.status === "likely" ? t("status_likely") : h.status}</span>{" "}
             <span className="t">{h.word_count}w {(h.latency_ms / 1000).toFixed(2)}s</span>{"  "}
             <span className="body">{(h.edited_text ?? h.final_text).slice(0, 110)}{(h.edited_text ?? h.final_text).length > 110 ? "…" : ""}</span>
           </div>

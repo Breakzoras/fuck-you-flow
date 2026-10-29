@@ -79,6 +79,16 @@ pub struct Shared {
 /// clipboard ("copied") unless the insertion layer says the rescue copy failed
 /// too: then they are only in History, and saving that as "copied" hid a lost
 /// dictation among the normal ones (3 October 2026, the taskbar as target).
+/// A paste that most probably landed but could not be confirmed (see
+/// `InsertOutcome::PasteUnconfirmed`).
+pub const STATUS_LIKELY: &str = "likely";
+
+/// The dictations that count in statistics, milestones and "paste last".
+/// Keep it in step with the `status IN (...)` lists in db.rs.
+pub fn status_is_counted(status: &str) -> bool {
+    matches!(status, "success" | "copied" | STATUS_LIKELY)
+}
+
 fn not_taken_status(message: &str) -> (&'static str, OverlayState) {
     if message.ends_with("_no_clipboard") {
         ("failed", OverlayState::Failed)
@@ -146,6 +156,11 @@ fn last_request_start(cut: usize, prev_cut: usize, tail_speech_samples: usize, h
 const SILENT_MIC_AFTER_SECS: f32 = 6.0;
 const SILENT_MIC_PEAK: f32 = 0.0005;
 
+/// How long the "heard a different language" badge, with its retry button,
+/// stays before the overlay goes idle. Longer than any other failure, because
+/// the recording is kept and one click brings the words back.
+const LANGUAGE_MISMATCH_IDLE_MS: u64 = 30_000;
+
 /// True once the recording has run long enough and its loudest moment is
 /// still digital silence: a muted or switched-off microphone.
 fn mic_sounds_dead(loudest: f32, secs: f32) -> bool {
@@ -167,6 +182,22 @@ fn name_engine_from_pieces(result: &mut crate::asr::TranscriptionResult, pieces:
         result.engine = engine;
         result.model = model;
     }
+}
+
+/// The same gap for the language and the time: with no last piece heard, its
+/// empty result left the History entry with no language and 0 ms inference
+/// (44 of 290 entries, 15 to 29 October 2026, the same 44 rows). A last piece
+/// that was heard but gave no words is no better: the engine labels silence
+/// English. Whenever the last piece gave no words, the language of the last
+/// piece that did and the time of all pieces go in instead.
+fn fill_from_pieces(result: &mut crate::asr::TranscriptionResult, language: Option<String>, pieces_ms: u64, kept_pieces: bool) {
+    if !kept_pieces || !result.text.trim().is_empty() {
+        return;
+    }
+    if language.is_some() {
+        result.detected_language = language;
+    }
+    result.inference_ms += pieces_ms;
 }
 
 /// Joins phrases transcribed separately. A phrase that starts with a comma or
@@ -239,6 +270,11 @@ fn apply_intonation(text: &str, pitch: Option<(f32, f32)>, enabled: bool) -> Str
     // rises on the corrected word for emphasis (G20 in docs/QUESTION-RULES.md).
     if crate::cleanup::questions::corrective_contrast(t) {
         tracing::info!("intonation: no mark, the sentence corrects itself (peak {peak:+.1} st, end {end:+.1} st)");
+        return t.to_string();
+    }
+    // "Γιατί ... νομίζω ότι ..." gives a reason (G19 in docs/QUESTION-RULES.md).
+    if crate::cleanup::questions::because_sentence(t) {
+        tracing::info!("intonation: no mark, γιατί means because (peak {peak:+.1} st, end {end:+.1} st)");
         return t.to_string();
     }
     let body = t.trim_end_matches(|c: char| matches!(c, '.' | '!' | '…'));
@@ -678,7 +714,7 @@ async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_
     // A cancelled recording used to leave a start and then nothing in the
     // journal, the same trace as one that was lost.
     crate::journal::info("record.cancelled", serde_json::json!({ "pieces": s.segments.lock().jobs.len() }));
-    drop_recording(shared, s, level_task);
+    drop_recording(shared, s, level_task).await;
     crate::hotkey::reset_pressed_state();
     overlay::emit_state(app, OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
     finish_cancel(app, shared, idle_timer);
@@ -691,15 +727,29 @@ async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_
 /// next repeat of the same held key look like a fresh press and start another
 /// recording, once per letter.
 async fn cancel_quietly(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
-    drop_recording(shared, s, level_task);
+    drop_recording(shared, s, level_task).await;
     overlay::emit_state(app, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
     finish_cancel(app, shared, idle_timer);
 }
 
-fn drop_recording(shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>) {
+/// Stops the level meter and waits until it has really stopped.
+///
+/// `abort` only takes effect at the task's next `.await`. On the multi-thread
+/// runtime the meter can be in the middle of `dispatch_segment` on another
+/// thread at that moment: it pushes a job, then moves the cut under a second
+/// lock. Reading the segmenter in between saw that audio both in a queued piece
+/// and in the tail, so the words at the boundary came out twice; a job pushed
+/// after the cancel drained the queue kept the graphics card busy for nothing.
+/// The wait is at most one tick of the meter (33 ms).
+async fn stop_level_task(level_task: &mut Option<tokio::task::JoinHandle<()>>) {
     if let Some(t) = level_task.take() {
         t.abort();
+        let _ = t.await;
     }
+}
+
+async fn drop_recording(shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>) {
+    stop_level_task(level_task).await;
     for j in s.segments.lock().jobs.drain(..) {
         j.abort();
     }
@@ -723,9 +773,7 @@ async fn finalize(
     last_recovery: &Arc<Mutex<Option<(Vec<f32>, AppContext)>>>,
     idle_timer: &mut Option<tokio::task::JoinHandle<()>>,
 ) {
-    if let Some(t) = level_task.take() {
-        t.abort();
-    }
+    stop_level_task(level_task).await;
     let rec = shared.audio.stop_recording();
     if !shared.settings.read().audio.keep_stream_warm {
         shared.audio.close();
@@ -843,12 +891,15 @@ async fn process(
     // the text.
     *last_recovery.lock() = Some((speech.clone(), ctx.clone()));
     let recovery_file = crate::paths::recovery_dir().join("last.wav");
-    let wav = crate::audio::encode_wav(&speech);
+    let wav = std::sync::Arc::new(crate::audio::encode_wav(&speech));
+    // The same bytes become the kept recording in step 7, so they are encoded
+    // once and shared instead of copied.
+    let kept_wav = (settings.privacy.keep_audio && settings.privacy.keep_history).then(|| wav.clone());
     {
         let path = recovery_file.clone();
         let bytes = wav.clone();
         tokio::task::spawn_blocking(move || {
-            if let Err(e) = std::fs::write(&path, &bytes) {
+            if let Err(e) = std::fs::write(&path, bytes.as_slice()) {
                 tracing::warn!("recovery audio not written: {e}");
             }
         });
@@ -911,6 +962,10 @@ async fn process(
     // The engine and model that heard the pieces, for the History entry when
     // no last piece is heard after them (see below).
     let mut head_engine: Option<(String, String)> = None;
+    // The language of the last piece that gave words and the time of all
+    // pieces, for the same History entry (`fill_from_pieces`).
+    let mut head_language: Option<String> = None;
+    let mut parts_ms = 0u64;
     if let Some(seg) = segments.as_ref() {
         let (jobs, cut, prev_cut, last_text) = {
             let mut g = seg.lock();
@@ -918,11 +973,11 @@ async fn process(
         };
         if !jobs.is_empty() {
             let mut all_ok = true;
-            let mut parts_ms = 0u64;
             // whether the last finished piece left text in head_parts, so a
             // short last piece heard again with it replaces exactly that text
             let mut last_piece_kept = false;
-            for j in jobs {
+            let mut jobs = jobs.into_iter();
+            while let Some(j) = jobs.next() {
                 match j.await {
                     Ok((Ok(t), pitch)) => {
                         parts_ms += t.inference_ms;
@@ -934,10 +989,22 @@ async fn process(
                         if last_piece_kept {
                             head_parts.push(text);
                             head_pitch.push(pitch);
+                            if t.detected_language.is_some() {
+                                head_language = t.detected_language.clone();
+                            }
                         }
                     }
                     _ => {
                         all_ok = false;
+                        // The whole recording is heard again below. Dropping a
+                        // handle only detaches its task, and the pieces after
+                        // this one kept asking the engine for the same audio
+                        // while the one pass waited behind them (24 October
+                        // 2026). A request already sent still finishes on the
+                        // engine's side; the ones not sent yet never go.
+                        for rest in jobs.by_ref() {
+                            rest.abort();
+                        }
                         break;
                     }
                 }
@@ -996,7 +1063,7 @@ async fn process(
             Some(TranscriptionRequest { wav: tail_wav.take().unwrap_or_default(), language: lang_code.clone(), prompt: tail_prompt, beam_size: settings.asr.beam_size, vad: settings.asr.vad })
         }
     } else {
-        Some(TranscriptionRequest { wav, language: lang_code.clone(), prompt, beam_size: settings.asr.beam_size, vad: settings.asr.vad })
+        Some(TranscriptionRequest { wav: std::sync::Arc::unwrap_or_clone(wav), language: lang_code.clone(), prompt, beam_size: settings.asr.beam_size, vad: settings.asr.vad })
     };
     // Slightly wider than the engine client's own limit, so the client's error
     // arrives first and names what happened. When this one won the race instead,
@@ -1033,9 +1100,14 @@ async fn process(
             if matches!(e, crate::asr::AsrError::LanguageMismatch) {
                 overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("msg_language_mismatch".into()), preview: None, can_retry: true, seconds: 0.0, movable: false });
                 shared.snapshot.lock().last_error = Some(e.to_string());
-                CAPTURE_ESCAPE.store(false, std::sync::atomic::Ordering::Relaxed);
-                if let Some(timer) = idle_timer.take() { timer.abort(); }
-                set_phase(shared, Phase::Idle, false);
+                // The start of this dictation is in the journal, so its end must
+                // be too: without it a mismatch looked like a recording that was
+                // lost without a trace.
+                crate::journal::warn("record.language_mismatch", serde_json::json!({ "audio_ms": audio_ms, "pieces_heard": head_parts.len() }));
+                // A long wait, so the retry button stays within reach, but not
+                // forever: with "hide when idle" the badge used to stay on the
+                // screen until the next dictation.
+                finish_idle(shared, app, idle_timer, LANGUAGE_MISMATCH_IDLE_MS);
                 return;
             }
             if head_parts.is_empty() {
@@ -1067,7 +1139,8 @@ async fn process(
         }
     };
     let mut result = result;
-    name_engine_from_pieces(&mut result, head_engine.take(), !head_parts.is_empty());
+    let kept_pieces = !head_parts.is_empty();
+    name_engine_from_pieces(&mut result, head_engine.take(), kept_pieces);
     // The shared language guard validates each accepted piece and its retry.
     let tail_pitch = crate::audio::tail_pitch_features(&speech);
     if let Some((peak, end)) = tail_pitch {
@@ -1167,7 +1240,7 @@ async fn process(
         .unwrap_or((insertion::InsertReport { outcome: InsertOutcome::Failed, method: "paste".into(), message: Some("insertion task crashed".into()), elapsed_ms: 0 }, false));
         let (r, focus_lost) = report;
         tracing::info!("insertion: {:?} via {} in {} ms{}{}", r.outcome, r.method, r.elapsed_ms, if focus_lost { " (focus lost)" } else { "" }, r.message.as_deref().map(|m| format!(": {m}")).unwrap_or_default());
-        let ok = matches!(r.outcome, crate::insertion::InsertOutcome::Pasted | crate::insertion::InsertOutcome::PastedNoRestore | crate::insertion::InsertOutcome::Typed);
+        let ok = matches!(r.outcome, crate::insertion::InsertOutcome::Pasted | crate::insertion::InsertOutcome::PastedNoRestore | crate::insertion::InsertOutcome::Typed | crate::insertion::InsertOutcome::PasteUnconfirmed);
         crate::journal::record(
             if ok { "info" } else { "warn" },
             "insert.done",
@@ -1191,6 +1264,8 @@ async fn process(
                 ("copied".to_string(), OverlayState::TargetChanged, Some("msg_focus_lost".to_string()))
             }
             InsertOutcome::CopiedOnly => ("copied".to_string(), OverlayState::Success, Some("msg_copied".to_string())),
+            // Shown and counted like a paste; History says "pasted (likely)".
+            InsertOutcome::PasteUnconfirmed => (STATUS_LIKELY.to_string(), OverlayState::Success, None),
             InsertOutcome::PasteNotConsumed => {
                 not_landed = Some("not_taken");
                 // Keep what the insertion layer said. It knows whether the
@@ -1237,21 +1312,33 @@ async fn process(
     let _ = &last_recovery;
     let _ = &recovery_file;
 
+    // After the cleanup on purpose: its language comes from the letters of the
+    // whole text, and the head's language must not change it.
+    fill_from_pieces(&mut result, head_language.take(), parts_ms, kept_pieces);
+
     // 7. History and stats.
     let word_count = crate::cleanup::deterministic::word_count(&final_text);
-    let audio_path = if settings.privacy.keep_audio && settings.privacy.keep_history {
+    // Off this task, like the recovery copy: the write used to run inline after
+    // the paste, so the next hotkey press waited for the disk. The path goes
+    // into the entry before the write ends; if the write fails the entry points
+    // at a missing file, as it does once a kept recording passes its 30 days.
+    let audio_path = kept_wav.map(|bytes| {
         let p = crate::paths::local_dir().join("audio").join(format!("{}.wav", crate::db::new_id()));
-        let _ = std::fs::create_dir_all(p.parent().unwrap());
-        if std::fs::write(&p, crate::audio::encode_wav(&speech)).is_ok() {
-            Some(p.display().to_string())
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-    if settings.privacy.keep_history {
-        let entry = HistoryEntry {
+        let shown = p.display().to_string();
+        tokio::task::spawn_blocking(move || {
+            if let Some(dir) = p.parent() {
+                let _ = std::fs::create_dir_all(dir);
+            }
+            if let Err(e) = std::fs::write(&p, bytes.as_slice()) {
+                tracing::warn!("kept recording not written: {e}");
+            }
+        });
+        shown
+    });
+    // The counters behind Statistics and Milestones hold numbers only, no words,
+    // so they keep counting when history is switched off. They used to sit inside
+    // this switch, and turning history off froze every count and every level.
+    let entry = settings.privacy.keep_history.then(|| HistoryEntry {
             id: crate::db::new_id(),
             created_at: crate::db::ts_now(),
             raw_text: raw.clone(),
@@ -1277,7 +1364,8 @@ async fn process(
             retried: is_retry,
             undone: false,
             edited_text: None,
-        };
+        });
+    {
         // Off the pipeline task. The database is opened with journal_mode=DELETE
         // and synchronous=FULL, which is the slowest safe setting and was chosen
         // deliberately after a write-ahead log swallowed a day of history on
@@ -1287,7 +1375,7 @@ async fn process(
         // channel, so the app ignored the next key press until the disk was
         // finished.
         let db = shared.db.clone();
-        let counted = status == "success" || status == "copied";
+        let counted = status_is_counted(&status);
         let rule_ids = outcome.rule_ids.clone();
         let snippet_ids = outcome.snippet_ids.clone();
         let rules_used = outcome.rule_ids.len() as u64;
@@ -1298,7 +1386,7 @@ async fn process(
         // refresh from inside the thread, after the rows are actually written.
         let app_for_db = app.clone();
         let _ = tokio::task::spawn_blocking(move || {
-            if let Err(e) = db.insert_history(&entry) {
+            if let Some(Err(e)) = entry.as_ref().map(|entry| db.insert_history(entry)) {
                 // History is the last place the words exist once the clipboard
                 // moves on, so a failure here has to reach the user rather than
                 // sit in a log nobody opens.
@@ -1454,6 +1542,26 @@ mod tests {
         assert!(r.engine.is_empty() && r.model.is_empty());
     }
 
+    #[test]
+    fn a_dictation_heard_in_pieces_keeps_their_language_and_time_without_a_last_piece() {
+        // silence after the last pause, or the last piece failed
+        let mut r = TranscriptionResult::default();
+        fill_from_pieces(&mut r, Some("el".into()), 1_840, true);
+        assert_eq!((r.detected_language.as_deref(), r.inference_ms), (Some("el"), 1_840));
+        // a last piece that gave words keeps its own
+        let mut r = TranscriptionResult { text: "and then we left".into(), detected_language: Some("en".into()), inference_ms: 300, ..Default::default() };
+        fill_from_pieces(&mut r, Some("el".into()), 1_840, true);
+        assert_eq!((r.detected_language.as_deref(), r.inference_ms), (Some("en"), 300));
+        // a last piece heard as silence, which the engine labels English
+        let mut r = TranscriptionResult { detected_language: Some("en".into()), inference_ms: 120, ..Default::default() };
+        fill_from_pieces(&mut r, Some("el".into()), 1_840, true);
+        assert_eq!((r.detected_language.as_deref(), r.inference_ms), (Some("el"), 1_960));
+        // nothing kept from the pieces: nothing to carry
+        let mut r = TranscriptionResult::default();
+        fill_from_pieces(&mut r, Some("el".into()), 1_840, false);
+        assert_eq!((r.detected_language.as_deref(), r.inference_ms), (None, 0));
+    }
+
     /// On 21 September 2026 a muted headset sent a peak of 0.00002 for 54
     /// seconds and the user only learned at the end that nothing was heard.
     #[test]
@@ -1597,6 +1705,16 @@ mod tests {
         assert_eq!(apply_intonation("Δεν ξέρω, θες να πάμε για καφέ.", q, true), "Δεν ξέρω, θες να πάμε για καφέ;");
         assert_eq!(apply_intonation("Δεν ξέρω.", q, true), "Δεν ξέρω;");
         assert_eq!(apply_intonation("Δεν ξέρεις πού είναι το κλειδί.", q, true), "Δεν ξέρεις πού είναι το κλειδί;");
+    }
+
+    /// 29 October 2026: G19 holds for the voice too.
+    #[test]
+    fn intonation_leaves_a_because_sentence_with_a_full_stop() {
+        let q = Some((13.0, 6.0));
+        assert_eq!(apply_intonation("Γιατί έχει μείνει πίσω και νομίζω ότι θα αργήσει.", q, true), "Γιατί έχει μείνει πίσω και νομίζω ότι θα αργήσει.");
+        assert_eq!(apply_intonation("Έκλεισα νωρίς. Γιατί σε είδα κουρασμένο.", q, true), "Έκλεισα νωρίς. Γιατί σε είδα κουρασμένο.");
+        // a real why question still gets the mark
+        assert_eq!(apply_intonation("Γιατί έφυγες νωρίς.", q, true), "Γιατί έφυγες νωρίς;");
     }
 
     #[test]

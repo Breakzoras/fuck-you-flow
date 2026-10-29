@@ -40,6 +40,8 @@ const MIGRATIONS: &[&str] = &[
         audio_path TEXT,
         context_used INTEGER NOT NULL DEFAULT 0,
         retried INTEGER NOT NULL DEFAULT 0,
+        -- Never written: nothing in the app detects an undo. The column stays so
+        -- old databases and the export keep their shape.
         undone INTEGER NOT NULL DEFAULT 0,
         edited_text TEXT
     );
@@ -490,7 +492,7 @@ impl Db {
     pub fn last_successful_history(&self) -> anyhow::Result<Option<HistoryEntry>> {
         let conn = self.conn.lock();
         Ok(conn
-            .query_row("SELECT * FROM history WHERE status IN ('success','copied') ORDER BY created_at DESC LIMIT 1", [], Self::row_to_history)
+            .query_row("SELECT * FROM history WHERE status IN ('success','copied','likely') ORDER BY created_at DESC LIMIT 1", [], Self::row_to_history)
             .optional()?)
     }
 
@@ -529,17 +531,6 @@ impl Db {
         let paths: Vec<String> = st.query_map(params![cutoff], |r| r.get::<_, String>(0))?.filter_map(|r| r.ok()).collect();
         conn.execute("DELETE FROM history WHERE created_at < ?1", params![cutoff])?;
         Ok(paths)
-    }
-
-    pub fn mark_history(&self, id: &str, field: &str, value: bool) -> anyhow::Result<()> {
-        let col = match field {
-            "retried" => "retried",
-            "undone" => "undone",
-            _ => anyhow::bail!("unknown field"),
-        };
-        let conn = self.conn.lock();
-        conn.execute(&format!("UPDATE history SET {col} = ?1 WHERE id = ?2"), params![value as i64, id])?;
-        Ok(())
     }
 
     pub fn set_history_edit(&self, id: &str, edited: &str) -> anyhow::Result<()> {
@@ -1038,7 +1029,7 @@ impl Db {
             }
         }
 
-        let mut lst = conn.prepare("SELECT latency_ms FROM history WHERE status = 'success' AND latency_ms > 0 ORDER BY latency_ms ASC")?;
+        let mut lst = conn.prepare("SELECT latency_ms FROM history WHERE status IN ('success','copied','likely') AND latency_ms > 0 ORDER BY latency_ms ASC")?;
         let lat: Vec<u64> = lst.query_map([], |r| r.get::<_, i64>(0))?.filter_map(|r| r.ok()).map(|v| v as u64).collect();
         let pct = |p: f64| -> u64 {
             if lat.is_empty() {
@@ -1048,7 +1039,7 @@ impl Db {
                 lat[idx.min(lat.len() - 1)]
             }
         };
-        let mut cst = conn.prepare("SELECT COALESCE(app_category,'unknown'), COUNT(*) FROM history WHERE status='success' GROUP BY 1 ORDER BY 2 DESC")?;
+        let mut cst = conn.prepare("SELECT COALESCE(app_category,'unknown'), COUNT(*) FROM history WHERE status IN ('success','copied','likely') GROUP BY 1 ORDER BY 2 DESC")?;
         let by_category: Vec<(String, u64)> = cst.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u64)))?.filter_map(|r| r.ok()).collect();
 
         Ok(StatsSummary {
@@ -1067,6 +1058,90 @@ impl Db {
             p95_latency_ms: pct(0.95),
             by_category,
             daily,
+        })
+    }
+
+    /// Days for Milestones, oldest first. `stats_daily` keeps every day even
+    /// when old history is pruned, so levels never go down.
+    pub fn milestone_days(&self) -> anyhow::Result<Vec<crate::milestones::DayRow>> {
+        let conn = self.conn.lock();
+        let mut st = conn.prepare("SELECT day, words, dictations, audio_ms FROM stats_daily ORDER BY day ASC")?;
+        let rows = st
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, i64>(3)?)))?
+            .filter_map(|r| r.ok())
+            .filter_map(|(day, words, dictations, audio_ms)| {
+                Some(crate::milestones::DayRow {
+                    day: chrono::NaiveDate::parse_from_str(&day, "%Y-%m-%d").ok()?,
+                    words: words.max(0) as u64,
+                    dictations: dictations.max(0) as u64,
+                    audio_ms: audio_ms.max(0) as u64,
+                })
+            })
+            .collect();
+        Ok(rows)
+    }
+
+    /// Counted dictations for Reflect and the badges, oldest first, with the
+    /// time turned into local time row by row (the clock changes in spring and
+    /// autumn, so one fixed offset would put some rows in the wrong hour).
+    pub fn milestone_history(&self) -> anyhow::Result<Vec<crate::milestones::HistRow>> {
+        let conn = self.conn.lock();
+        let mut st = conn.prepare(
+            "SELECT created_at, final_text, word_count, audio_ms, latency_ms, inference_ms, app_name, app_process, \
+             COALESCE(app_category,'unknown'), detected_language, language, rules_applied, engine, retried, undone, edited_text \
+             FROM history WHERE status IN ('success','copied','likely') ORDER BY created_at ASC",
+        )?;
+        let rows = st
+            .query_map([], |r| {
+                let created: String = r.get(0)?;
+                let detected: Option<String> = r.get(9)?;
+                let chosen: Option<String> = r.get(10)?;
+                let rules: String = r.get(11)?;
+                let edited: Option<String> = r.get(15)?;
+                Ok((
+                    created,
+                    crate::milestones::HistRow {
+                        final_text: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                        word_count: r.get::<_, i64>(2)?.max(0) as u64,
+                        audio_ms: r.get::<_, i64>(3)?.max(0) as u64,
+                        latency_ms: r.get::<_, i64>(4)?.max(0) as u64,
+                        inference_ms: r.get::<_, i64>(5)?.max(0) as u64,
+                        app_name: r.get(6)?,
+                        app_process: r.get(7)?,
+                        app_category: r.get(8)?,
+                        language: detected.or(chosen.filter(|l| !matches!(l.as_str(), "auto" | "multi" | ""))),
+                        rules: serde_json::from_str(&rules).unwrap_or_default(),
+                        engine: r.get(12)?,
+                        untouched: r.get::<_, i64>(13)? == 0 && r.get::<_, i64>(14)? == 0 && edited.is_none(),
+                        ..Default::default()
+                    },
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .filter_map(|(created, mut row)| {
+                row.at = DateTime::parse_from_rfc3339(&created).ok()?.with_timezone(&chrono::Local).naive_local();
+                Some(row)
+            })
+            .collect();
+        Ok(rows)
+    }
+
+    /// Lifetime dictionary and snippet numbers for Milestones.
+    pub fn milestone_extras(&self) -> anyhow::Result<crate::milestones::Extras> {
+        let conn = self.conn.lock();
+        let rules_taught: i64 = conn.query_row("SELECT COUNT(*) FROM dictionary WHERE source = 'user'", [], |r| r.get(0))?;
+        let fixes: i64 = conn.query_row("SELECT COALESCE(SUM(apply_count),0) FROM dictionary", [], |r| r.get(0))?;
+        let top = conn
+            .query_row("SELECT wrong, correct, apply_count FROM dictionary WHERE apply_count > 0 ORDER BY apply_count DESC LIMIT 1", [], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?.max(0) as u64))
+            })
+            .optional()?;
+        let snippets: i64 = conn.query_row("SELECT COALESCE(SUM(apply_count),0) FROM snippets", [], |r| r.get(0))?;
+        Ok(crate::milestones::Extras {
+            rules_taught: rules_taught.max(0) as u64,
+            dictionary_fixes: fixes.max(0) as u64,
+            dictionary_top: top,
+            snippet_uses: snippets.max(0) as u64,
         })
     }
 
@@ -1141,6 +1216,28 @@ mod tests {
             undone: false,
             edited_text: None,
         }
+    }
+
+    /// A paste that most probably landed ("likely", 29 October 2026) counts
+    /// everywhere a confirmed one does; a failure still counts nowhere.
+    #[test]
+    fn a_likely_paste_counts_like_a_confirmed_one() {
+        let db = Db::open_in_memory().unwrap();
+        let mut likely = entry("μάλλον μπήκε");
+        likely.status = "likely".into();
+        likely.latency_ms = 700;
+        db.insert_history(&likely).unwrap();
+        let mut failed = entry("χάθηκε");
+        failed.status = "failed".into();
+        db.insert_history(&failed).unwrap();
+
+        assert_eq!(db.last_successful_history().unwrap().map(|h| h.final_text), Some("μάλλον μπήκε".to_string()));
+        assert_eq!(db.milestone_history().unwrap().len(), 1);
+        let s = db.stats_summary(40.0).unwrap();
+        assert_eq!(s.p50_latency_ms, 700);
+        assert_eq!(s.by_category, vec![("editor".to_string(), 1)]);
+        assert!(crate::pipeline::status_is_counted("likely"));
+        assert!(!crate::pipeline::status_is_counted("failed"));
     }
 
     /// Startup reads the schema before it settles sharing (4 October 2026).

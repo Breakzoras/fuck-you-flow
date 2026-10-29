@@ -16,6 +16,7 @@ pub mod languages;
 pub mod learning;
 pub mod local_api;
 pub mod logging;
+pub mod milestones;
 pub mod models;
 pub mod overlay;
 pub mod packs;
@@ -73,6 +74,27 @@ fn say_it_cannot_start(reason: &str) {
     eprintln!("Fuck You Flow could not start: {reason}");
 }
 
+/// The tag of a panic.log line written while Windows shut down. Problem
+/// reports leave these out of their list of crashes.
+pub(crate) const SHUTDOWN_MARK: &str = "WINDOWS SHUTDOWN, not a crash";
+
+fn panic_text(info: &std::panic::PanicHookInfo<'_>) -> String {
+    if let Some(s) = info.payload().downcast_ref::<&str>() {
+        (*s).to_string()
+    } else if let Some(s) = info.payload().downcast_ref::<String>() {
+        s.clone()
+    } else {
+        String::new()
+    }
+}
+
+/// tao 0.35 on Windows: after WM_ENDSESSION the event loop is "Destroyed", and
+/// any message after that panics with this text (panic.log, 28 September,
+/// 16 and 21 October 2026, each a second after the shutdown event 1074).
+fn is_windows_shutdown_panic(text: &str) -> bool {
+    text.contains("cannot move state from Destroyed")
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     logging::init();
@@ -87,11 +109,25 @@ pub fn run() {
         // 7 September 2026 at 19:15:37, in the middle of a dictation, left
         // nothing behind at all.
         use std::io::Write;
-        let line = format!("{} PANIC: {info}\n", chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z"));
+        let shutdown = is_windows_shutdown_panic(&panic_text(info));
+        let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z");
+        let line = if shutdown {
+            format!("{now} {SHUTDOWN_MARK}: {info}\n")
+        } else {
+            format!("{now} PANIC: {info}\n")
+        };
         let path = paths::logs_dir().join("panic.log");
         if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
             let _ = f.write_all(line.as_bytes());
             let _ = f.flush();
+        }
+        if shutdown {
+            // Windows is ending the session and the window library has already
+            // torn its event loop down; one more message reaches it and it
+            // panics. Nothing is lost at that point, so leave quietly, which is
+            // what tao 0.37 does itself on WM_ENDSESSION (a version this build
+            // cannot take without a tauri upgrade).
+            std::process::exit(0);
         }
         tracing::error!("PANIC: {info}");
     }));
@@ -172,6 +208,8 @@ pub fn run() {
             commands::save_app_style,
             commands::delete_app_style,
             commands::get_stats,
+            commands::get_level,
+            commands::get_milestones,
             commands::export_all_data,
             commands::delete_all_data,
             commands::open_data_folder,
@@ -233,4 +271,14 @@ pub fn run() {
                 tracing::info!("Fuck You Flow exiting cleanly");
             }
         });
+}
+
+#[cfg(test)]
+mod shutdown_panic_tests {
+    #[test]
+    fn only_the_destroyed_event_loop_panic_counts_as_a_shutdown() {
+        assert!(super::is_windows_shutdown_panic("cannot move state from Destroyed"));
+        assert!(!super::is_windows_shutdown_panic("overflow when subtracting duration from instant"));
+        assert!(!super::is_windows_shutdown_panic(""));
+    }
 }

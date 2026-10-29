@@ -90,6 +90,11 @@ pub enum InsertOutcome {
     CopiedOnly,
     /// The paste keystroke was sent but the app never read the clipboard.
     PasteNotConsumed,
+    /// Ctrl+V reached the same window, but another program (a Remote Desktop
+    /// or WSL clipboard sync, Viber) read the words first, so whether the
+    /// target took them cannot be told. Almost always it did. The words stay on
+    /// the clipboard and the old clipboard is not put back.
+    PasteUnconfirmed,
     Failed,
 }
 
@@ -1044,6 +1049,18 @@ pub mod win {
             if let Err(e) = wait_done(Duration::from_secs(2)) {
                 tracing::warn!("the words could not be republished for the clipboard history: {e}");
             }
+            // Unknown, and the window that got Ctrl+V still has the focus: the
+            // usual case behind a clipboard syncer (29 October 2026: 92% of all
+            // dictations were saved as "copied" for this reason alone, which
+            // read like a failure). Unknown with the window gone stays "copied".
+            if verdict == Receipt::Unknown && unsafe { GetForegroundWindow() } == fg_at_send {
+                return InsertReport {
+                    outcome: InsertOutcome::PasteUnconfirmed,
+                    method: "paste".into(),
+                    message: None,
+                    elapsed_ms: started.elapsed().as_millis() as u64,
+                };
+            }
             // Not taken is now known, so it is said plainly; unknown still only asks.
             let message = if verdict == Receipt::NotRead { "msg_not_taken" } else { "msg_also_on_clipboard" };
             return InsertReport {
@@ -1101,7 +1118,7 @@ pub mod win {
 
     /// Waits until the target asks for the words or `budget` runs out.
     fn wait_for_receipt(st: &State, promise_intact: bool, target_is_us: bool, budget: Duration) -> Receipt {
-        let deadline = Instant::now() + budget;
+        let started = Instant::now();
         let rx = RENDER_RX.get().unwrap().lock();
         loop {
             let (by_target, after_key) = {
@@ -1109,14 +1126,12 @@ pub mod win {
                 (sh.rendered_by_target, sh.rendered_after_keystroke)
             };
             let v = receipt_verdict(by_target, after_key, promise_intact, target_is_us);
-            if v == Receipt::Taken {
-                return v;
+            match receipt_wait(v, by_target, after_key, promise_intact, started.elapsed(), budget) {
+                None => return v,
+                Some(d) => {
+                    let _ = rx.recv_timeout(d);
+                }
             }
-            let now = Instant::now();
-            if now >= deadline || unknown_is_settled(v, by_target, after_key, budget.saturating_sub(deadline - now)) {
-                return v;
-            }
-            let _ = rx.recv_timeout(deadline - now);
         }
     }
 
@@ -1319,12 +1334,36 @@ pub mod win {
     /// same moment as the other program.
     const UNKNOWN_GRACE_MS: u64 = 250;
 
-    /// Somebody else already read the words after Ctrl+V and the target has
-    /// not: the promise is spent, so waiting longer cannot turn the answer into
-    /// Taken. With the Remote Desktop client or Viber syncing the clipboard,
-    /// that was 97% of the dictations measured, each one waiting the full second.
-    pub(crate) fn unknown_is_settled(v: Receipt, by_target: u32, after_key: u32, waited: Duration) -> bool {
-        v == Receipt::Unknown && by_target == 0 && after_key > 0 && waited >= Duration::from_millis(UNKNOWN_GRACE_MS)
+    /// Somebody else already read the words and the target has not: the
+    /// promise is spent, so waiting longer cannot turn the answer into Taken.
+    /// That holds both when the other reader came after Ctrl+V and when it
+    /// came before it (`promise_intact` false): the words are real data from
+    /// then on, and no later read reaches `render_pending`. With the Remote
+    /// Desktop client or Viber syncing the clipboard, that was 97% of the
+    /// dictations measured, each one waiting the full second.
+    pub(crate) fn unknown_is_spent(v: Receipt, by_target: u32, after_key: u32, promise_intact: bool) -> bool {
+        v == Receipt::Unknown && by_target == 0 && (after_key > 0 || !promise_intact)
+    }
+
+    /// How long to wait for the next notice, or `None` to stop now. A spent
+    /// promise still gets `UNKNOWN_GRACE_MS` after the key, so the target can
+    /// finish its own read before the words are put back on the clipboard,
+    /// but never more: no notice can come after it. Until 29 October 2026 the
+    /// grace was checked only when a notice arrived, and the wait in between
+    /// ran to the end of the budget, so 129 of 130 such pastes took a second.
+    pub(crate) fn receipt_wait(v: Receipt, by_target: u32, after_key: u32, promise_intact: bool, waited: Duration, budget: Duration) -> Option<Duration> {
+        if v == Receipt::Taken || waited >= budget {
+            return None;
+        }
+        let left = budget - waited;
+        if unknown_is_spent(v, by_target, after_key, promise_intact) {
+            let grace = Duration::from_millis(UNKNOWN_GRACE_MS);
+            if waited >= grace {
+                return None;
+            }
+            return Some(left.min(grace - waited));
+        }
+        Some(left)
     }
 
     /// `by_target`: requests from the process that had the focus when Ctrl+V
@@ -1379,13 +1418,23 @@ pub mod win {
         #[test]
         fn an_unknown_receipt_stops_waiting_once_settled() {
             let ms = Duration::from_millis;
-            // somebody else read after the key, the target did not: settled after the grace
-            assert!(unknown_is_settled(Receipt::Unknown, 0, 1, ms(250)));
-            assert!(!unknown_is_settled(Receipt::Unknown, 0, 1, ms(100)));
-            // nobody read after the key (only before it): keep waiting for the target
-            assert!(!unknown_is_settled(Receipt::Unknown, 0, 0, ms(900)));
-            assert!(!unknown_is_settled(Receipt::NotRead, 0, 0, ms(900)));
-            assert!(!unknown_is_settled(Receipt::Taken, 1, 1, ms(900)));
+            let budget = ms(1_000);
+            // somebody else read after the key, the target did not: the wait
+            // ends at the grace, not at the end of the budget
+            assert_eq!(receipt_wait(Receipt::Unknown, 0, 1, true, ms(10), budget), Some(ms(240)));
+            assert_eq!(receipt_wait(Receipt::Unknown, 0, 1, true, ms(100), budget), Some(ms(150)));
+            assert_eq!(receipt_wait(Receipt::Unknown, 0, 1, true, ms(250), budget), None);
+            // somebody read before the key: the promise was already spent, so
+            // the same grace and no more (this used to wait the full second)
+            assert_eq!(receipt_wait(Receipt::Unknown, 0, 0, false, ms(0), budget), Some(ms(250)));
+            assert_eq!(receipt_wait(Receipt::Unknown, 0, 0, false, ms(900), budget), None);
+            // nobody asked yet: the whole budget stays open for the target
+            assert_eq!(receipt_wait(Receipt::NotRead, 0, 0, true, ms(10), budget), Some(ms(990)));
+            assert_eq!(receipt_wait(Receipt::NotRead, 0, 0, true, ms(1_000), budget), None);
+            // the target asked: done
+            assert_eq!(receipt_wait(Receipt::Taken, 1, 1, true, ms(5), budget), None);
+            // a grace never stretches past a smaller budget
+            assert_eq!(receipt_wait(Receipt::Unknown, 0, 1, true, ms(10), ms(100)), Some(ms(90)));
         }
 
         /// A clipboard monitor asking first spends the promise (Handy #502

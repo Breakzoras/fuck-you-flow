@@ -135,27 +135,60 @@ fn classify_browser(title: &str) -> (AppCategory, &'static str) {
     }
 }
 
-pub fn build_context(target: Target) -> AppContext {
-    let (category, friendly) = classify_process(&target.process_name, &target.title);
-    let (trailing, cap, shift_paste) = match category {
+/// Final period, capital at the start and Ctrl+Shift+V for one category.
+fn category_style(category: AppCategory) -> (bool, bool, bool) {
+    match category {
         AppCategory::Chat => (false, true, false),
         AppCategory::Terminal => (false, false, true),
         AppCategory::Code => (false, false, false),
         AppCategory::AiChat => (true, true, false),
         AppCategory::Email | AppCategory::Document => (true, true, false),
         _ => (true, true, false),
-    };
+    }
+}
+
+pub fn build_context(target: Target) -> AppContext {
+    let (category, friendly) = classify_process(&target.process_name, &target.title);
+    let (trailing, cap, shift_paste) = category_style(category);
     AppContext { target, category, friendly_name: friendly.to_string(), trailing_punctuation: trailing, capitalize_first: cap, shift_paste, nearby_text: None }
+}
+
+fn style_matches(s: &crate::db::AppStyle, process_lower: &str, category: &str) -> bool {
+    let m = s.process_match.to_ascii_lowercase();
+    s.enabled && ((!m.is_empty() && process_lower.contains(&m)) || (!category.is_empty() && s.category == category))
+}
+
+/// The style a History entry was dictated under, rebuilt from what the entry
+/// stores: (final period, capital at the start). The window title is not
+/// stored, so this starts from the stored category, never from the process
+/// name: a web chat in a browser was stored as "chat" and stays chat. A
+/// transcribed file ("file") was cleaned with the default style and no
+/// overrides, and so is a category this program does not know.
+pub fn stored_style(process: Option<&str>, category: Option<&str>, styles: &[crate::db::AppStyle]) -> (bool, bool) {
+    let known = [
+        AppCategory::Chat, AppCategory::Email, AppCategory::Document, AppCategory::Code, AppCategory::AiChat,
+        AppCategory::Browser, AppCategory::Terminal, AppCategory::Sensitive, AppCategory::Unknown,
+    ];
+    let Some(parsed) = known.into_iter().find(|c| Some(c.as_str()) == category) else {
+        let (trailing, cap, _) = category_style(AppCategory::Unknown);
+        return (trailing, cap);
+    };
+    let (mut trailing, mut cap, _) = category_style(parsed);
+    let p = process.unwrap_or("").to_ascii_lowercase();
+    for s in styles.iter().filter(|s| style_matches(s, &p, parsed.as_str())) {
+        trailing = s.trailing_punctuation;
+        cap = s.capitalize_first;
+    }
+    (trailing, cap)
 }
 
 /// Overrides from the user's app style table (process_match is a case-insensitive
 /// substring of the process name, or the category name).
 pub fn apply_style_overrides(ctx: &mut AppContext, styles: &[crate::db::AppStyle]) {
     let p = ctx.target.process_name.to_ascii_lowercase();
-    for s in styles.iter().filter(|s| s.enabled) {
-        let m = s.process_match.to_ascii_lowercase();
-        let matches = (!m.is_empty() && p.contains(&m)) || s.category == ctx.category.as_str();
-        if matches {
+    let category = ctx.category.as_str();
+    for s in styles.iter() {
+        if style_matches(s, &p, category) {
             ctx.trailing_punctuation = s.trailing_punctuation;
             ctx.capitalize_first = s.capitalize_first;
             if !s.name.is_empty() {
@@ -247,5 +280,35 @@ mod tests {
         assert!(ctx.capitalize_first);
         let ctx = build_context(Target { process_name: "WINWORD.EXE".into(), ..Default::default() });
         assert!(ctx.trailing_punctuation);
+    }
+
+    fn style(process_match: &str, category: &str, trailing: bool, enabled: bool) -> crate::db::AppStyle {
+        crate::db::AppStyle {
+            id: "s".into(),
+            name: String::new(),
+            process_match: process_match.into(),
+            category: category.into(),
+            trailing_punctuation: trailing,
+            capitalize_first: true,
+            tone: String::new(),
+            enabled,
+        }
+    }
+
+    /// History "Re-clean" used to clean every entry with a final period,
+    /// chat rows included (29 October 2026).
+    #[test]
+    fn a_history_entry_gets_back_the_style_it_was_dictated_under() {
+        // a web chat in a browser: the stored category decides, not the process
+        assert_eq!(stored_style(Some("chrome.exe"), Some("chat"), &[]), (false, true));
+        assert_eq!(stored_style(Some("WINWORD.EXE"), Some("document"), &[]), (true, true));
+        assert_eq!(stored_style(Some("code.exe"), Some("code"), &[]), (false, false));
+        // the user's own styles apply as they did live
+        assert_eq!(stored_style(Some("Telegram.exe"), Some("chat"), &[style("telegram", "", true, true)]), (true, true));
+        assert_eq!(stored_style(Some("notepad.exe"), Some("document"), &[style("", "document", false, true)]), (false, true));
+        assert_eq!(stored_style(Some("Telegram.exe"), Some("chat"), &[style("telegram", "", true, false)]), (false, true));
+        // a transcribed file, an unknown or a missing category: the default, no overrides
+        assert_eq!(stored_style(Some("talk.mp3"), Some("file"), &[style("talk", "", false, true)]), (true, true));
+        assert_eq!(stored_style(None, None, &[style("", "", false, true)]), (true, true));
     }
 }

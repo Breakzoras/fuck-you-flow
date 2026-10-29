@@ -58,6 +58,14 @@ const BECAUSE_NEXT_EL: &[&str] = &[
 /// Adverbs that may stand between γιατί and the word that makes it "because"
 /// ("Γιατί τώρα είμαι κουρασμένος.", "Γιατί πολύ απλά δεν χωράει.").
 const BECAUSE_ADVERBS_EL: &[&str] = &["τώρα", "πολύ", "τόσο"];
+/// Object pronouns that may stand between γιατί and its verb ("Γιατί σε είδα").
+const OBJECT_PRONOUNS_EL: &[&str] = &[
+    "το", "τα", "τον", "την", "τη", "τους", "τις", "του", "της", "μου", "σου", "μας", "σας", "με", "σε",
+];
+/// A first-person opinion anywhere in a γιατί sentence makes it "because".
+const OWN_OPINION_EL: &[&str] = &["νομίζω", "πιστεύω", "θεωρώ", "νιώθω", "φοβάμαι", "υποθέτω"];
+/// Words in -ω that are not verbs, so they never make a first-person present.
+const NOT_VERBS_IN_OMEGA_EL: &[&str] = &["πάνω", "κάτω", "έξω", "μέσω", "πίσω", "ίσω"];
 /// Answer words that, in front of γιατί, make it "because": "Όχι, γιατί θέλω
 /// να μείνει τοπικό." gives the reason for the answer.
 const ANSWER_BEFORE_BECAUSE_EL: &[&str] = &["όχι", "ναι"];
@@ -341,14 +349,8 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
         let next = w.get(at + 1).map(|s| s.as_str());
         // G19: "Γιατί άμα ..." / "Γιατί νομίζω ..." is "because", also with an
         // adverb or two in between ("Γιατί τόσο θα κοιμηθώ.")
-        if wh == "γιατί" && at == 0 {
-            let mut k = 1;
-            while k <= 2 && w.get(k).is_some_and(|a| BECAUSE_ADVERBS_EL.contains(&a.as_str())) {
-                k += 1;
-            }
-            if w.get(k).is_some_and(|n| BECAUSE_NEXT_EL.contains(&n.as_str())) {
-                return false;
-            }
+        if wh == "γιατί" && at == 0 && because_after_why(&w[1..], skip > 0 && matches!(all[skip - 1].as_str(), "και" | "κι")) {
+            return false;
         }
         // "Γιατί δεν ξέρω ..." gives a reason; "Γιατί δεν έρχεσαι;" stays a question.
         if wh == "γιατί" && at == 0 && starts_with_phrase(&w[1..], &["δεν", "ξέρω"]) {
@@ -381,6 +383,67 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
         return w.iter().skip(n).take(4).any(|t| t == "αν" || WH_EL.contains(&t.as_str()));
     }
     false
+}
+
+/// G19: true when the words after a sentence-initial γιατί make it "because".
+/// The word right after it (behind at most two adverbs) is one of
+/// BECAUSE_NEXT_EL. 29 October 2026, from Lu's history: also when that word
+/// sits behind object pronouns ("Γιατί σε είδα ...", "Γιατί το λέω ..."), when
+/// the first verb is a first-person present ("Γιατί το βρίσκω ...", "Γιατί
+/// κοιτάω ..."), and when the speaker gives an opinion of their own later in
+/// the sentence ("Γιατί έχει μείνει πίσω και νομίζω ότι ..."). A why question
+/// asks about someone else and rarely says what the asker thinks. After
+/// "Και" the first-person verb asks ("Και γιατί το βρίσκω κλειστό;"):
+/// every "Και γιατί" sentence in Lu's history was a question.
+fn because_after_why(rest: &[String], after_and: bool) -> bool {
+    let mut k = 0;
+    while k < 2 && rest.get(k).is_some_and(|a| BECAUSE_ADVERBS_EL.contains(&a.as_str())) {
+        k += 1;
+    }
+    if rest.get(k).is_some_and(|n| BECAUSE_NEXT_EL.contains(&n.as_str())) {
+        return true;
+    }
+    let mut v = 0;
+    while v < 2 && rest.get(v).is_some_and(|p| OBJECT_PRONOUNS_EL.contains(&p.as_str())) {
+        v += 1;
+    }
+    if v > 0 && rest.get(v).is_some_and(|n| BECAUSE_NEXT_EL.contains(&n.as_str())) {
+        return true;
+    }
+    if !after_and && rest.get(v).is_some_and(|n| first_person_present(n)) {
+        return true;
+    }
+    // "Γιατί δεν ..." and "Γιατί να ..." keep asking, opinion or not.
+    let asks = rest.first().is_some_and(|f| matches!(f.as_str(), "δεν" | "δε" | "να" | "μην"));
+    !asks && rest.iter().skip(1).any(|t| OWN_OPINION_EL.contains(&t.as_str()))
+}
+
+/// G19 for the voice: true when the last sentence of `text` opens with a
+/// γιατί that means "because" ("Γιατί έχει μείνει πίσω και νομίζω ότι ...").
+/// A voice that rises at its end does not make it a question.
+pub fn because_sentence(text: &str) -> bool {
+    let body = text.trim().trim_end_matches(|c: char| matches!(c, '.' | '!' | '?' | ';' | '…'));
+    let start = body
+        .char_indices()
+        .collect::<Vec<_>>()
+        .windows(2)
+        .filter(|w| matches!(w[0].1, '.' | '!' | '?' | ';') && w[1].1.is_whitespace())
+        .map(|w| w[1].0)
+        .last()
+        .unwrap_or(0);
+    let all = words(&body[start..]);
+    let mut skip = 0;
+    while skip < 2 && skip + 1 < all.len() && OPENERS_EL.contains(&all[skip].as_str()) {
+        skip += 1;
+    }
+    all.get(skip).is_some_and(|w| w == "γιατί") && because_after_why(&all[skip + 1..], skip > 0 && matches!(all[skip - 1].as_str(), "και" | "κι"))
+}
+
+/// A first-person singular present verb: a Greek word of three letters or
+/// more ending in an unaccented -ω ("λέω", "βλέπω", "κοιτάω"). The few adverbs
+/// with that ending are left out.
+fn first_person_present(word: &str) -> bool {
+    word.ends_with('ω') && word.chars().count() >= 3 && !NOT_VERBS_IN_OMEGA_EL.contains(&word)
 }
 
 /// The words after the last comma of the sentence, the only place a tag
@@ -467,7 +530,12 @@ fn question_form(sentence: &str) -> String {
     if !is_q {
         return sentence.to_string();
     }
-    let mark = if greek { ';' } else { '?' };
+    // The mark follows the same rule as `greek_question_marks`: any Greek
+    // letter makes it ";". Deciding by the majority of letters left a Latin
+    // "?" right after Greek words in a mixed sentence (5 dictations, all time,
+    // counted 29 October 2026). Which words make it a question still follows
+    // the majority.
+    let mark = if trimmed.chars().any(super::deterministic::is_greek_letter) { ';' } else { '?' };
     let body = trimmed.trim_end_matches(|c: char| matches!(c, '.' | '!' | '?' | ';' | '…'));
     format!("{body}{mark}{trailing_ws}")
 }
@@ -489,6 +557,14 @@ mod tests {
         assert_eq!(q("Τι είναι αυτό... Δεν ξέρω."), "Τι είναι αυτό; Δεν ξέρω.");
         assert_eq!(q("Θα δούμε... πότε έρχεται."), "Θα δούμε... πότε έρχεται.");
         assert_eq!(soften_inner_semicolons("Πήγα... στο σπίτι; και μετά έφυγα."), "Πήγα... στο σπίτι, και μετά έφυγα.");
+    }
+
+    /// A question mostly in Latin letters with Greek words in it gets the
+    /// Greek mark, as `greek_question_marks` gives it to an engine-written "?".
+    #[test]
+    fn a_mixed_sentence_with_greek_letters_gets_the_greek_mark() {
+        assert_eq!(q("Did you check the new release notes για αύριο"), "Did you check the new release notes για αύριο;");
+        assert_eq!(q("Did you check the new release notes"), "Did you check the new release notes?");
     }
 
     #[test]
@@ -569,6 +645,32 @@ mod tests {
         assert_eq!(q("Ναι, γιατί."), "Ναι, γιατί;");
         assert_eq!(q("Γιατί δεν έρχεσαι μαζί μας."), "Γιατί δεν έρχεσαι μαζί μας;");
         assert_eq!(q("Γιατί να το κάνουμε τώρα."), "Γιατί να το κάνουμε τώρα;");
+    }
+
+    /// 29 October 2026: "Γιατί ... και νομίζω ότι ..." got a question mark.
+    /// An opinion of the speaker's own, a first-person present verb, or a
+    /// "because" word behind an object pronoun makes γιατί "because".
+    #[test]
+    fn greek_because_with_an_own_opinion_or_a_first_person_verb() {
+        for s in [
+            "Γιατί έχει μείνει πίσω το σχέδιο και νομίζω ότι θα αργήσει κι άλλο.",
+            "Γιατί αλλάζει ο καιρός, πιστεύω ότι θα βρέξει.",
+            "Γιατί το λέω, γιατί η προθεσμία λήγει αύριο.",
+            "Γιατί το βρίσκω μπερδεμένο το σημείωμα.",
+            "Γιατί κοιτάω τη λίστα και λείπουν δύο ονόματα.",
+            "Γιατί σε είδα χθες στο γραφείο.",
+            "Γιατί σας ρωτάω, γιατί αλλάζουμε σχέδιο αύριο.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        // still questions
+        assert_eq!(q("Γιατί δεν το κλείνεις, νομίζω ότι είναι εύκολο."), "Γιατί δεν το κλείνεις, νομίζω ότι είναι εύκολο;");
+        assert_eq!(q("Γιατί το ξέχασες."), "Γιατί το ξέχασες;");
+        assert_eq!(q("Γιατί με βάζεις να περιμένω."), "Γιατί με βάζεις να περιμένω;");
+        assert_eq!(q("Γιατί έχει τόσο κόσμο εδώ."), "Γιατί έχει τόσο κόσμο εδώ;");
+        assert_eq!(q("Γιατί πάνω και όχι κάτω."), "Γιατί πάνω και όχι κάτω;");
+        assert_eq!(q("Γιατί έχουμε ακόμα ανοιχτές δουλειές."), "Γιατί έχουμε ακόμα ανοιχτές δουλειές;");
+        assert_eq!(q("Και γιατί το βρίσκω κλειστό, ενώ το άνοιξα."), "Και γιατί το βρίσκω κλειστό, ενώ το άνοιξα;");
     }
 
     #[test]

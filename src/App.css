@@ -213,6 +213,7 @@ th { font-size: 13px; color: var(--fg-2); font-weight: 700; text-transform: uppe
 .status-line { font-size: 13px; }
 .status-success { color: var(--ok); }
 .status-copied { color: var(--warn); }
+.status-likely { color: var(--ok); }
 .status-failed { color: var(--err); }
 .meter { height: 12px; background: var(--bg-3); border: 1px solid var(--line); overflow: hidden; }
 .meter > div { height: 100%; width: 100%; background: var(--ok); transform-origin: 0 50%; transition: transform 60ms linear; }
@@ -235,6 +236,36 @@ th { font-size: 13px; color: var(--fg-2); font-weight: 700; text-transform: uppe
 .bars-chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; padding-top: 8px; }
 .bars-chart > div { flex: 1; background: var(--accent); min-width: 6px; position: relative; }
 .bars-chart > div span { position: absolute; bottom: -22px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--fg-2); }
+/* Milestones */
+.ms-level { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; margin-bottom: 12px; }
+.ms-level-num { font-size: 40px; font-weight: 700; color: var(--accent); line-height: 1.1; }
+.ms-level-title { font-size: 26px; font-weight: 700; color: var(--fg); }
+.ms-bar { height: 14px; border: 1px solid var(--line); background: var(--bg-3); margin: 6px 0 12px; }
+.ms-bar > div { height: 100%; background: var(--accent); }
+.ms-bar.thin { height: 8px; margin: 8px 0 6px; }
+.ms-line { font-size: 18px; margin: 6px 0; line-height: 1.5; }
+.ms-small { font-size: 16px; margin: 4px 0; line-height: 1.5; }
+.ms-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.ms-badge { border: 1px solid var(--line); padding: 12px 14px; opacity: 0.75; }
+.ms-badge.done { border-color: var(--accent); opacity: 1; }
+.ms-badge-name { font-size: 18px; font-weight: 700; }
+.ms-badge.done .ms-badge-name { color: var(--accent); }
+.ms-badge-rule { font-size: 15px; color: var(--fg-2); margin-top: 4px; line-height: 1.4; }
+.ms-badge-count { font-size: 14px; color: var(--fg-2); }
+.ms-periods { margin-top: 12px; }
+.ms-chip { font: inherit; font-size: 17px; padding: 8px 14px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+.ms-chip.on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 700; }
+.ms-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ms-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.ms-fact { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+.ms-fact p { margin: 0; font-size: 18px; line-height: 1.5; }
+.ms-fact p.ms-note { font-size: 15px; color: var(--fg-2); margin-top: 6px; }
+.ms-chart-title { margin: 22px 0 4px; }
+.ms-chart { gap: 2px; margin-bottom: 28px; }
+.ms-chart > div { min-width: 3px; }
+.home-level { font: inherit; font-size: 17px; background: transparent; border: 0; padding: 0; margin: -6px 0 14px; color: var(--fg-2); cursor: pointer; text-align: left; }
+.home-level b { color: var(--accent); }
+.home-level:hover, .home-level:focus-visible { color: var(--fg); text-decoration: underline; }
 .inline-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
 .suggestion { border: 1px solid var(--line); padding: 12px 14px; margin: 12px 0; }
 .empty { color: var(--fg-2); padding: 20px; text-align: center; }

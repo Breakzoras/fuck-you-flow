@@ -92,7 +92,11 @@ pub fn run_deterministic(
             intensity: opts.intensity.clone(),
             remove_fillers: opts.remove_fillers,
             resolve_self_corrections: opts.resolve_self_corrections,
-            auto_punctuate: opts.auto_punctuate && opts.trailing_punctuation,
+            // The app style decides the final period only. Gating the whole
+            // punctuation switch on it left chat apps without a single
+            // question mark (0 of 143 dictations into chat, 29 October 2026).
+            auto_punctuate: opts.auto_punctuate,
+            trailing_period: opts.trailing_punctuation,
             auto_capitalize: opts.auto_capitalize && opts.capitalize_first,
             language: opts.language.clone(),
         });
@@ -114,4 +118,45 @@ pub fn run_deterministic(
     }
 
     CleanupOutcome { cleaned: text, applied, rule_ids: d.rule_ids, snippet_ids: s.snippet_ids }
+}
+
+#[cfg(test)]
+mod style_tests {
+    use super::*;
+
+    fn chat(language: &str) -> CleanupOptions {
+        CleanupOptions {
+            intensity: CleanupIntensity::Normal,
+            remove_fillers: true,
+            resolve_self_corrections: true,
+            auto_punctuate: true,
+            auto_capitalize: true,
+            trailing_punctuation: false,
+            capitalize_first: true,
+            language: language.into(),
+            dictionary_language: None,
+        }
+    }
+
+    fn run(raw: &str, opts: &CleanupOptions) -> String {
+        run_deterministic(raw, opts, &dictionary::DictionaryEngine::empty(), &snippets::SnippetEngine::empty()).cleaned
+    }
+
+    /// 29 October 2026: chat apps had no question marks at all (0 of 143),
+    /// because the "no final period" style switched off the whole punctuation
+    /// step, question detection and spoken marks with it.
+    #[test]
+    fn a_chat_app_keeps_question_marks_and_drops_the_final_period() {
+        let el = chat("el");
+        assert_eq!(run("τι ώρα θα έρθεις αύριο", &el), "Τι ώρα θα έρθεις αύριο;");
+        assert_eq!(run("θα έρθω στις οκτώ.", &el), "Θα έρθω στις οκτώ");
+        assert_eq!(run("θα έρθω στις οκτώ", &el), "Θα έρθω στις οκτώ");
+        assert_eq!(run("φεύγει νωρίς το τρένο ερωτηματικό", &el), "Φεύγει νωρίς το τρένο;");
+        let en = chat("en");
+        assert_eq!(run("are you coming to the meeting", &en), "Are you coming to the meeting?");
+        assert_eq!(run("see you at the station.", &en), "See you at the station");
+        // other apps still get their final period
+        let doc = CleanupOptions { trailing_punctuation: true, ..chat("el") };
+        assert_eq!(run("θα έρθω στις οκτώ", &doc), "Θα έρθω στις οκτώ.");
+    }
 }

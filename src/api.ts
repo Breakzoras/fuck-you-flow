@@ -96,6 +96,31 @@ export interface AppStyle {
 
 export interface DailyStat { day: string; dictations: number; words: number; audio_ms: number; corrections: number; retries: number; edits: number }
 
+/// Milestones: computed on this PC from the daily counters and the history.
+export interface LevelInfo {
+  level: number; title: number; xp: number; xp_words: number; xp_days: number; xp_streak: number;
+  need_this: number; need_next: number; active_days: number; current_streak: number; longest_streak: number;
+  lifetime_words: number; lifetime_talk_min: number; first_day: string | null;
+}
+export interface MilestoneBadge { id: string; value: number; target: number; done: boolean }
+export interface DayPoint { day: string; words: number; dictations: number }
+export interface Reflect {
+  period: string; start_day: string; end_day: string; days_span: number; since_first_use: boolean; active_days: number;
+  enough_data: boolean; dictations: number; words: number; avg_words: number; speaking_min: number; wpm: number;
+  time_saved_min: number; keystrokes: number; accents: number;
+  fastest: { wpm: number; words: number; seconds: number; day: string; app: string | null } | null;
+  p50_ms: number; p95_ms: number; inference_min: number; all_local: boolean;
+  power_hour: number | null; power_hour_share: number; night_share: number; morning_share: number; by_hour: number[];
+  best_day: DayPoint | null; top_weekday: number | null; weekend_share: number;
+  longest_session: { minutes: number; dictations: number; day: string } | null;
+  languages: [string, number][]; switches: number; top_app: { name: string | null; share: number } | null;
+  ai_over_people: boolean; persona: string; apps: number;
+  fillers: number; stutters: number; repeats: number; questions: number; greek_questions: number; self_corrections: number;
+  dictionary_fixes: number; dictionary_top: [string, string, number] | null; untouched_share: number;
+  prev_words: number | null; window_words: number; daily: DayPoint[];
+}
+export interface MilestonesView { level: LevelInfo; badges: MilestoneBadge[]; reflect: Reflect }
+
 export interface StatsSummary {
   total_words: number; total_minutes: number; avg_wpm: number; dictations: number; corrections_applied: number;
   retries: number; edits: number; current_streak: number; longest_streak: number; time_saved_minutes: number;
@@ -194,6 +219,8 @@ export const api = {
   saveAppStyle: (style: AppStyle) => invoke<AppStyle>("save_app_style", { style }),
   deleteAppStyle: (id: string) => invoke<void>("delete_app_style", { id }),
   stats: () => invoke<StatsSummary>("get_stats"),
+  level: () => invoke<LevelInfo>("get_level"),
+  milestones: (period: "7" | "30" | "all") => invoke<MilestonesView>("get_milestones", { period }),
   exportAll: () => invoke<string>("export_all_data"),
   deleteAll: () => invoke<void>("delete_all_data"),
   openDataFolder: () => invoke<void>("open_data_folder"),

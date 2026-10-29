@@ -128,7 +128,7 @@ export default function History() {
                 <span>{(h.audio_ms / 1000).toFixed(1)}s</span>
                 <span>{t("latency")} {h.latency_ms} ms</span>
                 {h.detected_language && <span>{h.detected_language}</span>}
-                <span className={`status-line status-${h.status}`}>{h.status}{h.retried ? " · retry" : ""}{h.context_used ? " · ctx" : ""}</span>
+                <span className={`status-line status-${h.status}`}>{h.status === "likely" ? t("status_likely") : h.status}{h.retried ? " · retry" : ""}{h.context_used ? " · ctx" : ""}</span>
               </div>
               {showRaw[h.id] && (
                 <div className="history-raw">
