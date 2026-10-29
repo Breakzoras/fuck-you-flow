@@ -1,11 +1,11 @@
 {
-  "version": "0.9.16",
-  "notes": "A Milestones page with levels and badges, faster paste, and a History that shows what really reached your text.",
-  "pub_date": "2026-10-29T16:51:11Z",
+  "version": "0.9.17",
+  "notes": "A small fix to the Updates section in Settings.",
+  "pub_date": "2026-10-29T19:34:51Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWxHWTlCYmlZdUh5NUNnb0ZxaC9LODBpYkwvQmFoNUN5dExkd1BhTXVCZ2NHdWw2dmdiNlFKdmVpTDVOVGFjTEU5UHYzdjE5QmUreGRyNkhacFUwYlFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjkyMzkzCWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTZfeDY0LXNldHVwLmV4ZQovZDdhMjE3N1hzQmdFdHFaNDkxWGJ5VlhXa01uWE1RMitCV3F3TWtDSmRYMzdpemtYOUk0YmRjSDNDRGVWSDlrVnJxT3hJM2I0UVExRzAwSktGUVNDUT09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.16/Fuck.You.Flow.Update.0.9.16.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUXBEZW9Od05JKzV1Tm1IZHVTMy81anEyUWxyRmpuZ1daRUh1eW4wR1Z3NVVZRmdVZGlkcnBtNEN6YVdONnZsRjlZb2ZIRHJHYzhZbGRzUE5nNkc4eFF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMzAyMTg2CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTdfeDY0LXNldHVwLmV4ZQplMVVqamRveGxKRTh6ZnRjalZiU0svc2xlZGZ6bUNYanFnQS9vVFF1Q3YwR0VUcHhFVmpPY0JDY0ovS2llVjllZitGeitWRFRrS0tBUnp4SjlMbitEUT09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.17/Fuck.You.Flow.Update.0.9.17.exe"
     }
   }
 }

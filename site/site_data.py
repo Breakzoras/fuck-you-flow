@@ -1,11 +1,11 @@
 """Release facts shared by every generated public page.
 
-Installer size measured from the signed 0.9.16 setup.
+Installer size measured from the signed 0.9.17 setup.
 Update these facts together when publishing a release.
 """
 BASE = "https://fuckyouflow.app"
 REPO = "https://github.com/Breakzoras/fuck-you-flow"
-VERSION = "0.9.16"
+VERSION = "0.9.17"
 SIZE_BYTES = 1721592278
 SIZE = "1.7 GB"
 SIZE_EL = "1,7 GB"
