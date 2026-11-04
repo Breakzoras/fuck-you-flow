@@ -64,6 +64,14 @@ impl symphonia::core::io::MediaSource for CountingFile {
     }
 }
 
+/// The shorter of two length estimates, or the one that exists.
+fn shorter(a: Option<u64>, b: Option<u64>) -> Option<u64> {
+    match (a, b) {
+        (Some(x), Some(y)) => Some(x.min(y)),
+        (x, y) => x.or(y),
+    }
+}
+
 /// Whole percent read so far, 0 to 100.
 fn percent(pos: u64, len: u64) -> u8 {
     if len == 0 {
@@ -117,13 +125,12 @@ pub fn decode_to_engine_rate(path: &std::path::Path, progress: &mut dyn FnMut(u8
     // Refuse a recording that is too long before reading all of it. The first
     // outside report of a big video (3 November 2026) sat on "Reading" for
     // minutes and only then could have learned it was too long.
-    // The time base is what the container counts in; frames at the sample
-    // rate are the fallback when it names none.
-    let header = match (track.codec_params.time_base, track.codec_params.n_frames) {
-        (Some(tb), Some(n)) => Some(tb.calc_time(n).seconds),
-        _ => header_seconds(track.codec_params.n_frames, track.codec_params.sample_rate),
-    };
-    if let Some(secs) = header {
+    // Two ways to read the length from the header. Only the shorter one is
+    // trusted, so a container that counts in other units can never refuse a
+    // file that decodes fine; the running check in the loop still holds.
+    let by_time = track.codec_params.time_base.zip(track.codec_params.n_frames).map(|(tb, n)| tb.calc_time(n).seconds);
+    let by_frames = header_seconds(track.codec_params.n_frames, track.codec_params.sample_rate);
+    if let Some(secs) = shorter(by_time, by_frames) {
         if secs as usize > MAX_SECONDS {
             tracing::info!("{} is {} min long; refused before decoding", path.display(), secs / 60);
             return Err(ERR_TOO_LONG.into());
@@ -291,6 +298,10 @@ mod tests {
         assert_eq!(header_seconds(Some(48_000 * 600), Some(48_000)), Some(600));
         assert_eq!(header_seconds(None, Some(48_000)), None);
         assert_eq!(header_seconds(Some(1000), Some(0)), None);
+        // Two readings that disagree: the shorter one decides.
+        assert_eq!(shorter(Some(6000), Some(300)), Some(300));
+        assert_eq!(shorter(None, Some(300)), Some(300));
+        assert_eq!(shorter(None, None), None);
     }
 
     /// The cut prefers a real pause: silence planted before the boundary wins
