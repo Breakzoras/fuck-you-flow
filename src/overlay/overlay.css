@@ -82,6 +82,9 @@ body { font-family: "Segoe UI", system-ui, sans-serif; user-select: none; }
 .title { font-size: 16px; font-weight: 600; letter-spacing: 0.2px; white-space: nowrap; }
 .sub { font-size: 16px; line-height: 1.35; color: var(--pill-sub); max-width: 290px; overflow-wrap: anywhere; }
 .stress { font-size: 14px; font-weight: 700; color: var(--stress); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
+/* The minute before a part of a long dictation is written. Wraps, so the whole
+   sentence is read, in the warning colour that holds 5.8:1 in both themes. */
+.limit { font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--stress); max-width: 290px; }
 .bars { display: flex; align-items: center; justify-content: center; gap: 2px; height: 18px; }
 .bars span { display: block; width: 3px; height: 100%; border-radius: 2px; background: var(--accent); opacity: 0.9; transform-origin: 50% 50%; transition: transform 60ms linear; }
 .spinner {

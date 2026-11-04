@@ -186,8 +186,27 @@ pub struct AudioSettings {
     pub preroll_ms: u64,
     /// Recordings with less speech than this are rejected as empty.
     pub min_speech_ms: u64,
-    /// Hard cap for a single dictation (safety against a stuck key).
+    /// Length of one part of a dictation. In hands-free mode the words so far
+    /// are written at this point and the recording carries on by itself; a
+    /// held key stops here instead, because twenty minutes of holding is a
+    /// stuck key far more often than a speech.
     pub max_recording_seconds: u64,
+}
+
+/// Twenty minutes, Lu's choice on 4 November 2026.
+pub const DEFAULT_PART_SECONDS: u64 = 1200;
+/// The default before that. Every saved file carries the number, so a user who
+/// never touched it would have kept the old ten minutes for ever.
+const OLD_DEFAULT_PART_SECONDS: u64 = 600;
+
+impl AudioSettings {
+    /// Moves a saved file still on the old default to the new one. A value the
+    /// user chose by hand is left alone.
+    fn lift_old_default(&mut self) {
+        if self.max_recording_seconds == OLD_DEFAULT_PART_SECONDS {
+            self.max_recording_seconds = DEFAULT_PART_SECONDS;
+        }
+    }
 }
 
 impl Default for AudioSettings {
@@ -197,7 +216,7 @@ impl Default for AudioSettings {
             keep_stream_warm: true,
             preroll_ms: 350,
             min_speech_ms: 200,
-            max_recording_seconds: 600,
+            max_recording_seconds: DEFAULT_PART_SECONDS,
         }
     }
 }
@@ -635,14 +654,16 @@ impl Settings {
         // Notepad and PowerShell write UTF-8 with a byte-order mark, which
         // serde_json rejects as "expected value at line 1 column 1".
         let text = text.trim_start_matches('\u{feff}');
-        match serde_json::from_str::<Settings>(text) {
+        let mut s = match serde_json::from_str::<Settings>(text) {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!("settings.json has something the app cannot read ({e}); keeping every part that still makes sense");
                 let _ = std::fs::copy(path, path.with_extension("json.bak"));
                 Settings::salvage(text)
             }
-        }
+        };
+        s.audio.lift_old_default();
+        s
     }
 
     /// Read the file one section at a time, keeping everything that still works.
@@ -716,6 +737,18 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A file saved with the old ten-minute default moves to twenty; a length
+    /// set by hand stays as it was, and a new install starts on twenty.
+    #[test]
+    fn the_old_ten_minute_limit_becomes_twenty() {
+        let path = std::path::Path::new("unused.json");
+        let old = Settings::parse(path, r#"{"audio":{"max_recording_seconds":600}}"#);
+        assert_eq!(old.audio.max_recording_seconds, 1200);
+        let chosen = Settings::parse(path, r#"{"audio":{"max_recording_seconds":300}}"#);
+        assert_eq!(chosen.audio.max_recording_seconds, 300);
+        assert_eq!(Settings::default().audio.max_recording_seconds, 1200);
+    }
 
     /// A settings file from 0.9.10 has no skin, so the update lands on Carbon;
     /// someone who picked Classic keeps it.

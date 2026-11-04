@@ -240,6 +240,7 @@ pub fn run() {
             commands::show_main_window,
             commands::quit_app,
             commands::transcribe_audio_file,
+            commands::cancel_audio_file,
             commands::audio_file_extensions,
             commands::scratch_last,
             commands::pick_audio_file,

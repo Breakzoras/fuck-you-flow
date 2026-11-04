@@ -404,9 +404,16 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
     apply_hotkeys(&settings);
     crate::hotkey::install(hk_tx);
     let tx2 = tx.clone();
+    let shared_hk = shared.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(ev) = hk_rx.recv().await {
             tracing::debug!("hotkey event {ev:?}");
+            // The pipeline may be busy writing for minutes on a slow machine
+            // and reads this queue only afterwards, so Escape is also told to
+            // it directly.
+            if matches!(ev, crate::hotkey::HotkeyEvent::Escape) && shared_hk.snapshot.lock().phase == crate::pipeline::Phase::Processing {
+                crate::pipeline::CANCEL_PROCESSING.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
             let _ = tx2.send(PipelineMsg::Hotkey(ev));
         }
     });

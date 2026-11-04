@@ -45,8 +45,17 @@ pub fn emit_state(app: &tauri::AppHandle, payload: OverlayPayload) {
     let _ = app.emit_to("main", "lalia://overlay", &payload);
 }
 
-pub fn emit_level(app: &tauri::AppHandle, level: f32, seconds: f32) {
-    let _ = app.emit_to("overlay", "lalia://level", serde_json::json!({ "level": level, "seconds": seconds }));
+/// `seconds` counts the whole dictation, across parts. `left` is what remains
+/// of the current part before its words are written (hands-free) or the
+/// recording stops (a held key), for the warning shortly before.
+pub fn emit_level(app: &tauri::AppHandle, level: f32, seconds: f32, left: f32, hands_free: bool) {
+    let _ = app.emit_to("overlay", "lalia://level", serde_json::json!({ "level": level, "seconds": seconds, "left": left, "hands_free": hands_free }));
+}
+
+/// How many pieces are still being written after the key was released, for
+/// the "still writing" line on a slow machine. Zero clears it.
+pub fn emit_pieces_left(app: &tauri::AppHandle, left: usize) {
+    let _ = app.emit_to("overlay", "lalia://pieces-left", serde_json::json!({ "left": left }));
 }
 
 pub fn show(app: &tauri::AppHandle, settings: &OverlaySettings, target_hwnd: isize) {

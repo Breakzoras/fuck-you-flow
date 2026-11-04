@@ -182,7 +182,8 @@ export const api = {
   // A recording the user already has, turned into text. The picker is native
   // and lives in Rust, so no extra package is needed here.
   pickAudioFile: () => invoke<string | null>("pick_audio_file"),
-  transcribeAudioFile: (path: string) => invoke<string>("transcribe_audio_file", { path }),
+  transcribeAudioFile: (path: string) => invoke<{ text: string; missed: number }>("transcribe_audio_file", { path }),
+  cancelAudioFile: () => invoke<void>("cancel_audio_file"),
   microphones: () => invoke<DeviceInfo[]>("list_microphones"),
   micLevel: () => invoke<{ level: number; open: boolean; alive: boolean; device: string | null }>("mic_level"),
   micTestOpen: () => invoke<number>("mic_test_open"),

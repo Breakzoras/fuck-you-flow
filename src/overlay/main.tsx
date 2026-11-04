@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { tk } from "../i18n";
+import { recordingClock, limitWarningKey, piecesLeftKey } from "./clock";
 import ReactDOM from "react-dom/client";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
@@ -183,6 +184,11 @@ function Overlay() {
   const [lang, setLang] = useState("en");
   const [style, setStyle] = useState("full");
   const [stressed, setStressed] = useState(false);
+  // Seconds left in this part of the dictation, and whether it is hands-free.
+  const [left, setLeft] = useState<number | undefined>(undefined);
+  const [handsFree, setHandsFree] = useState(false);
+  // Pieces still being written after the key was released (slow machines).
+  const [piecesLeft, setPiecesLeft] = useState(0);
   const applyPrefs = (pr: { lang: string; style: string; pos: string } | null) => {
     if (pr) {
       setLang(pr.lang);
@@ -197,15 +203,23 @@ function Overlay() {
     const un1 = listen<Payload>("lalia://overlay", (e) => {
       setP(e.payload);
       if (e.payload.state === "starting") fetchPrefs().then(applyPrefs);
-      if (e.payload.state !== "recording" && e.payload.state !== "hands_free") setLevel(0);
+      if (e.payload.state !== "recording" && e.payload.state !== "hands_free") {
+        setLevel(0);
+        setLeft(undefined);
+      }
+      if (e.payload.state !== "processing") setPiecesLeft(0);
     });
-    const un2 = listen<{ level: number; seconds: number }>("lalia://level", (e) => {
+    const un2 = listen<{ level: number; seconds: number; left?: number; hands_free?: boolean }>("lalia://level", (e) => {
       setLevel(e.payload.level);
       setSeconds(e.payload.seconds);
+      setLeft(e.payload.left);
+      setHandsFree(!!e.payload.hands_free);
     });
+    const un3 = listen<{ left: number }>("lalia://pieces-left", (e) => setPiecesLeft(e.payload.left));
     return () => {
       un1.then((f) => f());
       un2.then((f) => f());
+      un3.then((f) => f());
     };
   }, []);
 
@@ -261,6 +275,9 @@ function Overlay() {
   }, [takesMouse, p.state]);
 
   const stress = stressed && p.state === "processing" ? STRESS_LINE[lang] : null;
+  const limitKey = recording ? limitWarningKey(left, handsFree) : null;
+  const pieces = p.state === "processing" ? piecesLeftKey(piecesLeft) : null;
+  const piecesLine = pieces ? tk(lang, pieces.key, pieces.vars) : null;
 
   if (style === "minimal") {
     // A single dot and nothing else: red while listening, lime while working,
@@ -271,7 +288,7 @@ function Overlay() {
         className={cls + " mini" + (p.movable ? " movable" : "")}
         role="status"
         aria-live="polite"
-        title={(p.movable ? DRAG_HINT[lang] : LABELS[lang][p.state]) + (stress ? ` · ${stress}` : "")}
+        title={(p.movable ? DRAG_HINT[lang] : LABELS[lang][p.state]) + (stress ? ` · ${stress}` : "") + (limitKey ? ` · ${tk(lang, limitKey)}` : "") + (piecesLine ? ` · ${piecesLine}` : "")}
         onPointerDown={beginDrag}
       >
         <div className="dot" />
@@ -284,7 +301,7 @@ function Overlay() {
       {p.movable ? <div className="drag-hint">{DRAG_HINT[lang]}</div> : null}
       <div className="head">
         <div className="dot" />
-        <div className="title">{LABELS[lang][p.state]}{recording ? ` ${seconds.toFixed(1)}s` : ""}</div>
+        <div className="title">{LABELS[lang][p.state]}{recording ? ` ${recordingClock(seconds)}` : ""}</div>
         {busy ? <div className="spinner" /> : null}
         {p.can_retry && (
           <button className="retry" onClick={() => invoke("pipeline_retry")} title={RETRY_TITLE[lang]}>
@@ -294,6 +311,8 @@ function Overlay() {
       </div>
       {stress ? <div className="stress">{stress}</div> : null}
       {recording ? <Bars level={level} active /> : null}
+      {limitKey ? <div className="limit">{tk(lang, limitKey)}</div> : null}
+      {piecesLine ? <div className="sub">{piecesLine}</div> : null}
       {p.message && !recording && <div className="sub">{tk(lang, p.message)}</div>}
     </div>
   );

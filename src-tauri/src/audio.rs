@@ -94,7 +94,7 @@ impl AudioCapture {
             recording: false,
             buffer: Vec::new(),
             level: 0.0,
-            max_samples: (TARGET_RATE as u64 * max_seconds) as usize,
+            max_samples: hard_cap_samples(max_seconds),
             overflowed: false,
             last_callback: None,
         }));
@@ -116,7 +116,7 @@ impl AudioCapture {
     pub fn configure(&self, preroll_ms: u64, max_seconds: u64) {
         let mut r = self.rec.lock();
         r.preroll_capacity = (TARGET_RATE as u64 * preroll_ms / 1000) as usize;
-        r.max_samples = (TARGET_RATE as u64 * max_seconds) as usize;
+        r.max_samples = hard_cap_samples(max_seconds);
         while r.preroll.len() > r.preroll_capacity {
             r.preroll.pop_front();
         }
@@ -202,12 +202,32 @@ impl AudioCapture {
         r.buffer[from..to].to_vec()
     }
 
+    /// Hands back the first `at` samples of the recording and keeps recording
+    /// into the rest, for a dictation longer than one part (see the pipeline's
+    /// rollover). The microphone never stops, so not one sample is missed, and
+    /// the pre-roll is not added again, so not one is heard twice.
+    pub fn split_recording(&self, at: usize) -> Vec<f32> {
+        let mut r = self.rec.lock();
+        let at = at.min(r.buffer.len());
+        r.overflowed = false;
+        r.buffer.drain(..at).collect()
+    }
+
     pub fn discard(&self) {
         let mut r = self.rec.lock();
         r.recording = false;
         r.buffer.clear();
         r.preroll.clear();
     }
+}
+
+/// Room the buffer keeps past the length limit. At the limit a dictation is
+/// cut at the next pause, which can come a little later, and the words said in
+/// between must still have somewhere to go.
+pub const LIMIT_GRACE_SECONDS: u64 = 90;
+
+fn hard_cap_samples(max_seconds: u64) -> usize {
+    (TARGET_RATE as u64 * (max_seconds + LIMIT_GRACE_SECONDS)) as usize
 }
 
 pub struct Recording {
@@ -788,6 +808,36 @@ mod tests {
         assert_eq!(cap.recorded_range(990, 5000).len(), 10);
         assert!(cap.recorded_range(500, 400).is_empty());
         cap.discard();
+    }
+
+    /// Splitting a long dictation hands over the head and keeps recording
+    /// into the tail: nothing lost at the seam, nothing doubled, and new sound
+    /// still lands in the buffer.
+    #[test]
+    fn split_recording_keeps_every_sample_once() {
+        let cap = AudioCapture::new(0, 60);
+        cap.start_recording();
+        cap.rec.lock().buffer.extend((0..1000).map(|i| i as f32));
+        let head = cap.split_recording(600);
+        assert_eq!(head.len(), 600);
+        assert_eq!(head[599], 599.0);
+        assert_eq!(cap.recorded_len(), 400);
+        assert_eq!(cap.recorded_range(0, 1), vec![600.0]);
+        assert!(cap.is_recording());
+        cap.rec.lock().push(&[1.5, 2.5]);
+        assert_eq!(cap.recorded_len(), 402);
+        // A cut past the end takes everything and leaves an empty, live buffer.
+        assert_eq!(cap.split_recording(10_000).len(), 402);
+        assert_eq!(cap.recorded_len(), 0);
+        assert!(cap.is_recording());
+        cap.discard();
+    }
+
+    /// The buffer keeps room past the limit for the words said while the
+    /// dictation waits for a pause to cut at.
+    #[test]
+    fn hard_cap_leaves_room_past_the_limit() {
+        assert_eq!(hard_cap_samples(1200), TARGET_RATE as usize * (1200 + LIMIT_GRACE_SECONDS as usize));
     }
 
     #[test]

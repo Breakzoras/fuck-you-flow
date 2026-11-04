@@ -37,6 +37,10 @@ pub enum PipelineMsg {
     PasteHistory(String),
     /// Re-transcribe the last recovery audio after a failure.
     Retry,
+    /// The current part of a dictation reached its length limit. It carries
+    /// the number of the recording it belongs to, so a message still queued
+    /// from a recording that has since ended cannot cut into the next one.
+    LimitReached(u64),
     SettingsChanged,
     Shutdown,
 }
@@ -103,6 +107,90 @@ struct Session {
     ctx: AppContext,
     cancel: bool,
     segments: Arc<Mutex<Segmenter>>,
+    /// Which recording this is (`SESSION_GEN`).
+    gen: u64,
+    /// Seconds already handed over by earlier parts of the same dictation.
+    part_offset: f32,
+    /// The earlier part still being written, which this one must follow.
+    prev_part: Option<tokio::task::JoinHandle<PartOutcome>>,
+}
+
+/// What a part of a long dictation tells the part after it, so the last part
+/// can report a problem that happened while the user was still talking.
+#[derive(Default)]
+struct PartOutcome {
+    /// Pieces that failed twice and are missing from the text.
+    missed: usize,
+    /// A part whose words were not written at all, kept for Retry.
+    lost: Option<(Vec<f32>, AppContext)>,
+}
+
+/// This part's news on top of what the parts before it reported.
+fn carry(before: PartOutcome, missed: usize, lost: Option<(Vec<f32>, AppContext)>) -> PartOutcome {
+    PartOutcome { missed: before.missed + missed, lost: before.lost.or(lost) }
+}
+
+/// Numbers every recording, for `PipelineMsg::LimitReached`.
+static SESSION_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn next_gen() -> u64 {
+    SESSION_GEN.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1
+}
+
+/// Escape pressed while the words are still being written. Set by the hotkey
+/// forwarder (app.rs), because `process` can be waiting for minutes on a slow
+/// machine and does not read the message queue meanwhile.
+pub static CANCEL_PROCESSING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Past the length limit, how long to wait for a piece to end before cutting
+/// anyway. Well inside the room the buffer keeps (`LIMIT_GRACE_SECONDS`).
+const LIMIT_WAIT_SECS: f32 = 30.0;
+
+/// Up to this length a failed piece still sends the whole recording again in
+/// one pass, which hears it best. Longer than this, one pass takes many minutes
+/// and can fail the same way, so the other pieces are kept instead.
+const WHOLE_PASS_MAX_MS: u64 = 5 * 60 * 1000;
+
+/// Who a call to `process` writes for.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PartRole {
+    /// A dictation, or the last part of a long one: it owns the badge.
+    Whole,
+    /// An earlier part of a long dictation, written while the user is still
+    /// talking. It leaves the badge, the phase and the Escape key alone, since
+    /// those belong to the recording going on.
+    Earlier,
+}
+
+/// Waits for `work` unless Escape is pressed first, then gives `None`.
+async fn unless_escaped<F: std::future::Future>(work: F) -> Option<F::Output> {
+    tokio::pin!(work);
+    loop {
+        tokio::select! {
+            out = &mut work => return Some(out),
+            _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                if CANCEL_PROCESSING.load(std::sync::atomic::Ordering::Relaxed) {
+                    return None;
+                }
+            }
+        }
+    }
+}
+
+/// Where to cut a dictation at its length limit: at the end of the last piece
+/// sent to the engine, so the part handed over is made of those pieces alone
+/// and no word is heard twice; without pieces, at the quietest moment of the
+/// last three seconds, which lands between words.
+fn rollover_point(cut: usize, len: usize, segmenting: bool, window: impl FnOnce(usize, usize) -> Vec<f32>) -> usize {
+    if segmenting && cut > 0 {
+        return cut.min(len);
+    }
+    let span = 16 * 3000;
+    if len <= span {
+        return len;
+    }
+    let w = window(len - span, len);
+    len - span + crate::audio::quietest_point(&w, 16 * 200)
 }
 
 /// Transcription of finished phrases while the user is still speaking. A pause
@@ -374,7 +462,15 @@ fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: 
     let engine_on_cpu = engine.info().backend == "cpu";
     let handle = tokio::spawn(async move {
         let label = format!("segment {n}");
-        let r = transcribe_in_chosen_languages(&language, req, &label, |q| engine.transcribe(q)).await;
+        let mut r = transcribe_in_chosen_languages(&language, req.clone(), &label, |q| engine.transcribe(q)).await;
+        // One more try for this piece alone. A stumble of the engine used to
+        // send the whole recording again; a wrong language would only repeat.
+        if let Err(e) = &r {
+            if !matches!(e, crate::asr::AsrError::LanguageMismatch) {
+                tracing::warn!("segment {n} failed ({e}); trying it once more");
+                r = transcribe_in_chosen_languages(&language, req, &label, |q| engine.transcribe(q)).await;
+            }
+        }
         match &r {
             Ok(t) => {
                 tracing::debug!("segment {n}: {audio_ms} ms audio, {} ms inference", t.inference_ms);
@@ -392,7 +488,7 @@ fn dispatch_segment(shared: &Arc<Shared>, seg: &Arc<Mutex<Segmenter>>, samples: 
                 }
                 seg2.lock().last_text = t.text.trim().to_string();
             }
-            Err(e) => tracing::warn!("segment {n} failed, the recording will be transcribed in one pass: {e}"),
+            Err(e) => tracing::warn!("segment {n} failed: {e}"),
         }
         (r, pitch)
     });
@@ -414,6 +510,10 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
         let mut level_task: Option<tokio::task::JoinHandle<()>> = None;
         let mut idle_timer: Option<tokio::task::JoinHandle<()>> = None;
         let last_recovery: Arc<Mutex<Option<(Vec<f32>, AppContext)>>> = Arc::new(Mutex::new(None));
+        // An earlier part of a dictation that was then cancelled is still
+        // written. Whatever comes next waits for it, so two pastes never
+        // cross.
+        let mut pending_part: Option<tokio::task::JoinHandle<PartOutcome>> = None;
 
         while let Some(msg) = rx.recv().await {
             match msg {
@@ -439,7 +539,8 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                             }
                             continue;
                         }
-                        if let Some(s) = begin(&app, &shared, Mode::Ptt, &mut level_task, &mut idle_timer).await {
+                        if let Some(mut s) = begin(&app, &shared, Mode::Ptt, &mut level_task, &mut idle_timer).await {
+                            s.prev_part = pending_part.take();
                             session = Some(s);
                         }
                     }
@@ -462,7 +563,8 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                     HotkeyEvent::Pressed(ChordId::HandsFree) => {
                         match session.as_mut() {
                             None => {
-                                if let Some(s) = begin(&app, &shared, Mode::HandsFree, &mut level_task, &mut idle_timer).await {
+                                if let Some(mut s) = begin(&app, &shared, Mode::HandsFree, &mut level_task, &mut idle_timer).await {
+                                    s.prev_part = pending_part.take();
                                     session = Some(s);
                                 }
                             }
@@ -490,7 +592,7 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                         if let Some(s) = session.take() {
                             if s.mode == Mode::Ptt {
                                 tracing::debug!("a key was typed while the shortcut was held; the recording is dropped");
-                                cancel_quietly(&app, &shared, s, &mut level_task, &mut idle_timer).await;
+                                pending_part = cancel_quietly(&app, &shared, s, &mut level_task, &mut idle_timer).await.or(pending_part.take());
                             } else {
                                 session = Some(s);
                             }
@@ -498,21 +600,22 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                     }
                     HotkeyEvent::Escape => {
                         if let Some(s) = session.take() {
-                            cancel(&app, &shared, s, &mut level_task, &mut idle_timer).await;
+                            pending_part = cancel(&app, &shared, s, &mut level_task, &mut idle_timer).await.or(pending_part.take());
                         }
                     }
                 },
                 PipelineMsg::Toggle => match session.take() {
                     Some(s) => finalize(&app, &shared, s, &mut level_task, &last_recovery, &mut idle_timer).await,
                     None => {
-                        if let Some(s) = begin(&app, &shared, Mode::HandsFree, &mut level_task, &mut idle_timer).await {
+                        if let Some(mut s) = begin(&app, &shared, Mode::HandsFree, &mut level_task, &mut idle_timer).await {
+                            s.prev_part = pending_part.take();
                             session = Some(s);
                         }
                     }
                 },
                 PipelineMsg::Cancel => {
                     if let Some(s) = session.take() {
-                        cancel(&app, &shared, s, &mut level_task, &mut idle_timer).await;
+                        pending_part = cancel(&app, &shared, s, &mut level_task, &mut idle_timer).await.or(pending_part.take());
                     }
                 }
                 PipelineMsg::PasteLast => paste_last(&app, &shared, &mut idle_timer, None).await,
@@ -520,7 +623,19 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                 PipelineMsg::Retry => {
                     let rec = last_recovery.lock().clone();
                     if let Some((samples, ctx)) = rec {
-                        process(&app, &shared, samples, ctx, &last_recovery, &mut idle_timer, true, None).await;
+                        process(&app, &shared, samples, ctx, &last_recovery, &mut idle_timer, true, None, PartRole::Whole, pending_part.take()).await;
+                    }
+                }
+                PipelineMsg::LimitReached(gen) => {
+                    if !matches!(session.as_ref(), Some(s) if s.gen == gen) {
+                        continue;
+                    }
+                    let s = session.take().unwrap();
+                    if s.mode == Mode::HandsFree && rollover_worthwhile(&shared, &s) {
+                        session = rollover(&app, &shared, s, &mut level_task, &last_recovery).await;
+                    } else {
+                        tracing::info!("the recording reached its length limit; writing it");
+                        finalize(&app, &shared, s, &mut level_task, &last_recovery, &mut idle_timer).await;
                     }
                 }
             }
@@ -537,6 +652,7 @@ fn set_phase(shared: &Shared, phase: Phase, hands_free: bool) {
 
 async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) -> Option<Session> {
     let t0 = Instant::now();
+    CANCEL_PROCESSING.store(false, std::sync::atomic::Ordering::Relaxed);
     if let Some(t) = idle_timer.take() {
         t.abort();
     }
@@ -622,12 +738,22 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
         }
     }
 
-    // 5. Level meter + safety cap + segment dispatch on pauses.
+    // 5. Level meter, length limit, and pieces sent on pauses.
+    let gen = next_gen();
+    let segments: Arc<Mutex<Segmenter>> = Arc::new(Mutex::new(Segmenter::default()));
+    *level_task = Some(start_level_task(app, shared, &settings, segments.clone(), gen, 0.0));
+
+    Some(Session { mode, started: t0, ctx, cancel: false, segments, gen, part_offset: 0.0, prev_part: None })
+}
+
+/// The meter under the badge, the length limit and the pieces sent to the
+/// engine at each pause, for one part of a recording. `offset_secs` is what
+/// earlier parts of the same dictation already held, so the clock on the
+/// badge keeps counting across a rollover.
+fn start_level_task(app: &tauri::AppHandle, shared: &Arc<Shared>, settings: &Settings, seg: Arc<Mutex<Segmenter>>, gen: u64, offset_secs: f32) -> tokio::task::JoinHandle<()> {
     let app2 = app.clone();
     let shared2 = shared.clone();
     let max_secs = settings.audio.max_recording_seconds as f32;
-    let segments: Arc<Mutex<Segmenter>> = Arc::new(Mutex::new(Segmenter::default()));
-    let seg = segments.clone();
     let segment_enabled = settings.asr.segment_while_speaking;
     let lang_code = settings.language.whisper_code();
     let hints = if settings.asr.hints_from_dictionary {
@@ -638,29 +764,42 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
     };
     let (beam, vad, min_speech_ms) = (settings.asr.beam_size, settings.asr.vad, settings.audio.min_speech_ms);
     let language = settings.language.clone();
-    *level_task = Some(tokio::spawn(async move {
+    tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_millis(33));
         let mut n: u32 = 0;
         let mut loudest: f32 = 0.0;
         let mut warned_silent = false;
+        // The cut of the last piece when the limit was reached (see below).
+        let mut limit_cut: Option<usize> = None;
         loop {
             tick.tick().await;
             n = n.wrapping_add(1);
             let secs = shared2.audio.recorded_seconds();
             let level = shared2.audio.level();
             loudest = loudest.max(level);
-            overlay::emit_level(&app2, level, secs);
+            let hands_free = shared2.snapshot.lock().hands_free;
+            overlay::emit_level(&app2, level, offset_secs + secs, max_secs - secs, hands_free);
             // Say it while the user can still do something about it. The
             // recording goes on, so nothing is lost if they unmute and talk.
-            if !warned_silent && mic_sounds_dead(loudest, secs) {
+            // Only in the first part: a later one starts at a pause, and a
+            // quiet headset during a long thinking pause is not a dead one.
+            if !warned_silent && offset_secs == 0.0 && mic_sounds_dead(loudest, secs) {
                 warned_silent = true;
                 tracing::warn!("the microphone sends silence: loudest peak {loudest:.5} after {secs:.1} s");
                 crate::journal::warn("record.silent_mic", serde_json::json!({ "peak": loudest, "seconds": secs }));
                 overlay::emit_state(&app2, OverlayPayload { state: OverlayState::MicUnavailable, message: Some("msg_mic_silent".into()), preview: None, can_retry: false, seconds: secs, movable: false });
             }
+            // At the limit, wait for the next piece to end and cut there, so
+            // the part handed over is exactly the pieces already with the
+            // engine. Without pieces, or after half a minute with no pause,
+            // the cut is made at once.
             if secs >= max_secs {
-                let _ = shared2.tx.send(PipelineMsg::Toggle);
-                break;
+                let cut_now = seg.lock().cut;
+                let first = *limit_cut.get_or_insert(cut_now);
+                if !segment_enabled || cut_now != first || secs >= max_secs + LIMIT_WAIT_SECS {
+                    let _ = shared2.tx.send(PipelineMsg::LimitReached(gen));
+                    break;
+                }
             }
             // Every ~250 ms: has the user paused after saying enough for a segment?
             if segment_enabled && n % 8 == 0 {
@@ -705,19 +844,66 @@ async fn begin(app: &tauri::AppHandle, shared: &Arc<Shared>, mode: Mode, level_t
                 }
             }
         }
-    }));
-
-    Some(Session { mode, started: t0, ctx, cancel: false, segments })
+    })
 }
 
-async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
+/// A part with no piece heard in it ends the dictation at the limit: twenty
+/// minutes without a word is somebody who walked away from a hands-free
+/// recording.
+fn rollover_worthwhile(shared: &Shared, s: &Session) -> bool {
+    !shared.settings.read().asr.segment_while_speaking || !s.segments.lock().jobs.is_empty()
+}
+
+/// Writes what a long dictation has said so far and carries on recording, so
+/// a speech of any length meets no wall (Lu, 4 November 2026: write it and
+/// keep going). The microphone never stops. The part is written in the
+/// background, behind any part before it, while the user keeps talking.
+async fn rollover(
+    app: &tauri::AppHandle,
+    shared: &Arc<Shared>,
+    s: Session,
+    level_task: &mut Option<tokio::task::JoinHandle<()>>,
+    last_recovery: &Arc<Mutex<Option<(Vec<f32>, AppContext)>>>,
+) -> Option<Session> {
+    // The meter stops first, so no piece is sent while the cut is chosen.
+    stop_level_task(level_task).await;
+    let settings = shared.settings.read().clone();
+    let len = shared.audio.recorded_len();
+    let (cut, pieces) = {
+        let g = s.segments.lock();
+        (g.cut, g.jobs.len())
+    };
+    let at = rollover_point(cut, len, settings.asr.segment_while_speaking, |from, to| shared.audio.recorded_range(from, to));
+    let head = shared.audio.split_recording(at);
+    let head_secs = head.len() as f32 / 16000.0;
+    tracing::info!("dictation part of {head_secs:.0} s handed over ({pieces} pieces); recording goes on");
+    crate::journal::info("record.rollover", serde_json::json!({ "part_secs": head_secs, "pieces": pieces }));
+    let Session { mode, started, ctx, segments, part_offset, prev_part, .. } = s;
+    let earlier = {
+        let (app, shared, recovery, ctx) = (app.clone(), shared.clone(), last_recovery.clone(), ctx.clone());
+        tokio::spawn(async move {
+            let mut no_timer = None;
+            process(&app, &shared, head, ctx, &recovery, &mut no_timer, false, Some(segments), PartRole::Earlier, prev_part).await
+        })
+    };
+    let gen = next_gen();
+    let fresh: Arc<Mutex<Segmenter>> = Arc::new(Mutex::new(Segmenter::default()));
+    let offset = part_offset + head_secs;
+    *level_task = Some(start_level_task(app, shared, &settings, fresh.clone(), gen, offset));
+    // Clears the warning shown before the limit; the recording never paused.
+    overlay::emit_state(app, OverlayPayload { state: OverlayState::HandsFree, message: None, preview: None, can_retry: false, seconds: offset, movable: false });
+    Some(Session { mode, started, ctx, cancel: false, segments: fresh, gen, part_offset: offset, prev_part: Some(earlier) })
+}
+
+async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) -> Option<tokio::task::JoinHandle<PartOutcome>> {
     // A cancelled recording used to leave a start and then nothing in the
     // journal, the same trace as one that was lost.
     crate::journal::info("record.cancelled", serde_json::json!({ "pieces": s.segments.lock().jobs.len() }));
-    drop_recording(shared, s, level_task).await;
+    let earlier = drop_recording(shared, s, level_task).await;
     crate::hotkey::reset_pressed_state();
     overlay::emit_state(app, OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
     finish_cancel(app, shared, idle_timer);
+    earlier
 }
 
 /// Cancel without saying so, for a recording that was never meant to start.
@@ -726,10 +912,11 @@ async fn cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_
 /// letter still has the modifier down, and forgetting that would let the very
 /// next repeat of the same held key look like a fresh press and start another
 /// recording, once per letter.
-async fn cancel_quietly(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
-    drop_recording(shared, s, level_task).await;
+async fn cancel_quietly(app: &tauri::AppHandle, shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) -> Option<tokio::task::JoinHandle<PartOutcome>> {
+    let earlier = drop_recording(shared, s, level_task).await;
     overlay::emit_state(app, OverlayPayload { state: OverlayState::Idle, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
     finish_cancel(app, shared, idle_timer);
+    earlier
 }
 
 /// Stops the level meter and waits until it has really stopped.
@@ -748,13 +935,17 @@ async fn stop_level_task(level_task: &mut Option<tokio::task::JoinHandle<()>>) {
     }
 }
 
-async fn drop_recording(shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>) {
+/// Throws away the recording going on. An earlier part of the same dictation
+/// was already handed over at its limit and is still written; its handle comes
+/// back so whatever runs next can wait for it.
+async fn drop_recording(shared: &Arc<Shared>, s: Session, level_task: &mut Option<tokio::task::JoinHandle<()>>) -> Option<tokio::task::JoinHandle<PartOutcome>> {
     stop_level_task(level_task).await;
     for j in s.segments.lock().jobs.drain(..) {
         j.abort();
     }
     shared.audio.discard();
     CAPTURE_ESCAPE.store(false, std::sync::atomic::Ordering::Relaxed);
+    s.prev_part
 }
 
 fn finish_cancel(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
@@ -783,7 +974,7 @@ async fn finalize(
         return;
     }
     if rec.overflowed {
-        tracing::warn!("recording hit the maximum length; transcribing what fits");
+        tracing::warn!("recording ran past its length limit and the room after it; transcribing what fits");
     }
     // `mut` only matters to the debug-only fake microphone below.
     #[allow(unused_mut)]
@@ -805,7 +996,7 @@ async fn finalize(
         }
     }
     let segments = s.segments.clone();
-    process(app, shared, samples, s.ctx, last_recovery, idle_timer, false, Some(segments)).await;
+    process(app, shared, samples, s.ctx, last_recovery, idle_timer, false, Some(segments), PartRole::Whole, s.prev_part).await;
 }
 
 fn schedule_idle(app: &tauri::AppHandle, shared: &Arc<Shared>, idle_timer: &mut Option<tokio::task::JoinHandle<()>>, ms: u64) {
@@ -837,11 +1028,64 @@ async fn process(
     idle_timer: &mut Option<tokio::task::JoinHandle<()>>,
     is_retry: bool,
     segments: Option<Arc<Mutex<Segmenter>>>,
-) {
+    role: PartRole,
+    prev: Option<tokio::task::JoinHandle<PartOutcome>>,
+) -> PartOutcome {
     let released_at = Instant::now();
     let settings = shared.settings.read().clone();
-    set_phase(shared, Phase::Processing, false);
-    overlay::emit_state(app, OverlayPayload { state: OverlayState::Processing, message: None, preview: None, can_retry: false, seconds: samples.len() as f32 / 16000.0, movable: false });
+    let earlier = role == PartRole::Earlier;
+    if !earlier {
+        CANCEL_PROCESSING.store(false, std::sync::atomic::Ordering::Relaxed);
+        set_phase(shared, Phase::Processing, false);
+    }
+    // The badge and the idle timer belong to the recording that is going on
+    // while an earlier part is written, so that part leaves them alone.
+    let emit = |p: OverlayPayload| {
+        if !earlier {
+            overlay::emit_state(app, p);
+        }
+    };
+    let mut done = |ms: u64| {
+        if !earlier {
+            finish_idle(shared, app, &mut *idle_timer, ms);
+        }
+    };
+    emit(OverlayPayload { state: OverlayState::Processing, message: None, preview: None, can_retry: false, seconds: samples.len() as f32 / 16000.0, movable: false });
+
+    // The part before this one goes in first, whatever then happens to this
+    // one: the text keeps the order it was spoken in, and nothing pastes after
+    // the badge has gone quiet.
+    let mut carried = PartOutcome::default();
+    if let Some(mut p) = prev {
+        let r = if earlier { Some((&mut p).await) } else { unless_escaped(&mut p).await };
+        match r {
+            Some(Ok(o)) => carried = o,
+            Some(Err(e)) => tracing::warn!("an earlier part of the dictation ended abnormally: {e}"),
+            None => {
+                p.abort();
+                tracing::info!("Escape while an earlier part was being written; stopped");
+                *last_recovery.lock() = Some((samples.clone(), ctx.clone()));
+                emit(OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: true, seconds: 0.0, movable: false });
+                done(2500);
+                return PartOutcome::default();
+            }
+        }
+    }
+    // A part with nothing to write must still report a part before it that
+    // was lost; otherwise twenty minutes of words vanish behind "no speech".
+    macro_rules! nothing_here {
+        ($ms:expr) => {{
+            if !earlier && carried.lost.is_some() {
+                *last_recovery.lock() = carried.lost.take();
+                emit(OverlayPayload { state: OverlayState::Failed, message: Some("msg_part_lost".into()), preview: None, can_retry: true, seconds: 0.0, movable: false });
+                done(LANGUAGE_MISMATCH_IDLE_MS);
+            } else {
+                emit(OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
+                done($ms);
+            }
+            return carry(carried, 0, None);
+        }};
+    }
 
     // 1. Empty / accidental press?
     //
@@ -855,7 +1099,7 @@ async fn process(
     if quiet && shared.audio.status() == crate::audio::StreamStatus::Error {
         tracing::warn!("the microphone stopped working during the recording, so there is no sound to read");
         crate::journal::record("warn", "record.mic_lost", serde_json::json!({ "samples": samples.len() }));
-        overlay::emit_state(app, OverlayPayload {
+        emit(OverlayPayload {
             state: OverlayState::Failed,
             message: Some("msg_mic_lost".to_string()),
             preview: None,
@@ -863,24 +1107,30 @@ async fn process(
             seconds: 0.0,
             movable: false,
         });
-        finish_idle(shared, app, idle_timer, 2600);
-        return;
+        done(2600);
+        return carry(carried, 0, None);
     }
     let (audio_ms, speech) = match analysis {
         Some(a) if !a.trimmed.is_empty() => (a.total_ms, a.trimmed),
         Some(a) => {
             tracing::info!("no speech: {} ms audio, {} ms speech, peak {:.3}", a.total_ms, a.speech_ms, a.peak);
             crate::journal::info("record.no_speech", serde_json::json!({ "audio_ms": a.total_ms, "speech_ms": a.speech_ms, "peak": a.peak }));
-            overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
-            finish_idle(shared, app, idle_timer, 1200);
-            return;
+            nothing_here!(1200)
         }
-        None => {
-            overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
-            finish_idle(shared, app, idle_timer, 1200);
-            return;
-        }
+        None => nothing_here!(1200),
     };
+
+    // Escape while the words are being written stops it at once. The
+    // recording stays in memory, so Retry still brings it back.
+    macro_rules! escaped {
+        () => {{
+            tracing::info!("Escape while writing; stopped, the recording is kept for Retry");
+            crate::journal::info("record.cancelled_while_writing", serde_json::json!({ "audio_ms": audio_ms }));
+            emit(OverlayPayload { state: OverlayState::Cancelled, message: None, preview: None, can_retry: true, seconds: 0.0, movable: false });
+            done(2500);
+            return carry(carried, 0, None);
+        }};
+    }
 
     // 2. Keep a recovery copy until the text is safely inserted.
     //
@@ -934,10 +1184,10 @@ async fn process(
             // the four dictations of 14 October 2026 left no trace of why.
             let now = shared.engine.info();
             crate::journal::warn("record.engine_not_ready", serde_json::json!({ "status": format!("{:?}", now.status), "message": now.message, "model": now.model_id, "audio_ms": audio_ms }));
-            overlay::emit_state(app, OverlayPayload { state, message: msg, preview: None, can_retry: true, seconds: 0.0, movable: false });
+            emit(OverlayPayload { state, message: msg, preview: None, can_retry: true, seconds: 0.0, movable: false });
             shared.snapshot.lock().last_error = Some("engine not ready".into());
-            finish_idle(shared, app, idle_timer, 3000);
-            return;
+            done(3000);
+            return carry(carried, 0, Some((speech.clone(), ctx.clone())));
         }
     }
 
@@ -966,6 +1216,10 @@ async fn process(
     // pieces, for the same History entry (`fill_from_pieces`).
     let mut head_language: Option<String> = None;
     let mut parts_ms = 0u64;
+    // Pieces that failed twice in a long recording and are left out.
+    let mut missed = 0usize;
+    // Whether the badge was told how many pieces are left.
+    let mut shown_left = false;
     if let Some(seg) = segments.as_ref() {
         let (jobs, cut, prev_cut, last_text) = {
             let mut g = seg.lock();
@@ -976,9 +1230,26 @@ async fn process(
             // whether the last finished piece left text in head_parts, so a
             // short last piece heard again with it replaces exactly that text
             let mut last_piece_kept = false;
+            let total_jobs = jobs.len();
             let mut jobs = jobs.into_iter();
-            while let Some(j) = jobs.next() {
-                match j.await {
+            let mut i = 0usize;
+            while let Some(mut j) = jobs.next() {
+                i += 1;
+                if !earlier && !j.is_finished() {
+                    // On a slow machine this wait is long: say how much is
+                    // left, counting this piece, the ones after it and the end.
+                    overlay::emit_pieces_left(app, total_jobs - i + 2);
+                    shown_left = true;
+                }
+                let joined = if earlier { Some((&mut j).await) } else { unless_escaped(&mut j).await };
+                let Some(joined) = joined else {
+                    j.abort();
+                    for rest in jobs.by_ref() {
+                        rest.abort();
+                    }
+                    escaped!()
+                };
+                match joined {
                     Ok((Ok(t), pitch)) => {
                         parts_ms += t.inference_ms;
                         if !t.engine.is_empty() {
@@ -993,6 +1264,11 @@ async fn process(
                                 head_language = t.detected_language.clone();
                             }
                         }
+                    }
+                    _ if audio_ms > WHOLE_PASS_MAX_MS => {
+                        missed += 1;
+                        last_piece_kept = false;
+                        tracing::warn!("piece {i} of {total_jobs} failed twice; keeping the others");
                     }
                     _ => {
                         all_ok = false;
@@ -1081,8 +1357,18 @@ async fn process(
     let result = match req {
         Some(req) => {
             let engine = shared.engine.clone();
-            let work = transcribe_in_chosen_languages(&settings.language, req, "last piece", |q| engine.transcribe(q));
-            tokio::time::timeout(transcribe_limit * passes, work).await
+            let work = tokio::time::timeout(transcribe_limit * passes, transcribe_in_chosen_languages(&settings.language, req, "last piece", |q| engine.transcribe(q)));
+            if earlier {
+                work.await
+            } else {
+                if shown_left {
+                    overlay::emit_pieces_left(app, 1);
+                }
+                match unless_escaped(work).await {
+                    Some(r) => r,
+                    None => escaped!(),
+                }
+            }
         }
         // everything was transcribed while speaking; nothing left after the last pause
         None => Ok(Ok(crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 })),
@@ -1098,7 +1384,7 @@ async fn process(
             // A rejected tail needs a retry of the preserved recording. Pasting
             // just the successful prefix would silently omit the last words.
             if matches!(e, crate::asr::AsrError::LanguageMismatch) {
-                overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("msg_language_mismatch".into()), preview: None, can_retry: true, seconds: 0.0, movable: false });
+                emit(OverlayPayload { state: OverlayState::Failed, message: Some("msg_language_mismatch".into()), preview: None, can_retry: true, seconds: 0.0, movable: false });
                 shared.snapshot.lock().last_error = Some(e.to_string());
                 // The start of this dictation is in the journal, so its end must
                 // be too: without it a mismatch looked like a recording that was
@@ -1107,18 +1393,18 @@ async fn process(
                 // A long wait, so the retry button stays within reach, but not
                 // forever: with "hide when idle" the badge used to stay on the
                 // screen until the next dictation.
-                finish_idle(shared, app, idle_timer, LANGUAGE_MISMATCH_IDLE_MS);
-                return;
+                done(LANGUAGE_MISMATCH_IDLE_MS);
+                return carry(carried, 0, Some((speech.clone(), ctx.clone())));
             }
             if head_parts.is_empty() {
                 let state = match e {
                     crate::asr::AsrError::Offline(_) => OverlayState::Offline,
                     _ => OverlayState::Failed,
                 };
-                overlay::emit_state(app, OverlayPayload { state, message: Some(e.to_string()), preview: None, can_retry: true, seconds: 0.0, movable: false });
+                emit(OverlayPayload { state, message: Some(e.to_string()), preview: None, can_retry: true, seconds: 0.0, movable: false });
                 shared.snapshot.lock().last_error = Some(e.to_string());
-                finish_idle(shared, app, idle_timer, 3500);
-                return;
+                done(3500);
+                return carry(carried, 0, Some((speech.clone(), ctx.clone())));
             }
             tracing::warn!("keeping the {} piece(s) already transcribed while speaking", head_parts.len());
             crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
@@ -1130,9 +1416,9 @@ async fn process(
             let s2 = settings.clone();
             tokio::spawn(async move { engine.apply(&app2, &s2).await });
             if head_parts.is_empty() {
-                overlay::emit_state(app, OverlayPayload { state: OverlayState::Failed, message: Some("transcription took longer than the limit; restarting the speech engine".into()), preview: None, can_retry: true, seconds: 0.0, movable: false });
-                finish_idle(shared, app, idle_timer, 3500);
-                return;
+                emit(OverlayPayload { state: OverlayState::Failed, message: Some("transcription took longer than the limit; restarting the speech engine".into()), preview: None, can_retry: true, seconds: 0.0, movable: false });
+                done(3500);
+                return carry(carried, 0, Some((speech.clone(), ctx.clone())));
             }
             tracing::warn!("the tail timed out; keeping the {} piece(s) already transcribed", head_parts.len());
             crate::asr::TranscriptionResult { text: String::new(), detected_language: None, language_probability: None, no_speech_prob: None, engine: String::new(), model: String::new(), inference_ms: 0 }
@@ -1158,13 +1444,19 @@ async fn process(
     };
     tracing::info!("raw transcript ({} ms inference): {}", result.inference_ms, crate::logging::redact(&raw));
     if raw.is_empty() || is_hallucination(&raw) || (result.no_speech_prob.unwrap_or(0.0) > 0.85 && raw.split_whitespace().count() <= 2) {
-        overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
-        finish_idle(shared, app, idle_timer, 1200);
-        return;
+        if missed > 0 {
+            // Every piece failed twice. Nothing was heard, which is not the
+            // same as nothing said: the recording stays for Retry.
+            crate::journal::warn("record.pieces_missed", serde_json::json!({ "missed": missed, "audio_ms": audio_ms, "all": true }));
+            emit(OverlayPayload { state: OverlayState::Failed, message: Some("msg_pieces_missed".into()), preview: None, can_retry: true, seconds: 0.0, movable: false });
+            done(LANGUAGE_MISMATCH_IDLE_MS);
+            return carry(carried, missed, Some((speech.clone(), ctx.clone())));
+        }
+        nothing_here!(1200)
     }
 
     // 5. Cleanup.
-    overlay::emit_state(app, OverlayPayload { state: OverlayState::Cleaning, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
+    emit(OverlayPayload { state: OverlayState::Cleaning, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
     let effective_lang = settings.language.effective(result.detected_language.as_deref(), &raw);
     let opts = CleanupOptions {
         intensity: settings.cleanup.intensity.clone(),
@@ -1183,12 +1475,13 @@ async fn process(
         run_deterministic(&raw, &opts, &dict, &snips)
     };
     if outcome.cleaned.trim().is_empty() {
-        overlay::emit_state(app, OverlayPayload { state: OverlayState::NoSpeech, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
-        finish_idle(shared, app, idle_timer, 1200);
-        return;
+        nothing_here!(1200)
     }
     let mut final_text = outcome.cleaned.clone();
-    if settings.insertion.trailing_space && ctx.category != AppCategory::Code && ctx.category != AppCategory::Terminal && !final_text.ends_with('\n') {
+    // An earlier part always ends on a space, whatever the target or the
+    // setting, or its last word and the next part's first one run together.
+    let spaced = earlier || (settings.insertion.trailing_space && ctx.category != AppCategory::Code && ctx.category != AppCategory::Terminal);
+    if spaced && !final_text.ends_with('\n') && !final_text.ends_with(' ') {
         final_text.push(' ');
     }
 
@@ -1296,7 +1589,24 @@ async fn process(
 
     let latency_ms = released_at.elapsed().as_millis() as u64;
     let preview: String = final_text.trim().chars().take(60).collect();
-    overlay::emit_state(app, OverlayPayload { state: state.clone(), message, preview: Some(preview), can_retry: state == OverlayState::Failed, seconds: 0.0, movable: false });
+    if missed > 0 {
+        crate::journal::warn("record.pieces_missed", serde_json::json!({ "missed": missed, "audio_ms": audio_ms }));
+    }
+    // The last part reports what went wrong in the parts before it. A lost
+    // part takes the Retry button: it brings back that part alone, so nothing
+    // already written is pasted twice.
+    let lost_before = if earlier { None } else { carried.lost.take() };
+    let total_missed = missed + carried.missed;
+    let message = if lost_before.is_some() {
+        Some("msg_part_lost".to_string())
+    } else if total_missed > 0 && message.is_none() {
+        Some("msg_pieces_missed".to_string())
+    } else {
+        message
+    };
+    let can_retry = state == OverlayState::Failed || lost_before.is_some();
+    let idle_ms = if lost_before.is_some() { LANGUAGE_MISMATCH_IDLE_MS } else if state == OverlayState::Success { 1400 } else { 4000 };
+    emit(OverlayPayload { state: state.clone(), message, preview: Some(preview), can_retry, seconds: 0.0, movable: false });
     shared.snapshot.lock().last_transcript = Some(final_text.trim().to_string());
     // The recording is one file that the next dictation overwrites, so keeping
     // it costs nothing and is the last copy of what was actually said.
@@ -1413,7 +1723,11 @@ async fn process(
         });
     }
     tracing::info!("dictation {status}: {word_count} words, {audio_ms} ms audio, {latency_ms} ms release-to-insert ({} ms inference)", result.inference_ms);
-    finish_idle(shared, app, idle_timer, if state == OverlayState::Success { 1400 } else { 4000 });
+    if let Some(lost) = lost_before {
+        *last_recovery.lock() = Some(lost);
+    }
+    done(idle_ms);
+    carry(carried, missed, None)
 }
 
 /// The line under "failed" in the dictation window when the engine is not
@@ -1506,6 +1820,41 @@ mod tests {
     }
 
     use super::*;
+
+    /// What goes wrong in an early part of a long dictation reaches the last
+    /// one: missing pieces add up, and the first lost part is the one kept.
+    #[test]
+    fn part_news_adds_up_across_parts() {
+        let ctx = crate::context::build_context(Default::default());
+        let first = carry(PartOutcome::default(), 2, Some((vec![1.0], ctx.clone())));
+        let second = carry(first, 1, Some((vec![2.0], ctx)));
+        assert_eq!(second.missed, 3);
+        assert_eq!(second.lost.map(|(s, _)| s), Some(vec![1.0]));
+        assert!(carry(PartOutcome::default(), 0, None).lost.is_none());
+    }
+
+    /// At the length limit a long dictation is cut where the last piece sent
+    /// to the engine ended, so the part handed over is exactly those pieces.
+    /// With no pieces it is cut at the quiet moment of the last three seconds,
+    /// and never past the end of what was recorded.
+    #[test]
+    fn rollover_cuts_at_the_last_piece_or_a_quiet_moment() {
+        let never = |_: usize, _: usize| -> Vec<f32> { panic!("the window is not needed when a piece ended") };
+        assert_eq!(rollover_point(32_000, 50_000, true, never), 32_000);
+        assert_eq!(rollover_point(60_000, 50_000, true, |_, _| Vec::new()), 50_000);
+        // No pieces: loud audio with one hushed stretch in the last 3 s.
+        let len = 16_000 * 10;
+        let span = 16 * 3000;
+        let mut samples = vec![0.5f32; len];
+        let hush = len - span + 16_000;
+        for s in samples.iter_mut().skip(hush).take(16 * 300) {
+            *s = 0.0;
+        }
+        let at = rollover_point(0, len, false, |from, to| samples[from..to].to_vec());
+        assert!(at >= hush && at <= hush + 16 * 300, "expected the cut inside the hush, got {at}");
+        // Shorter than the window: everything goes.
+        assert_eq!(rollover_point(0, 1000, false, |_, _| Vec::new()), 1000);
+    }
 
     #[test]
     fn a_rising_voice_marks_only_short_or_asking_pieces() {

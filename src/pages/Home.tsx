@@ -54,13 +54,18 @@ export default function Home({ engine, snap, goSettings, goMilestones }: { engin
       const path = await api.pickAudioFile();
       if (!path) return;
       setFileWork(t("file_reading"));
-      const text = await api.transcribeAudioFile(path);
+      const { text, missed } = await api.transcribeAudioFile(path);
       setFileWork(null);
       toast(`${t("file_done")} · ${text.split(/\s+/).filter(Boolean).length}w`);
+      if (missed > 0) toast(t("file_missed", { n: missed }), "err");
       refreshLog();
     } catch (err) {
       setFileWork(null);
-      toast(`${t("file_failed")}: ${err}`);
+      // The backend names the two expected endings with keys; anything else
+      // is shown as it came.
+      const msg = String(err);
+      if (msg === "file_err_cancelled") toast(t("file_err_cancelled"));
+      else toast(`${t("file_failed")}: ${msg.startsWith("file_err_") ? tk(msg) : msg}`, "err");
     }
   };
 
@@ -85,7 +90,7 @@ export default function Home({ engine, snap, goSettings, goMilestones }: { engin
     // the line below the buttons counts them rather than sitting still.
     const un3 = listen<{ done: number; total: number; phase: string }>("lalia://file-progress", (e) => {
       const { done, total, phase } = e.payload;
-      if (phase === "reading") setFileWork(t("file_reading"));
+      if (phase === "reading") setFileWork(total === 100 && done > 0 ? t("file_reading_pct", { p: done }) : t("file_reading"));
       else if (phase === "cleaning") setFileWork(t("file_cleaning"));
       else setFileWork(total > 1 ? `${t("file_transcribing")} ${done + 1}/${total}` : t("file_transcribing"));
     });
@@ -292,7 +297,12 @@ export default function Home({ engine, snap, goSettings, goMilestones }: { engin
           {t("transcribe_file")}
         </Button>
       </div>
-      {fileWork && <div className="muted" style={{ margin: "-16px 0 22px" }}>{fileWork}</div>}
+      {fileWork && (
+        <div className="row" style={{ margin: "-16px 0 22px", alignItems: "center", gap: 12 }}>
+          <span className="muted">{fileWork}</span>
+          <Button kind="danger" onClick={() => api.cancelAudioFile()}>{t("file_cancel")}</Button>
+        </div>
+      )}
 
       <h2>{t("last_transcripts")}</h2>
       <div className="log" style={{ marginTop: 8 }}>

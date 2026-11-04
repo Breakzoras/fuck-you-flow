@@ -1294,8 +1294,22 @@ pub async fn pack_remove(app: tauri::AppHandle, state: State<'_, Arc<AppState>>)
 ///
 /// The result lands in the notepad window, in the clipboard and in History,
 /// so it is reachable three ways and cannot be lost.
+/// What "Sound file to text" hands back: the text, and how many pieces
+/// failed twice and are missing from it.
+#[derive(serde::Serialize)]
+pub struct FileText {
+    pub text: String,
+    pub missed: usize,
+}
+
+/// The Stop button while a file is being turned into text.
 #[tauri::command]
-pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, path: String) -> R<String> {
+pub fn cancel_audio_file() {
+    crate::audiofile::FILE_CANCEL.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[tauri::command]
+pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, path: String) -> R<FileText> {
     let file = std::path::PathBuf::from(&path);
     let name = file.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.clone());
     let started = std::time::Instant::now();
@@ -1303,9 +1317,17 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
         let _ = app.emit_to("main", "lalia://file-progress", serde_json::json!({ "done": done, "total": total, "phase": phase, "file": name }));
     };
 
+    crate::audiofile::FILE_CANCEL.store(false, std::sync::atomic::Ordering::Relaxed);
     progress(&app, 0, 1, "reading");
     let f2 = file.clone();
-    let samples = tokio::task::spawn_blocking(move || crate::audiofile::decode_to_engine_rate(&f2)).await.map_err(e)??;
+    let (app2, name2) = (app.clone(), name.clone());
+    let samples = tokio::task::spawn_blocking(move || {
+        crate::audiofile::decode_to_engine_rate(&f2, &mut |pct| {
+            let _ = app2.emit_to("main", "lalia://file-progress", serde_json::json!({ "done": pct, "total": 100, "phase": "reading", "file": name2 }));
+        })
+    })
+    .await
+    .map_err(e)??;
     let audio_ms = (samples.len() as u64 * 1000) / crate::audio::TARGET_RATE as u64;
 
     let (settings, engine) = {
@@ -1322,8 +1344,16 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
     let mut engine_name = String::new();
     let mut model_name = String::new();
     let mut inference_ms = 0u64;
+    // Pieces that failed twice. The others are kept: one stumble of the engine
+    // used to throw away an hour of text.
+    let mut missed = 0usize;
+    let mut last_err = String::new();
     let mut start = 0usize;
     for (i, end) in cuts.iter().copied().enumerate() {
+        if crate::audiofile::cancelled() {
+            tracing::info!("file transcription stopped by the user at piece {}/{total}", i + 1);
+            return Err(crate::audiofile::ERR_CANCELLED.into());
+        }
         progress(&app, i, total, "transcribing");
         let piece = &samples[start..end];
         start = end;
@@ -1336,9 +1366,14 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
         let tail: String = raw.chars().rev().take(200).collect::<Vec<_>>().into_iter().rev().collect();
         let prompt = if tail.trim().is_empty() { None } else { Some(tail.trim().to_string()) };
         let req = crate::asr::TranscriptionRequest { wav, language: lang.clone(), prompt, beam_size: settings.asr.beam_size, vad: settings.asr.vad };
-        let result = crate::asr::transcribe_in_chosen_languages(
-            &settings.language, req, &format!("file piece {}", i + 1), |q| engine.transcribe(q),
-        ).await;
+        let label = format!("file piece {}", i + 1);
+        let mut result = crate::asr::transcribe_in_chosen_languages(&settings.language, req.clone(), &label, |q| engine.transcribe(q)).await;
+        if let Err(err) = &result {
+            if !matches!(err, crate::asr::AsrError::LanguageMismatch) && !crate::audiofile::cancelled() {
+                tracing::warn!("file piece {}/{total} failed ({err}); trying it once more", i + 1);
+                result = crate::asr::transcribe_in_chosen_languages(&settings.language, req, &label, |q| engine.transcribe(q)).await;
+            }
+        }
         match result {
             Ok(t) => {
                 if heard.is_none() {
@@ -1355,12 +1390,16 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
                 inference_ms += t.inference_ms;
             }
             Err(err) => {
-                tracing::error!("file transcription failed on piece {}/{total}: {err}", i + 1);
-                return Err(format!("piece {} of {total} could not be transcribed: {err}", i + 1));
+                tracing::error!("file piece {}/{total} failed twice, left out: {err}", i + 1);
+                missed += 1;
+                last_err = err.to_string();
             }
         }
     }
     if raw.trim().is_empty() {
+        if missed > 0 {
+            return Err(format!("{missed} of {total} pieces could not be transcribed: {last_err}"));
+        }
         return Err("no speech was found in this recording".into());
     }
 
@@ -1425,13 +1464,13 @@ pub async fn transcribe_audio_file(app: tauri::AppHandle, state: State<'_, Arc<A
         let _ = state.shared.db.bump_daily(word_count, audio_ms, outcome.rule_ids.len() as u64);
     }
 
-    tracing::info!("file transcribed: {name}, {} s audio, {} pieces, {} ms inference, {} chars", audio_ms / 1000, total, inference_ms, text.chars().count());
+    tracing::info!("file transcribed: {name}, {} s audio, {} pieces ({missed} missing), {} ms inference, {} chars", audio_ms / 1000, total, inference_ms, text.chars().count());
     crate::journal::info(
         "file.transcribed",
-        serde_json::json!({ "audio_ms": audio_ms, "pieces": total, "inference_ms": inference_ms, "chars": text.chars().count(), "took_ms": started.elapsed().as_millis() as u64 }),
+        serde_json::json!({ "audio_ms": audio_ms, "pieces": total, "missed": missed, "inference_ms": inference_ms, "chars": text.chars().count(), "took_ms": started.elapsed().as_millis() as u64 }),
     );
     crate::scratch::show(&app, &text, "file", Some(name.clone()), "file");
-    Ok(text)
+    Ok(FileText { text, missed })
 }
 
 /// What the notepad window should hold right now, for a webview that has just
