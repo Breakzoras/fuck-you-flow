@@ -27,6 +27,36 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.18",
+        "date": "2026-11-05",
+        "summary": (
+            "Hands-free dictation keeps going past 20 minutes, and sound files to text show their progress.",
+            "Η υπαγόρευση χωρίς χέρια συνεχίζει και μετά τα 20 λεπτά και τα αρχεία ήχου σε κείμενο δείχνουν την πρόοδό τους.",
+        ),
+        "lines": [
+            ("added",
+             "Hands-free dictation keeps going past 20 minutes. Every 20 minutes the text said so far "
+             "is written while the microphone keeps recording, so every word is kept, in order.",
+             "Η υπαγόρευση χωρίς χέρια συνεχίζει και μετά τα 20 λεπτά. Κάθε 20 λεπτά γράφεται το "
+             "κείμενο ως εκεί και το μικρόφωνο συνεχίζει να ηχογραφεί, έτσι κάθε λέξη μένει στη θέση της."),
+            ("improved",
+             "The recording badge shows minutes and seconds from 2 minutes on, gives a warning in the "
+             "last minute of each part and counts the pieces that are still being written.",
+             "Η ένδειξη ηχογράφησης δείχνει λεπτά και δευτερόλεπτα μετά τα 2 λεπτά, προειδοποιεί στο "
+             "τελευταίο λεπτό κάθε μέρους και μετράει τα κομμάτια που γράφονται ακόμα."),
+            ("improved",
+             "Sound file to text shows its progress in percent, has a Stop button and keeps the rest "
+             "of the text when one piece cannot be heard.",
+             "Το αρχείο ήχου σε κείμενο δείχνει την πρόοδο σε ποσοστό, έχει κουμπί «Σταμάτα» και "
+             "κρατά το υπόλοιπο κείμενο όταν ένα κομμάτι δεν ακούγεται καθαρά."),
+            ("fixed",
+             "Escape stops a dictation at once, also while its text is being written or retried. "
+             "Retry brings back every part of a long dictation, in the order it was spoken.",
+             "Το Escape σταματά αμέσως την υπαγόρευση, ακόμα και την ώρα που γράφεται ή ξαναδοκιμάζεται. "
+             "Η επανάληψη φέρνει πίσω όλα τα μέρη μιας μεγάλης υπαγόρευσης, με τη σειρά που ειπώθηκαν."),
+        ],
+    },
+    {
         "version": "0.9.17",
         "date": "2026-10-29",
         "summary": (
