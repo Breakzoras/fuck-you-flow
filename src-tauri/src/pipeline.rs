@@ -123,11 +123,14 @@ struct PartOutcome {
     missed: usize,
     /// A part whose words were not written at all, kept for Retry.
     lost: Option<(Vec<f32>, AppContext)>,
+    /// This part was cut at the limit in the middle of a sentence, so the
+    /// next part goes on in lower case instead of opening a new sentence.
+    open_end: bool,
 }
 
 /// This part's news on top of what the parts before it reported.
 fn carry(before: PartOutcome, missed: usize, lost: Option<(Vec<f32>, AppContext)>) -> PartOutcome {
-    PartOutcome { missed: before.missed + missed, lost: before.lost.or(lost) }
+    PartOutcome { missed: before.missed + missed, lost: before.lost.or(lost), open_end: false }
 }
 
 /// Numbers every recording, for `PipelineMsg::LimitReached`.
@@ -879,6 +882,10 @@ async fn rollover(
     tracing::info!("dictation part of {head_secs:.0} s handed over ({pieces} pieces); recording goes on");
     crate::journal::info("record.rollover", serde_json::json!({ "part_secs": head_secs, "pieces": pieces }));
     let Session { mode, started, ctx, segments, part_offset, prev_part, .. } = s;
+    // The next part's first piece hears what was said just before the cut, as
+    // every piece inside one recording does. Without it the new part started
+    // with no context at all, unlike every other piece.
+    let last_text = segments.lock().last_text.clone();
     let earlier = {
         let (app, shared, recovery, ctx) = (app.clone(), shared.clone(), last_recovery.clone(), ctx.clone());
         tokio::spawn(async move {
@@ -887,7 +894,7 @@ async fn rollover(
         })
     };
     let gen = next_gen();
-    let fresh: Arc<Mutex<Segmenter>> = Arc::new(Mutex::new(Segmenter::default()));
+    let fresh: Arc<Mutex<Segmenter>> = Arc::new(Mutex::new(Segmenter { last_text, ..Segmenter::default() }));
     let offset = part_offset + head_secs;
     *level_task = Some(start_level_task(app, shared, &settings, fresh.clone(), gen, offset));
     // Clears the warning shown before the limit; the recording never paused.
@@ -1464,7 +1471,10 @@ async fn process(
         resolve_self_corrections: settings.cleanup.resolve_self_corrections,
         auto_punctuate: settings.cleanup.auto_punctuate,
         auto_capitalize: settings.cleanup.auto_capitalize,
-        trailing_punctuation: ctx.trailing_punctuation,
+        // An earlier part is cut where the user paused, often mid-sentence: it
+        // keeps the ending the engine heard instead of a closing full stop
+        // ("πάμε μετά στο σπίτι," used to become "πάμε μετά στο σπίτι.").
+        trailing_punctuation: ctx.trailing_punctuation && !earlier,
         capitalize_first: ctx.capitalize_first,
         language: effective_lang.clone(),
         dictionary_language: Some(settings.language.dictionary_code(&effective_lang)),
@@ -1478,6 +1488,10 @@ async fn process(
         nothing_here!(1200)
     }
     let mut final_text = outcome.cleaned.clone();
+    if carried.open_end {
+        final_text = crate::cleanup::deterministic::lower_continuing_start(&final_text);
+    }
+    let open_end = earlier && !crate::cleanup::deterministic::ends_sentence(&final_text);
     // An earlier part always ends on a space, whatever the target or the
     // setting, or its last word and the next part's first one run together.
     let spaced = earlier || (settings.insertion.trailing_space && ctx.category != AppCategory::Code && ctx.category != AppCategory::Terminal);
@@ -1727,7 +1741,7 @@ async fn process(
         *last_recovery.lock() = Some(lost);
     }
     done(idle_ms);
-    carry(carried, missed, None)
+    PartOutcome { open_end, ..carry(carried, missed, None) }
 }
 
 /// The line under "failed" in the dictation window when the engine is not

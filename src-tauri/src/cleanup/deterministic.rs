@@ -476,6 +476,28 @@ fn lower_inner_function_words(text: &str) -> String {
     super::replace_all_or_keep(&INNER, text, |c: &fancy_regex::Captures<'_, str>| format!(" {}", c[1].to_lowercase())).to_string()
 }
 
+/// The next part of a long dictation, when the part before it stopped in the
+/// middle of a sentence: a function word that opens it goes back to lower
+/// case, as it would inside one recording ("πάμε μετά" + "Στο σπίτι").
+/// Names and every other word keep their capital.
+pub(crate) fn lower_continuing_start(text: &str) -> String {
+    let joined = lower_inner_function_words(&format!("x {text}"));
+    match joined.strip_prefix("x ") {
+        Some(rest) => rest.to_string(),
+        None => text.to_string(),
+    }
+}
+
+/// The text closes a sentence: it ends on a full stop, "!", "?" or ";".
+/// An ellipsis or a comma leaves the sentence open.
+pub(crate) fn ends_sentence(text: &str) -> bool {
+    let t = text.trim_end();
+    if t.ends_with("..") || t.ends_with('…') {
+        return false;
+    }
+    matches!(t.chars().last(), Some('.' | '!' | '?' | ';'))
+}
+
 pub(crate) fn is_greek_letter(c: char) -> bool {
     ('\u{0370}'..='\u{03FF}').contains(&c) || ('\u{1F00}'..='\u{1FFF}').contains(&c)
 }
@@ -942,6 +964,27 @@ mod tests {
             .map(|raw| serde_json::to_string(&clean(&raw, &o).text).unwrap())
             .collect();
         std::fs::write(output, cleaned.join("\n")).unwrap();
+    }
+
+    #[test]
+    fn a_part_that_goes_on_opens_in_lower_case() {
+        assert_eq!(lower_continuing_start("Θα πάρουμε ψωμί από τον φούρνο."), "θα πάρουμε ψωμί από τον φούρνο.");
+        assert_eq!(lower_continuing_start("Και μετά φεύγουμε."), "και μετά φεύγουμε.");
+        // names and ordinary words keep their capital
+        assert_eq!(lower_continuing_start("Γιώργος ήρθε."), "Γιώργος ήρθε.");
+        assert_eq!(lower_continuing_start("Claude, άνοιξέ το."), "Claude, άνοιξέ το.");
+        assert_eq!(lower_continuing_start(""), "");
+    }
+
+    #[test]
+    fn which_endings_close_a_sentence() {
+        assert!(ends_sentence("Τελείωσε. "));
+        assert!(ends_sentence("Έρχεσαι;"));
+        assert!(ends_sentence("Done!"));
+        assert!(!ends_sentence("και μετά,"));
+        assert!(!ends_sentence("πάμε στο..."));
+        assert!(!ends_sentence("πάμε στο…"));
+        assert!(!ends_sentence("αλλά"));
     }
 
     #[test]
