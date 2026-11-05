@@ -626,6 +626,9 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
                 PipelineMsg::Retry => {
                     let rec = last_recovery.lock().clone();
                     if let Some((samples, ctx)) = rec {
+                        // A retried long part can take minutes; Escape has to
+                        // reach it as it does a dictation (`finish_idle` lets go).
+                        CAPTURE_ESCAPE.store(true, std::sync::atomic::Ordering::Relaxed);
                         process(&app, &shared, samples, ctx, &last_recovery, &mut idle_timer, true, None, PartRole::Whole, pending_part.take()).await;
                     }
                 }
@@ -1146,7 +1149,19 @@ async fn process(
     // this task: at the ten minute recording cap the file is about 19 MB, and
     // that write used to sit on the path between releasing the key and seeing
     // the text.
-    *last_recovery.lock() = Some((speech.clone(), ctx.clone()));
+    // An earlier part of the same dictation that was not written goes in
+    // front, in the order it was spoken: when this last part fails too (an
+    // engine that is down fails every part), Retry must bring back both, not
+    // this one alone. A success below puts the lost part back on its own.
+    *last_recovery.lock() = Some(match (&carried.lost, earlier) {
+        (Some((lost, lost_ctx)), false) => {
+            let mut both = Vec::with_capacity(lost.len() + speech.len());
+            both.extend_from_slice(lost);
+            both.extend_from_slice(&speech);
+            (both, lost_ctx.clone())
+        }
+        _ => (speech.clone(), ctx.clone()),
+    });
     let recovery_file = crate::paths::recovery_dir().join("last.wav");
     let wav = std::sync::Arc::new(crate::audio::encode_wav(&speech));
     // The same bytes become the kept recording in step 7, so they are encoded

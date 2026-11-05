@@ -966,6 +966,31 @@ mod tests {
         std::fs::write(output, cleaned.join("\n")).unwrap();
     }
 
+    /// Offline check of the seam between two parts of a long dictation: each
+    /// input line is a JSON pair [first part raw, next part raw]; the output
+    /// line is the pair as it would be written. Data stays outside the repo.
+    #[test]
+    #[ignore]
+    fn replay_seam() {
+        let (Ok(input), Ok(output)) = (std::env::var("FYF_SEAM_IN"), std::env::var("FYF_SEAM_OUT")) else { return };
+        let first = DetOptions { trailing_period: false, ..opts(CleanupIntensity::Normal) };
+        let next = opts(CleanupIntensity::Normal);
+        let lines: Vec<String> = std::fs::read_to_string(input)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str::<(String, String)>(line).unwrap())
+            .map(|(a, b)| {
+                let a = clean(&a, &first).text;
+                let mut b = clean(&b, &next).text;
+                if !ends_sentence(&a) {
+                    b = lower_continuing_start(&b);
+                }
+                serde_json::to_string(&(a, b)).unwrap()
+            })
+            .collect();
+        std::fs::write(output, lines.join("\n")).unwrap();
+    }
+
     #[test]
     fn a_part_that_goes_on_opens_in_lower_case() {
         assert_eq!(lower_continuing_start("Θα πάρουμε ψωμί από τον φούρνο."), "θα πάρουμε ψωμί από τον φούρνο.");
