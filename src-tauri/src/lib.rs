@@ -1,4 +1,5 @@
 pub mod app;
+pub mod app_mic;
 pub mod asr;
 pub mod audio;
 pub mod audiofile;

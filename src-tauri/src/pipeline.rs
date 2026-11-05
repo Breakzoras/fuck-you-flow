@@ -517,8 +517,12 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
         // written. Whatever comes next waits for it, so two pastes never
         // cross.
         let mut pending_part: Option<tokio::task::JoinHandle<PartOutcome>> = None;
+        // A dictation handed to Claude's or Codex's own microphone button.
+        let mut routed: Option<Routed> = None;
 
         while let Some(msg) = rx.recv().await {
+            let local_busy = session.is_some();
+            let Some(msg) = route_to_app_mic(&app, &shared, msg, &mut routed, local_busy, &mut idle_timer).await else { continue };
             match msg {
                 PipelineMsg::Shutdown => break,
                 PipelineMsg::SettingsChanged => {
@@ -647,6 +651,137 @@ pub fn spawn(app: tauri::AppHandle, shared: Arc<Shared>, mut rx: mpsc::Unbounded
             }
         }
     });
+}
+
+/// A dictation that the app in front hears through its own microphone button.
+struct Routed {
+    hwnd: isize,
+    kind: crate::app_mic::AppKind,
+    mode: crate::app_mic::RouteMode,
+    started: Instant,
+    level: tokio::task::JoinHandle<()>,
+}
+
+/// Hands the shortcut to Claude's or Codex's microphone button when the user
+/// turned that on and one of them is in front. Returns the message when it is
+/// not taken, so the local dictation handles it as before.
+async fn route_to_app_mic(
+    app: &tauri::AppHandle,
+    shared: &Arc<Shared>,
+    msg: PipelineMsg,
+    routed: &mut Option<Routed>,
+    local_busy: bool,
+    idle_timer: &mut Option<tokio::task::JoinHandle<()>>,
+) -> Option<PipelineMsg> {
+    use crate::app_mic::{self, Act, Key, RouteMode};
+    let key = match &msg {
+        PipelineMsg::Hotkey(HotkeyEvent::Pressed(ChordId::PushToTalk)) => Key::HoldDown,
+        PipelineMsg::Hotkey(HotkeyEvent::Released(ChordId::PushToTalk)) => {
+            let s = shared.settings.read();
+            let tap = routed.as_ref().is_some_and(|r| s.hotkeys.tap_toggles_hands_free && r.started.elapsed() < Duration::from_millis(s.hotkeys.tap_ms));
+            Key::HoldUp { tap }
+        }
+        PipelineMsg::Hotkey(HotkeyEvent::Pressed(ChordId::HandsFree)) | PipelineMsg::Toggle => Key::ToggleDown,
+        PipelineMsg::Hotkey(HotkeyEvent::Cancelled(_)) => Key::Typed,
+        PipelineMsg::Hotkey(HotkeyEvent::Escape) | PipelineMsg::Cancel => Key::Escape,
+        PipelineMsg::Shutdown => {
+            if let Some(r) = routed.take() {
+                end_route(app, shared, r, true, idle_timer).await;
+            }
+            return Some(msg);
+        }
+        _ => return Some(msg),
+    };
+    // The person may have stopped it by hand in the app: then this press
+    // starts afresh instead of pressing the button back on.
+    if matches!(key, Key::HoldDown | Key::ToggleDown) {
+        if let Some(r) = routed.as_ref() {
+            let (hwnd, kind) = (r.hwnd, r.kind);
+            let listening = tokio::task::spawn_blocking(move || app_mic::is_listening(hwnd, kind)).await.ok().flatten();
+            if listening == Some(false) {
+                tracing::info!("app mic: {} was stopped in the app", kind.label());
+                let r = routed.take().unwrap();
+                end_route(app, shared, r, false, idle_timer).await;
+            }
+        }
+    }
+    match app_mic::decide(key, routed.as_ref().map(|r| r.mode), local_busy) {
+        Act::Pass => Some(msg),
+        Act::Ignore => None,
+        Act::KeepListening => {
+            if let Some(r) = routed.as_mut() {
+                r.mode = RouteMode::Toggle;
+            }
+            overlay::emit_state(app, OverlayPayload { state: OverlayState::HandsFree, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
+            None
+        }
+        Act::Stop { cancel } => {
+            let r = routed.take()?;
+            end_route(app, shared, r, cancel, idle_timer).await;
+            None
+        }
+        Act::Start(mode) => {
+            let settings = shared.settings.read().clone();
+            if !settings.asr.app_mic {
+                return Some(msg);
+            }
+            let target = tokio::task::spawn_blocking(insertion::capture_target).await.unwrap_or_default();
+            let Some(kind) = app_mic::kind_for_process(&target.process_name) else { return Some(msg) };
+            let hwnd = target.hwnd;
+            let t0 = Instant::now();
+            match tokio::task::spawn_blocking(move || app_mic::start(hwnd, kind, 700)).await {
+                Ok(Ok(())) => {
+                    tracing::info!("app mic: {} listens ({} ms)", kind.label(), t0.elapsed().as_millis());
+                    crate::journal::info("app_mic.start", serde_json::json!({ "app": kind.label(), "ms": t0.elapsed().as_millis() as u64 }));
+                    if let Some(t) = idle_timer.take() {
+                        t.abort();
+                    }
+                    CAPTURE_ESCAPE.store(true, std::sync::atomic::Ordering::Relaxed);
+                    overlay::show(app, &settings.overlay, hwnd);
+                    let hands_free = mode == RouteMode::Toggle;
+                    overlay::emit_state(app, OverlayPayload { state: if hands_free { OverlayState::HandsFree } else { OverlayState::Recording }, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
+                    // The bar moves with the voice: the level comes from FU
+                    // Flow's own open microphone, nothing is recorded.
+                    let (app2, shared2) = (app.clone(), shared.clone());
+                    let level = tokio::spawn(async move {
+                        let started = Instant::now();
+                        let mut tick = tokio::time::interval(Duration::from_millis(33));
+                        loop {
+                            tick.tick().await;
+                            overlay::emit_level(&app2, shared2.audio.level(), started.elapsed().as_secs_f32(), 3600.0, hands_free);
+                        }
+                    });
+                    *routed = Some(Routed { hwnd, kind, mode, started: Instant::now(), level });
+                    None
+                }
+                other => {
+                    let why = match other {
+                        Ok(Err(e)) => e,
+                        Err(e) => e.to_string(),
+                        Ok(Ok(())) => unreachable!(),
+                    };
+                    tracing::info!("app mic: {} button not used ({why}); dictating here", kind.label());
+                    crate::journal::info("app_mic.fallback", serde_json::json!({ "app": kind.label(), "why": why }));
+                    Some(msg)
+                }
+            }
+        }
+    }
+}
+
+/// Presses the app's button again and puts the bar away.
+async fn end_route(app: &tauri::AppHandle, shared: &Arc<Shared>, r: Routed, cancel: bool, idle_timer: &mut Option<tokio::task::JoinHandle<()>>) {
+    r.level.abort();
+    let (hwnd, kind) = (r.hwnd, r.kind);
+    let result = tokio::task::spawn_blocking(move || crate::app_mic::stop(hwnd, kind, cancel)).await.unwrap_or_else(|e| Err(e.to_string()));
+    match &result {
+        Ok(()) => tracing::info!("app mic: {} stopped after {:.1} s{}", kind.label(), r.started.elapsed().as_secs_f32(), if cancel { " (cancelled)" } else { "" }),
+        Err(e) => tracing::info!("app mic: {} not stopped by us ({e})", kind.label()),
+    }
+    crate::journal::info("app_mic.stop", serde_json::json!({ "app": kind.label(), "seconds": r.started.elapsed().as_secs_f32(), "cancel": cancel, "ok": result.is_ok() }));
+    CAPTURE_ESCAPE.store(false, std::sync::atomic::Ordering::Relaxed);
+    overlay::emit_state(app, OverlayPayload { state: if cancel { OverlayState::Cancelled } else { OverlayState::Success }, message: None, preview: None, can_retry: false, seconds: 0.0, movable: false });
+    schedule_idle(app, shared, idle_timer, 700);
 }
 
 fn set_phase(shared: &Shared, phase: Phase, hands_free: bool) {

@@ -32,7 +32,7 @@ export interface Settings {
   asr: {
     provider: string; model_id: string; use_gpu: boolean; vad: boolean; threads: number; beam_size: number;
     hints_from_dictionary: boolean; max_hint_terms: number; openai_base_url: string; openai_model: string;
-    segment_while_speaking?: boolean; backend?: string;
+    segment_while_speaking?: boolean; backend?: string; app_mic?: boolean;
   };
   cleanup: {
     intensity: CleanupIntensity; remove_fillers: boolean; resolve_self_corrections: boolean; auto_punctuate: boolean;

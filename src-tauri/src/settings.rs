@@ -241,6 +241,9 @@ pub struct AsrSettings {
     pub backend: String,
     pub openai_base_url: String,
     pub openai_model: String,
+    /// In the Claude and Codex desktop apps, the dictation shortcut presses the
+    /// app's own microphone button instead of recording here. Off by default.
+    pub app_mic: bool,
 }
 
 impl Default for AsrSettings {
@@ -259,6 +262,7 @@ impl Default for AsrSettings {
             backend: "auto".into(),
             openai_base_url: "https://api.openai.com/v1".into(),
             openai_model: "whisper-1".into(),
+            app_mic: false,
         }
     }
 }

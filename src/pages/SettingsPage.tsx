@@ -5,6 +5,7 @@ import { api, AppStyle, DeviceInfo, DownloadProgress, emptyStyle, EngineInfo, fm
 import { useApp } from "../hooks";
 import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
 import ModelGuide from "../ModelGuide";
+import ClaudeMark from "../ClaudeMark";
 import { BACKEND_EXPLAIN, MODEL_EXPLAIN, Pick } from "../modelChoice";
 
 const IS_LINUX = /linux/i.test(navigator.userAgent) && !/android/i.test(navigator.userAgent);
@@ -286,6 +287,11 @@ function ModelsTab({ draft, patch, engine, onApply }: { draft: Settings; patch: 
 
   return (
     <>
+      <Card title={<span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}><ClaudeMark size={26} />{t("app_mic_title")}</span>}>
+        <Toggle label={t("app_mic_toggle")} checked={draft.asr.app_mic ?? false} onChange={(v) => patch((s) => { s.asr.app_mic = v; return s; })} />
+        <p className="hint" style={{ marginTop: 6 }}>{t("app_mic_hint")}</p>
+      </Card>
+
       <Card title={t("guide_title")}>
         <ModelGuide models={models} profile={machine} currentModelId={draft.asr.model_id} currentBackend={draft.asr.backend} onApply={async (m, b) => { await onApply(m, b); refresh(); }} onPick={setPick} />
       </Card>

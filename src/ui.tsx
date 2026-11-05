@@ -1,6 +1,6 @@
 import React from "react";
 
-export function Card({ title, children, actions }: { title?: string; children: React.ReactNode; actions?: React.ReactNode }) {
+export function Card({ title, children, actions }: { title?: React.ReactNode; children: React.ReactNode; actions?: React.ReactNode }) {
   return (
     <section className="card">
       {(title || actions) && (
