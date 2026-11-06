@@ -285,6 +285,7 @@ FAQ_EL = [('Υπάρχει δωρεάν φωνητική πληκτρολόγη�
 # ---------------------------------------------------------------- translations
 # Ordered. Longer strings first where one contains another.
 TR = [('Skip to content', 'Στο περιεχόμενο'),
+ ('people gave FU Flow a thumbs up inside the app.', 'άνθρωποι έδωσαν μπράβο στο FU Flow μέσα από την εφαρμογή.'),
  ('Speed depends on your graphics card: the more modern the card, the faster FU Flow runs. On older cards and on computers without one, it runs on the processor, more slowly.',
   'Η ταχύτητα εξαρτάται από την κάρτα γραφικών: όσο πιο σύγχρονη κάρτα έχετε, τόσο πιο γρήγορα δουλεύει το FU Flow. Σε παλιότερες κάρτες ή σε υπολογιστές χωρίς κάρτα δουλεύει στον επεξεργαστή, πιο αργά.'),
  ('>Feature<', '>Χαρακτηριστικό<'),

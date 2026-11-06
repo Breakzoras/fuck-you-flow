@@ -51,6 +51,16 @@ fuckyouflow.app {
 		reverse_proxy fyf-reports:8787
 	}
 
+	# The thumbs up from the app's "Do you like FU Flow?" card (0.9.19) and the
+	# count the site shows from 25 up. Same receiver; out of the access log.
+	handle /api/vote* {
+		log_skip
+		request_body {
+			max_size 1KB
+		}
+		reverse_proxy fyf-reports:8787
+	}
+
 	file_server
 	@static path /assets/* /style.css /theme.js
 	header @static Cache-Control "public, max-age=86400"

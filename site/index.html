@@ -230,6 +230,7 @@ margin-bottom:26px}
 .creed q{color:var(--fg);font-style:normal}
 .creed .creed-out{color:var(--acid-text);font-size:21px;margin-bottom:0;font-weight:700}
 .fine{font-size:15px;color:var(--muted);margin:22px auto 0}
+.likes{display:flex;align-items:center;gap:10px;margin:18px 0 0;font-size:17px;color:var(--ink,inherit)}.likes[hidden]{display:none}.likes svg{flex:0 0 auto;color:var(--coral,currentColor)}.likes b{font-weight:800}
 .linux-dl{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
 .linux-link{display:inline-flex;align-items:center;gap:10px;font-size:19px;font-weight:700;color:var(--fg);text-decoration:none;padding:8px 14px;border:1px solid var(--line);background:var(--bg)}
 .linux-link:hover{border-color:#E95420}
@@ -554,6 +555,11 @@ border-radius:50%;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.
         <a class="btn btn-acid" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.17/Fuck.You.Flow.Setup.0.9.17.exe"><svg class="winmark" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path fill="currentColor" d="M1 1h10v10H1zM13 1h10v10H13zM1 13h10v10H1zM13 13h10v10H13z"/></svg><span class="btn-l"><span class="btn-t">Download for Windows</span><small class="btn-v">Version 0.9.17</small></span></a>
         <a class="btn btn-coral" href="https://github.com/Breakzoras/fuck-you-flow">Read the code</a>
       </div>
+      <!-- The thumbs up people press inside the app (0.9.19). The server gives the
+           number only from 25 up; until then, and whenever it cannot be reached,
+           the line stays hidden. -->
+      <p class="likes" id="likes" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg><span><b id="likes-n"></b> people gave FU Flow a thumbs up inside the app.</span></p>
+      <script>(function(){try{fetch("/api/vote/count",{cache:"no-store"}).then(function(r){return r.json()}).then(function(d){if(typeof d.count!=="number"||d.count<25)return;var n=document.getElementById("likes-n"),p=document.getElementById("likes");n.textContent=d.count.toLocaleString(document.documentElement.lang||"en");p.hidden=false}).catch(function(){})}catch(e){}})();</script>
       <div class="linux-dl">
         <a class="linux-link" href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12_amd64.deb"><!-- The official Ubuntu logo, as Canonical ships it in Ubuntu (base-files, /usr/share/pixmaps/ubuntu-logo.svg). Ubuntu is a trademark of Canonical Ltd. --><svg class="ubuntu-mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true" focusable="false"><rect fill="#e95420" width="32" height="32"/><g fill="#fff"><circle cx="7.18" cy="15.82" r="3.35"/><circle cx="21.1" cy="8.48" r="3.35"/><path d="M14.73,24.42a8.08,8.08,0,0,1-5.55-4.25,4.83,4.83,0,0,1-2.85.35,10.87,10.87,0,0,0,7.85,6.58,11,11,0,0,0,2.37.25,4.71,4.71,0,0,1-1-2.8A2.89,2.89,0,0,1,14.73,24.42Z"/><circle cx="20.35" cy="24.45" r="3.35"/><path d="M25,23.23a11,11,0,0,0,.55-12.83,4.85,4.85,0,0,1-1.88,2.2,8.22,8.22,0,0,1,.78,5.55,8.08,8.08,0,0,1-1.05,2.6A4.58,4.58,0,0,1,25,23.23Z"/><path d="M6.9,11h.25a4.65,4.65,0,0,1,1,.1,4.84,4.84,0,0,1,1.52.63,8.12,8.12,0,0,1,6.58-3.52,6.42,6.42,0,0,1,.1-.75,4.63,4.63,0,0,1,.92-1.95A11,11,0,0,0,6.9,11Z"/></g></svg><span class="linux-t">Download for Ubuntu Linux</span></a>
         <p class="linux-new"><span class="new-tag">New</span>Now on Ubuntu Linux: 22.04 or newer, as a .deb or an <a href="https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.12/Fuck.You.Flow.Setup.0.9.12_amd64.AppImage">AppImage</a>.</p>

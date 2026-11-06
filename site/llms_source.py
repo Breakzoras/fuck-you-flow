@@ -69,6 +69,8 @@ FU Flow offers local dictation on Windows and Ubuntu Linux at no charge, but doe
 
 The local speech adapter connects to a recognition process on the same PC. A separate optional remote adapter uploads recorded audio only when that provider is selected. The application checks for updates after startup and downloads an update when the user chooses it. Local speech does not require those requests to succeed.
 
+An optional in-app thumbs up (from 0.9.19) sends a random number and the app version; the server stores no IP address. An optional switch (off by default, Windows) lets the dictation key press the Claude or Codex desktop app's own microphone; that app then records and transcribes, under its maker's terms.
+
 History, dictionary and statistics live in the local application database. The clipboard and destination application receive inserted text. Local transcription therefore does not imply that a cloud destination stores nothing, or that local files are inaccessible to other users of the PC. Review diagnostic material before posting a bug report.
 
 ## Feedback
