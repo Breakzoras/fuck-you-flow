@@ -26,12 +26,21 @@ never pruned by age. POST /api/dictionary/forget with {"install_id": "..."}
 deletes that file. The id is a random number the app made up; no address and
 no account is stored next to it.
 
+POST /api/vote with {"vote_id": "<32 hex>", "app_version": "0.9.19"} (0.9.19):
+the thumbs up from the "Do you like FU Flow?" card in the app. One vote per
+vote id, a random number the app makes up when the button is pressed; nothing
+else is stored with it but the day. GET /api/vote/count gives the total, or
+null while it is under VOTE_SHOW_FROM: a page that says "4 people like this"
+does the opposite of what it is there for. The site and the app both read
+this one number, so they can never disagree.
+
 Standard library only. Environment:
     RESEND_API_KEY   key allowed to send mail (not needed with DRY_RUN=1)
     REPORT_TO        where reports go (info@luram.gr)
     REPORT_FROM      verified sender, e.g. "FU Flow reports <reports@example.com>"
     REPORT_DIR       where reports are kept (default /data/reports)
     DICT_DIR         where shared corrections are kept (default /data/dictionary)
+    VOTE_DIR         where thumbs up are kept (default /data/votes)
     DRY_RUN=1        keep each mail in REPORT_DIR/outbox, send nothing
     PORT             default 8787
 """
@@ -64,6 +73,11 @@ DICT_PER_HOUR = 30
 DICT_PER_DAY = 100
 NEW_INSTALLS_PER_HOUR = 3
 NEW_INSTALLS_PER_DAY = 6
+VOTE_SHOW_FROM = 25
+MAX_VOTES = 500000
+VOTE_PER_HOUR = 5
+VOTE_PER_DAY = 10
+NEW_VOTES_PER_DAY = 3
 INSTALL_RE = re.compile(r"^[0-9a-f]{32}$")
 LANG_RE = re.compile(r"^[a-z]{2,3}$")
 MATCH_MODES = ("whole_word", "phrase", "exact")
@@ -108,6 +122,66 @@ DICT_LIMITS = Limits(DICT_PER_HOUR, DICT_PER_DAY)
 # How many install ids one address may open in a day. Without it a handful of
 # addresses could fill the folder with made-up ids and lock everyone else out.
 NEW_INSTALL_LIMITS = Limits(NEW_INSTALLS_PER_HOUR, NEW_INSTALLS_PER_DAY)
+VOTE_LIMITS = Limits(VOTE_PER_HOUR, VOTE_PER_DAY)
+# How many different vote ids one address may add in a day: a home or an
+# office can hold a few PCs, a script inventing ids gets three.
+NEW_VOTE_LIMITS = Limits(NEW_VOTES_PER_DAY, NEW_VOTES_PER_DAY)
+
+
+class Votes:
+    """The thumbs up, one line per vote id in votes.jsonl. Read once, then
+    counted in memory; a line is appended only for an id not seen before."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.folder = None
+        self.ids = set()
+
+    def _load(self, folder):
+        if self.folder == folder:
+            return
+        self.folder, self.ids = folder, set()
+        path = folder / "votes.jsonl"
+        if path.exists():
+            for line in path.read_text(encoding="utf-8").splitlines():
+                try:
+                    vid = json.loads(line).get("id")
+                except (ValueError, AttributeError):
+                    continue
+                if isinstance(vid, str) and INSTALL_RE.fullmatch(vid):
+                    self.ids.add(vid)
+
+    def count(self, folder):
+        with self.lock:
+            self._load(folder)
+            return len(self.ids)
+
+    def known(self, folder, vid):
+        with self.lock:
+            self._load(folder)
+            return vid in self.ids
+
+    def add(self, folder, vid, version):
+        """True when counted now, False when it was already there, None when full."""
+        with self.lock:
+            self._load(folder)
+            if vid in self.ids:
+                return False
+            if len(self.ids) >= MAX_VOTES:
+                return None
+            folder.mkdir(parents=True, exist_ok=True)
+            line = {"id": vid, "v": version, "day": datetime.now(timezone.utc).date().isoformat()}
+            with (folder / "votes.jsonl").open("a", encoding="utf-8") as f:
+                f.write(json.dumps(line) + "\n")
+            self.ids.add(vid)
+            return True
+
+
+VOTES = Votes()
+
+
+def shown(count):
+    return count if count >= VOTE_SHOW_FROM else None
 
 
 def clean(text, limit):
@@ -175,6 +249,10 @@ def validate_dictionary(body):
         "rules": rules,
     }
     return entry, None
+
+
+def vote_folder():
+    return Path(os.environ.get("VOTE_DIR", "/data/votes"))
 
 
 def folder_bytes(folder):
@@ -271,7 +349,35 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/report/health":
             return self.reply(200, {"ok": True})
+        if self.path == "/api/vote/count":
+            return self.reply(200, {"ok": True, "count": shown(VOTES.count(vote_folder()))})
         self.reply(404, {"ok": False})
+
+    def vote(self):
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 1024:
+            return self.reply(413, {"ok": False, "error": "too large"})
+        addr = (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[0].strip()
+        now = time.time()
+        if not VOTE_LIMITS.allow(addr, now):
+            return self.reply(429, {"ok": False, "error": "too many requests, try again later"})
+        try:
+            body = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError, RecursionError):
+            return self.reply(400, {"ok": False, "error": "bad json"})
+        vid = body.get("vote_id") if isinstance(body, dict) else None
+        if not (isinstance(vid, str) and INSTALL_RE.fullmatch(vid)):
+            return self.reply(400, {"ok": False, "error": "bad vote id"})
+        folder = vote_folder()
+        if not VOTES.known(folder, vid) and not NEW_VOTE_LIMITS.allow(addr, now):
+            return self.reply(429, {"ok": False, "error": "too many requests, try again later"})
+        added = VOTES.add(folder, vid, clean(body.get("app_version"), 20))
+        if added is None:
+            return self.reply(507, {"ok": False, "error": "full"})
+        self.reply(200, {"ok": True, "counted": added, "count": shown(VOTES.count(folder))})
 
     def dictionary(self):
         try:
@@ -314,6 +420,8 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, {"ok": True, "kept": len(entry["rules"])})
 
     def do_POST(self):
+        if self.path == "/api/vote":
+            return self.vote()
         if self.path in ("/api/dictionary", "/api/dictionary/forget"):
             return self.dictionary()
         if self.path != "/api/report":

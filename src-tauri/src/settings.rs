@@ -194,6 +194,10 @@ pub struct AudioSettings {
 }
 
 /// Twenty minutes, Lu's choice on 4 November 2026.
+/// The current "What's new" window (0.9.19: dictating through the Claude and
+/// Codex microphones). Kept equal to `WHATS_NEW_ID` in src/whatsNewRule.ts.
+pub const WHATS_NEW_ID: &str = "app-mic";
+
 pub const DEFAULT_PART_SECONDS: u64 = 1200;
 /// The default before that. Every saved file carries the number, so a user who
 /// never touched it would have kept the old ten minutes for ever.
@@ -492,6 +496,21 @@ pub struct GeneralSettings {
     /// card stays away.
     #[serde(default)]
     pub rated_on_github: bool,
+    /// The user pressed the thumbs up on the "Do you like FU Flow?" card
+    /// (0.9.19). Set by `send_like` only, after the server counted it.
+    #[serde(default)]
+    pub liked_app: bool,
+    /// The random number the thumbs up is counted under. Made when the button
+    /// is first pressed and kept, so a retry after a dropped connection is
+    /// still one vote. Nothing else about the user goes with it.
+    #[serde(default)]
+    pub like_id: String,
+    /// Which "What's new" window the user has dealt with: `WHATS_NEW_ID` once
+    /// they pressed its button or ticked "Do not show again", the same id with
+    /// `~shown` after the app brought it to the front once by itself. Empty on
+    /// an install that updated from a version without it.
+    #[serde(default)]
+    pub whats_new_seen: String,
     /// The user said "No, thanks" to the line that offers the light model on a
     /// machine without a graphics card worth using. Set by its own command only.
     #[serde(default)]
@@ -528,6 +547,12 @@ impl Default for GeneralSettings {
             debug_mode: false,
             gpu_choice_by_user: false,
             rated_on_github: false,
+            liked_app: false,
+            like_id: String::new(),
+            // A new install has nothing to catch up on: it starts with the
+            // current window already seen. An older settings file lacks the
+            // field and reads it as empty, so an update does show it.
+            whats_new_seen: WHATS_NEW_ID.into(),
             light_model_declined: false,
             threads_spare_core: false,
             engine_ever_ready: false,
@@ -772,6 +797,15 @@ mod tests {
         assert!(!old.rated_on_github);
         let rated: GeneralSettings = serde_json::from_str(r#"{"theme":"dark","rated_on_github":true}"#).unwrap();
         assert!(rated.rated_on_github);
+    }
+
+    /// "What's new" shows after an update and never on a new install: a file
+    /// from before 0.9.19 reads the field as empty, a fresh start has it seen.
+    #[test]
+    fn whats_new_shows_after_an_update_only() {
+        let old: GeneralSettings = serde_json::from_str(r#"{"ui_language":"el","theme":"dark","first_run_done":true}"#).unwrap();
+        assert_eq!(old.whats_new_seen, "");
+        assert_eq!(Settings::default().general.whats_new_seen, WHATS_NEW_ID);
     }
 
     /// A file an editor saved as ANSI is not UTF-8. It used to count as

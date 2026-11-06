@@ -71,6 +71,10 @@ pub async fn save_settings(app: tauri::AppHandle, state: State<'_, Arc<AppState>
         settings.packs = current.packs.clone();
         // The GitHub card: once pressed, an older copy never brings it back.
         settings.general.rated_on_github |= current.general.rated_on_github;
+        // The thumbs up and the "What's new" window: their own commands own them.
+        settings.general.liked_app |= current.general.liked_app;
+        settings.general.like_id = current.general.like_id.clone();
+        settings.general.whats_new_seen = current.general.whats_new_seen.clone();
         // The same for the light-model line and the one-time thread move.
         settings.general.light_model_declined |= current.general.light_model_declined;
         settings.general.threads_spare_core |= current.general.threads_spare_core;
@@ -1085,6 +1089,83 @@ mod report_tests {
         assert!(!t.contains("maria") && !t.contains("Maria") && !t.contains("kostas"), "{t}");
         assert!(t.contains(r"C:\Users\<user>\AppData") && t.contains("/home/<user>/.config"), "{t}");
     }
+}
+
+// ----- the thumbs up -----
+
+/// Where the thumbs up goes. FYF_VOTE_URL points a build at a local receiver.
+fn vote_url() -> Option<String> {
+    if let Ok(url) = std::env::var("FYF_VOTE_URL") {
+        return Some(url);
+    }
+    // A test build never counts: the maker's own machines would inflate the
+    // number the site shows.
+    if option_env!("VITE_FYF_TEST_BUILD").is_some_and(|s| !s.is_empty()) {
+        return None;
+    }
+    Some("https://fuckyouflow.app/api/vote".into())
+}
+
+/// The answer to "Do you like FU Flow?". Nothing leaves the machine until the
+/// button is pressed, and then only a random number and the app version.
+/// Returns the count the site shows, or null while it is under 25.
+#[tauri::command]
+pub async fn send_like(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<serde_json::Value> {
+    let id = {
+        let mut current = state.shared.settings.write();
+        if current.general.like_id.len() != 32 {
+            let mut next = current.clone();
+            next.general.like_id = crate::sharing::new_install_id();
+            next.save(&crate::paths::settings_file()).map_err(e)?;
+            *current = next;
+        }
+        current.general.like_id.clone()
+    };
+    let Some(url) = vote_url() else {
+        tracing::info!("thumbs up: test build, not sent");
+        return Ok(serde_json::json!({ "count": null, "test": true }));
+    };
+    let client = reqwest::Client::builder()
+        .user_agent(concat!("FuckYouFlow/", env!("CARGO_PKG_VERSION")))
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let body = serde_json::json!({ "vote_id": id, "app_version": env!("CARGO_PKG_VERSION") });
+    let resp = client.post(url).json(&body).send().await.map_err(|e| {
+        tracing::warn!("thumbs up: could not reach the server: {e}");
+        "offline".to_string()
+    })?;
+    let status = resp.status();
+    let reply: serde_json::Value = resp.json().await.unwrap_or_default();
+    if !(status.is_success() && reply["ok"] == true) {
+        tracing::warn!("thumbs up: the server said {status}: {reply}");
+        return Err(if status.as_u16() == 429 { "too_many" } else { "refused" }.into());
+    }
+    {
+        let mut current = state.shared.settings.write();
+        let mut next = current.clone();
+        next.general.liked_app = true;
+        next.save(&crate::paths::settings_file()).map_err(e)?;
+        *current = next;
+    }
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    tracing::info!("thumbs up: counted ({})", if reply["counted"] == true { "new" } else { "already there" });
+    Ok(serde_json::json!({ "count": reply["count"] }))
+}
+
+/// The user closed the "What's new" window of this version.
+#[tauri::command]
+pub fn whats_new_seen(app: tauri::AppHandle, state: State<'_, Arc<AppState>>, version: String) -> R<Settings> {
+    let settings = {
+        let mut current = state.shared.settings.write();
+        let mut next = current.clone();
+        next.general.whats_new_seen = version.chars().take(20).collect();
+        next.save(&crate::paths::settings_file()).map_err(e)?;
+        *current = next.clone();
+        next
+    };
+    let _ = app.emit_to("main", "lalia://settings-changed", ());
+    Ok(settings)
 }
 
 // ----- sharing Dictionary corrections -----

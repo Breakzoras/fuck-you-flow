@@ -226,6 +226,8 @@ pub fn run() {
             commands::share_dictionary_preview,
             commands::share_dictionary_set,
             commands::mark_rated_on_github,
+            commands::send_like,
+            commands::whats_new_seen,
             commands::share_dictionary_forget,
             commands::pack_status,
             commands::pack_install,

@@ -118,6 +118,20 @@ a { color: var(--accent); }
 .rate-note { font-size: 14px; line-height: 1.35; color: var(--fg-2); }
 @media (prefers-reduced-motion: reduce) { .rate-thumb { transition: none; } }
 [data-skin="carbon"][data-theme="dark"] .nav button.rate-card { padding-left: 12px; border-left: 1px solid var(--accent); }
+/* The thank-you after the thumbs up: the same card, not a button, with the
+   GitHub star as a quiet second step. */
+.nav .rate-card.rate-done {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  margin: 12px 0 2px; padding: 10px 10px 10px 12px;
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--fg);
+}
+.nav .rate-done button.rate-star {
+  all: unset; cursor: pointer; font-size: 14px; line-height: 1.35; color: var(--fg-2);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.nav .rate-done button.rate-star:hover, .nav .rate-done button.rate-star:focus-visible { color: var(--fg); }
+.nav .rate-done button.rate-star:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-height: 799px) {
   .nav button.rate-card { margin-top: 8px; padding-top: 8px; padding-bottom: 8px; }
   .rate-note { display: none; }
@@ -346,6 +360,19 @@ th { font-size: 13px; color: var(--fg-2); font-weight: 700; text-transform: uppe
 .update-card .update-lead { margin: 0 0 12px; font-weight: 700; }
 .update-card .update-notes { margin: 0 0 16px; }
 .update-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+/* "What's new" (0.9.19): the update card's frame with a looping clip. */
+.update-card.wn-card { width: min(640px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; }
+.wn-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.wn-head h2 { margin: 0; font-size: 26px; line-height: 1.25; }
+.wn-media {
+  aspect-ratio: 16 / 9; margin: 0 0 16px; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius); background: #0b0e12;
+}
+.wn-media video, .wn-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.wn-body { margin: 0 0 8px; }
+.wn-note { margin: 0 0 14px; font-size: 16px; color: var(--fg-2); }
+.wn-never { display: inline-flex; align-items: center; gap: 10px; font-size: 16px; cursor: pointer; }
+.wn-never input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
 .update-actions button { font: inherit; font-size: 18px; padding: 12px 20px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
 .update-actions button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 700; }
 .update-actions button:hover { border-color: var(--accent); }
@@ -486,3 +513,12 @@ th { font-size: 13px; color: var(--fg-2); font-weight: 700; text-transform: uppe
   .nav button.report-open { padding-top: 8px; }
   .nav button.credit { margin-top: 8px; padding-top: 8px; }
 }
+
+/* The Claude and OpenAI marks (BrandMarks.tsx). The OpenAI Blossom comes in
+   white for a dark theme and black for a light one. */
+.brand-marks { display: inline-flex; align-items: center; flex: 0 0 auto; }
+.brand-marks img { display: block; }
+/* The official Blossom file has wide empty margins; scaled so the mark matches
+   the Claude Spark beside it. The file itself is unchanged. */
+.brand-marks img.oa { transform: scale(1.9); }
+[data-theme="dark"] .brand-marks .brand-on-light, [data-theme="light"] .brand-marks .brand-on-dark { display: none; }

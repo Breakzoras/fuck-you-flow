@@ -15,6 +15,8 @@ import SettingsPage from "./pages/SettingsPage";
 import Diagnostics from "./pages/Diagnostics";
 import GpuGauge from "./GpuGauge";
 import ReportDialog from "./ReportDialog";
+import WhatsNew from "./WhatsNew";
+import { WHATS_NEW_ID, mayBringFront, wantsWhatsNew } from "./whatsNewRule";
 import { withTimeout } from "./async";
 import { testBuildStamp } from "./testBuild";
 import logoOnDark from "./assets/luram-logo-on-dark.png";
@@ -22,6 +24,15 @@ import logoOnLight from "./assets/luram-logo-on-light.png";
 
 const LURAM_URL = "https://luram.gr/?utm_source=fuflow&utm_medium=app&utm_campaign=credits";
 const GITHUB_URL = "https://github.com/Breakzoras/fuck-you-flow";
+// Dictating through the Claude and Codex microphones exists on Windows only.
+const IS_WINDOWS = /windows/i.test(navigator.userAgent);
+// Thumbs up, after the Lucide icon (ISC licence).
+const THUMB_ICON = (
+  <svg className="rate-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M7 10v12" />
+    <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+  </svg>
+);
 // Set by the local build script alone; a public build has none (see testBuild.ts).
 const TEST_BUILD = testBuildStamp(import.meta.env.VITE_FYF_TEST_BUILD);
 
@@ -34,6 +45,10 @@ export default function App() {
   const [settings, setSettingsState] = useState<Settings | null>(null);
   const [page, setPage] = useState<Page>("home");
   const [reportOpen, setReportOpen] = useState(false);
+  const [liked, setLiked] = useState<null | "sending" | "thanked" | "test">(null);
+  const [wnClosed, setWnClosed] = useState(false);
+  const [settled, setSettled] = useState(false);
+  const wnBrought = useRef(false);
   const [engine, setEngine] = useState<EngineInfo | null>(null);
   const [snap, setSnap] = useState<PipelineSnapshot | null>(null);
   const [toastMsg, setToastMsg] = useState<{ msg: string; kind: "ok" | "err" } | null>(null);
@@ -217,6 +232,26 @@ export default function App() {
       });
   };
 
+  // "What's new" after an update (0.9.19). The update restarts the app hidden
+  // in the tray, so a window that waited there would go unseen. Twenty
+  // seconds after the start, once the update check (at 8 seconds) has had its
+  // turn, the window comes up the way the update card does: shown, taskbar
+  // button flashing, keyboard left where it was. That happens once; after
+  // that the card waits for the user to open the window.
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(true), 20000);
+    return () => clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (!settled || !settings || update || wnClosed || snap?.phase !== "idle") return;
+    const g = settings.general;
+    if (wnBrought.current || !mayBringFront({ windows: IS_WINDOWS, firstRunDone: g.first_run_done, seen: g.whats_new_seen ?? "" })) return;
+    // Every new snapshot runs this again before the save below comes back.
+    wnBrought.current = true;
+    void bringFront(false);
+    api.whatsNewSeen(`${WHATS_NEW_ID}~shown`).then(setSettingsState).catch(() => {});
+  }, [settled, settings, update, wnClosed, snap, bringFront]);
+
   if (!settings) {
     return (
       <div className="main">
@@ -274,26 +309,39 @@ export default function App() {
             <button key={id} className={page === id ? "active" : ""} onClick={() => setPage(id)}>{label}</button>
           ))}
           <div className="spacer" />
-          {/* Asks for a star on GitHub until the card is pressed once. GitHub
-              tells no program who starred, so the press is what counts. */}
-          {!settings.general.rated_on_github && (
+          {/* "Do you like FU Flow?" (0.9.19). One press sends an anonymous
+              thumbs up that the site counts; the GitHub star asked for an
+              account most users do not have. A thank-you with the star as a
+              second, optional step stays until the window is reopened. */}
+          {liked === "thanked" || liked === "test" ? (
+            <div className="rate-card rate-done" role="status">
+              <span className="rate-head">
+                {THUMB_ICON}
+                <b>{t(liked === "test" ? "rate_test" : "rate_thanks")}</b>
+              </span>
+              <button type="button" className="rate-star" onClick={() => { openUrl(GITHUB_URL).catch(() => {}); }}>
+                {t("rate_star")}
+              </button>
+            </div>
+          ) : !settings.general.liked_app && (
             <button
               type="button"
               className="rate-card"
-              title={`${t("rate_body")} ${t("rate_note")}`}
+              title={t("rate_body")}
+              disabled={liked === "sending"}
               onClick={() => {
-                openUrl(GITHUB_URL)
-                  .then(() => api.markRatedOnGithub())
-                  .then(setSettingsState)
-                  .catch(() => {});
+                setLiked("sending");
+                api.sendLike()
+                  .then((r) => setLiked(r.test ? "test" : "thanked"))
+                  .catch((err) => {
+                    setLiked(null);
+                    const why = String(err);
+                    toast(t(why === "offline" ? "rate_offline" : "rate_failed"), "err");
+                  });
               }}
             >
               <span className="rate-head">
-                {/* Thumbs up, after the Lucide icon (ISC licence). */}
-                <svg className="rate-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M7 10v12" />
-                  <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
-                </svg>
+                {THUMB_ICON}
                 <b>{t("rate_title")}</b>
               </span>
               <span className="rate-note">{t("rate_note")}</span>
@@ -382,6 +430,10 @@ export default function App() {
                 </div>
               </div>
             </div>
+          )}
+          {wantsWhatsNew({ windows: IS_WINDOWS, firstRunDone: settings.general.first_run_done, seen: settings.general.whats_new_seen ?? "" })
+            && !wnClosed && !(update && prompt) && !reportOpen && (
+            <WhatsNew onClose={() => setWnClosed(true)} />
           )}
           <div className="page">
             {page === "home" && <Home engine={engine} snap={snap} goSettings={() => setPage("settings")} goMilestones={() => setPage("milestones")} />}

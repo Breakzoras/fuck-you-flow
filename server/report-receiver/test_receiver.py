@@ -166,3 +166,58 @@ class DictionaryTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VoteTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        os.environ["VOTE_DIR"] = self.dir.name
+        receiver.VOTES = receiver.Votes()
+        receiver.VOTE_LIMITS = receiver.Limits(receiver.VOTE_PER_HOUR, receiver.VOTE_PER_DAY)
+        receiver.NEW_VOTE_LIMITS = receiver.Limits(receiver.NEW_VOTES_PER_DAY, receiver.NEW_VOTES_PER_DAY)
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), receiver.Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.base = f"http://127.0.0.1:{self.server.server_address[1]}/api/vote"
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.dir.cleanup()
+
+    def vote(self, vid, addr="203.0.113.7"):
+        req = urllib.request.Request(self.base, data=json.dumps({"vote_id": vid, "app_version": "0.9.19"}).encode(),
+                                     method="POST", headers={"Content-Type": "application/json", "X-Forwarded-For": addr})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def count(self):
+        with urllib.request.urlopen(self.base + "/count") as r:
+            return json.loads(r.read())["count"]
+
+    def test_one_vote_per_id_and_the_number_hides_under_25(self):
+        code, body = self.vote("a" * 32)
+        self.assertEqual((code, body["counted"], body["count"]), (200, True, None))
+        code, body = self.vote("a" * 32)
+        self.assertEqual((code, body["counted"]), (200, False))
+        self.assertIsNone(self.count())
+        for i in range(24):
+            self.vote(f"{i:032x}", addr=f"198.51.100.{i}")
+        self.assertEqual(self.count(), 25)
+        saved = (Path(self.dir.name) / "votes.jsonl").read_text(encoding="utf-8")
+        self.assertEqual(len(saved.splitlines()), 25)
+        self.assertNotIn("198.51.100", saved)
+        receiver.VOTES = receiver.Votes()  # a restart reads the file back
+        self.assertEqual(self.count(), 25)
+
+    def test_bad_ids_are_refused(self):
+        for vid in ("", "xyz", "A" * 32, "a" * 33, 5):
+            self.assertEqual(self.vote(vid)[0], 400)
+        self.assertIsNone(self.count())
+
+    def test_one_address_adds_only_three_new_votes_a_day(self):
+        codes = [self.vote(f"{i:032x}")[0] for i in range(4)]
+        self.assertEqual(codes, [200, 200, 200, 429])
+        self.assertEqual(self.vote(f"{0:032x}")[0], 200)  # a known id is not a new one

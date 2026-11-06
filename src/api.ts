@@ -25,7 +25,7 @@ export function languageName(code: string): string {
 }
 
 export interface Settings {
-  general: { ui_language: string; theme: string; skin?: string; autostart: boolean; first_run_done: boolean; language_confirmed?: boolean; play_sounds: boolean; machine_profiled?: boolean; debug_mode?: boolean; rated_on_github?: boolean };
+  general: { ui_language: string; theme: string; skin?: string; autostart: boolean; first_run_done: boolean; language_confirmed?: boolean; play_sounds: boolean; machine_profiled?: boolean; debug_mode?: boolean; rated_on_github?: boolean; liked_app?: boolean; whats_new_seen?: string };
   hotkeys: { push_to_talk: string; hands_free: string; paste_last: string; tap_toggles_hands_free: boolean; tap_ms: number };
   audio: { device_name: string | null; keep_stream_warm: boolean; preroll_ms: number; min_speech_ms: number; max_recording_seconds: number };
   language: { mode: LanguageMode; primary: string };
@@ -239,6 +239,8 @@ export const api = {
   shareDictionaryPreview: () => invoke<SharedRule[]>("share_dictionary_preview"),
   shareDictionarySet: (on: boolean) => invoke<Settings>("share_dictionary_set", { on }),
   markRatedOnGithub: () => invoke<Settings>("mark_rated_on_github"),
+  sendLike: () => invoke<{ count: number | null; test?: boolean }>("send_like"),
+  whatsNewSeen: (version: string) => invoke<Settings>("whats_new_seen", { version }),
   shareDictionaryForget: () => invoke<Settings>("share_dictionary_forget"),
   packStatus: () => invoke<PackStatus>("pack_status"),
   packInstall: () => invoke<PackApplied>("pack_install"),
