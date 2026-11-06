@@ -1,11 +1,11 @@
 {
-  "version": "0.9.17",
-  "notes": "A small fix to the Updates section in Settings.",
-  "pub_date": "2026-10-29T19:34:51Z",
+  "version": "0.9.19",
+  "notes": "On Windows the dictation key can press the microphone of the Claude and Codex apps, and hands-free dictation keeps going past 20 minutes.",
+  "pub_date": "2026-11-06T09:12:43Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUXBEZW9Od05JKzV1Tm1IZHVTMy81anEyUWxyRmpuZ1daRUh1eW4wR1Z3NVVZRmdVZGlkcnBtNEN6YVdONnZsRjlZb2ZIRHJHYzhZbGRzUE5nNkc4eFF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMzAyMTg2CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTdfeDY0LXNldHVwLmV4ZQplMVVqamRveGxKRTh6ZnRjalZiU0svc2xlZGZ6bUNYanFnQS9vVFF1Q3YwR0VUcHhFVmpPY0JDY0ovS2llVjllZitGeitWRFRrS0tBUnp4SjlMbitEUT09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.17/Fuck.You.Flow.Update.0.9.17.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWdMZ0oxZzZVaGRNYjQ2STdueVFWOHRDc29aTjZCWlp0NHFFNE9NMWZXdkNGMUFJdXRyekFndEJqQXorN2w5QjhPZm9uUjgyanhQeG13eE1uWExPYmdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzOTU2MDU2CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMTlfeDY0LXNldHVwLmV4ZQpGQzk0amRvUmdFN2k3QmpVc1R0TGQ0WnJNd1g2ZzMvcHR2WWlPNXhLaktRZlAyU1B2ajZBbTNnRFluTFBZb1FBTW12bHNLNTNGVW1CbTFLVzhpVDREUT09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.19/Fuck.You.Flow.Update.0.9.19.exe"
     }
   }
 }
