@@ -700,7 +700,8 @@ def write_llms():
     # the old files carried a dead download link, so the check is worth keeping
     for path in (OUT_LLMS, OUT_LLMS_FULL):
         body = io.open(path, encoding="utf-8").read()
-        stale = re.findall(r"v?0\.9\.2|Setup\.0\.9\.2", body)
+        # (?!\d): 0.9.20 and later contain "0.9.2" and are not stale.
+        stale = re.findall(r"(?:Setup\.|v)?0\.9\.2(?!\d)", body)
         if stale:
             print("STALE VERSION in %s: %s" % (os.path.basename(path), set(stale)))
             sys.exit(1)
