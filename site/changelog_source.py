@@ -31,7 +31,7 @@ RELEASES = [
         "date": "2026-11-06",
         "summary": (
             "Dictation works on every Windows PC, also with older graphics or an older processor.",
-            "Η υπαγόρευση δουλεύει σε κάθε υπολογιστή με Windows, και με παλιότερη κάρτα γραφικών ή παλιότερο επεξεργαστή.",
+            "Η υπαγόρευση δουλεύει σε κάθε υπολογιστή με Windows ακόμα και με παλιότερη κάρτα γραφικών ή παλιότερο επεξεργαστή.",
         ),
         "lines": [
             ("fixed",
