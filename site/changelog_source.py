@@ -27,18 +27,32 @@ KINDS = {
 
 RELEASES = [
     {
-        "version": "0.9.18",
-        "date": "2026-11-05",
+        "version": "0.9.19",
+        "date": "2026-11-06",
         "summary": (
-            "Hands-free dictation keeps going past 20 minutes, and sound files to text show their progress.",
-            "Η υπαγόρευση χωρίς χέρια συνεχίζει και μετά τα 20 λεπτά και τα αρχεία ήχου σε κείμενο δείχνουν την πρόοδό τους.",
+            "On Windows the dictation key can press the microphone of the Claude and Codex apps, and hands-free dictation keeps going past 20 minutes.",
+            "Στα Windows το πλήκτρο υπαγόρευσης μπορεί να πατά το μικρόφωνο του Claude και του Codex και η υπαγόρευση χωρίς χέρια συνεχίζει και μετά τα 20 λεπτά.",
         ),
         "lines": [
+            ("added",
+             "Dictate through Claude and Codex (Windows). With the switch on in Settings, the dictation key "
+             "presses the microphone of the Claude or Codex desktop app when that window is in front. "
+             "That app listens and writes into its own box, and the FU Flow bar shows that you are speaking. "
+             "It starts switched off. A short What's new window shows it once after the update.",
+             "Υπαγόρευση μέσα από το Claude και το Codex (Windows). Με τον διακόπτη ανοιχτό στις Ρυθμίσεις, "
+             "το πλήκτρο υπαγόρευσης πατά το μικρόφωνο της εφαρμογής Claude ή Codex όταν το παράθυρό "
+             "της είναι μπροστά. Η ίδια η εφαρμογή ακούει και γράφει στο κουτάκι της και η μπάρα του FU Flow "
+             "δείχνει ότι μιλάς. Ξεκινάει κλειστό. Ένα μικρό παράθυρο «Τι νέο υπάρχει» το δείχνει μία φορά μετά την ενημέρωση."),
             ("added",
              "Hands-free dictation keeps going past 20 minutes. Every 20 minutes the text said so far "
              "is written while the microphone keeps recording, so every word is kept, in order.",
              "Η υπαγόρευση χωρίς χέρια συνεχίζει και μετά τα 20 λεπτά. Κάθε 20 λεπτά γράφεται το "
              "κείμενο ως εκεί και το μικρόφωνο συνεχίζει να ηχογραφεί, έτσι κάθε λέξη μένει στη θέση της."),
+            ("added",
+             "\"Do you like FU Flow?\" in the side menu. One click sends an anonymous thumbs up, with no account. "
+             "The site shows how many people gave one, from 25 on.",
+             "«Σου αρέσει το FU Flow;» στο πλαϊνό μενού. Ένα κλικ στέλνει ένα ανώνυμο μπράβο, χωρίς λογαριασμό. "
+             "Η σελίδα δείχνει πόσοι το έδωσαν, από τα 25 και πάνω."),
             ("improved",
              "The recording badge shows minutes and seconds from 2 minutes on, gives a warning in the "
              "last minute of each part and counts the pieces that are still being written.",
@@ -54,6 +68,9 @@ RELEASES = [
              "Retry brings back every part of a long dictation, in the order it was spoken.",
              "Το Escape σταματά αμέσως την υπαγόρευση, ακόμα και την ώρα που γράφεται ή ξαναδοκιμάζεται. "
              "Η επανάληψη φέρνει πίσω όλα τα μέρη μιας μεγάλης υπαγόρευσης, με τη σειρά που ειπώθηκαν."),
+            ("fixed",
+             "Greek: γιατί meaning \"because\" keeps its full stop in more sentences, where it used to turn into a question mark.",
+             "Ελληνικά: το «γιατί» με τη σημασία «επειδή» κρατά την τελεία του σε περισσότερες προτάσεις, εκεί που γινόταν ερωτηματικό."),
         ],
     },
     {
