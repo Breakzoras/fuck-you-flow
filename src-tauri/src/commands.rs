@@ -1063,7 +1063,7 @@ pub async fn send_report(state: State<'_, Arc<AppState>>, kind: String, message:
         .build()
         .map_err(|e| e.to_string())?;
     let resp = client.post(report_url()).json(&body).send().await.map_err(|e| {
-        tracing::warn!("report: could not reach the server: {e}");
+        tracing::warn!("report: could not reach the server: {}", error_chain(&e));
         "offline".to_string()
     })?;
     let status = resp.status();
@@ -1089,9 +1089,49 @@ mod report_tests {
         assert!(!t.contains("maria") && !t.contains("Maria") && !t.contains("kostas"), "{t}");
         assert!(t.contains(r"C:\Users\<user>\AppData") && t.contains("/home/<user>/.config"), "{t}");
     }
+
+    #[derive(Debug)]
+    struct Layer(&'static str, Option<Box<Layer>>);
+    impl std::fmt::Display for Layer {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.0)
+        }
+    }
+    impl std::error::Error for Layer {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            self.1.as_deref().map(|l| l as _)
+        }
+    }
+
+    #[test]
+    fn a_failed_request_names_its_cause() {
+        let e = Layer(
+            "error sending request for url (https://example.test/api/vote)",
+            Some(Box::new(Layer("client error (Connect)", Some(Box::new(Layer("dns error: no such host is known", None)))))),
+        );
+        let t = super::error_chain(&e);
+        assert!(t.starts_with("error sending request") && t.ends_with("dns error: no such host is known"), "{t}");
+    }
 }
 
 // ----- the thumbs up -----
+
+/// The whole cause of a failed request. reqwest's own text stops at "error
+/// sending request for url (...)"; the reason (no address found, timed out,
+/// certificate, connection refused) sits in the errors underneath it.
+fn error_chain(e: &dyn std::error::Error) -> String {
+    let mut out = e.to_string();
+    let mut cur = e.source();
+    while let Some(s) = cur {
+        let t = s.to_string();
+        if !out.contains(&t) {
+            out.push_str(": ");
+            out.push_str(&t);
+        }
+        cur = s.source();
+    }
+    redact(&out)
+}
 
 /// Where the thumbs up goes. FYF_VOTE_URL points a build at a local receiver.
 fn vote_url() -> Option<String> {
@@ -1131,10 +1171,24 @@ pub async fn send_like(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -
         .build()
         .map_err(|e| e.to_string())?;
     let body = serde_json::json!({ "vote_id": id, "app_version": env!("CARGO_PKG_VERSION") });
-    let resp = client.post(url).json(&body).send().await.map_err(|e| {
-        tracing::warn!("thumbs up: could not reach the server: {e}");
-        "offline".to_string()
-    })?;
+    // One quiet second try: the server keeps one vote per id, so a repeat can
+    // never count twice. The first thumbs up ever (6 November 2026) was lost to
+    // a single failed connection while the same PC reached the server minutes later.
+    let mut tries = 0;
+    let resp = loop {
+        tries += 1;
+        match client.post(&url).json(&body).send().await {
+            Ok(r) => break r,
+            Err(e) if tries < 2 => {
+                tracing::info!("thumbs up: first try failed ({}), trying once more", error_chain(&e));
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
+            Err(e) => {
+                tracing::warn!("thumbs up: could not reach the server: {}", error_chain(&e));
+                return Err("offline".to_string());
+            }
+        }
+    };
     let status = resp.status();
     let reply: serde_json::Value = resp.json().await.unwrap_or_default();
     if !(status.is_success() && reply["ok"] == true) {
