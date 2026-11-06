@@ -27,6 +27,30 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.20",
+        "date": "2026-11-06",
+        "summary": (
+            "Dictation works on every Windows PC, also with older graphics or an older processor.",
+            "Η υπαγόρευση δουλεύει σε κάθε υπολογιστή με Windows, και με παλιότερη κάρτα γραφικών ή παλιότερο επεξεργαστή.",
+        ),
+        "lines": [
+            ("fixed",
+             "Dictation works on PCs whose graphics have no Vulkan driver, such as older Intel graphics. "
+             "There the speech engine writes with the processor.",
+             "Η υπαγόρευση δουλεύει σε υπολογιστές που η κάρτα γραφικών τους δεν έχει οδηγό Vulkan, "
+             "όπως οι παλιότερες Intel. Εκεί η μηχανή ομιλίας γράφει με τον επεξεργαστή."),
+            ("improved",
+             "The speech engine picks the fastest code the processor supports and also runs on older processors. "
+             "The first dictation after the update can take a few seconds longer while the graphics card gets ready.",
+             "Η μηχανή ομιλίας διαλέγει τον πιο γρήγορο κώδικα που υποστηρίζει ο επεξεργαστής σου και τρέχει "
+             "και σε παλιότερους. Η πρώτη υπαγόρευση μετά την ενημέρωση μπορεί να αργήσει λίγα δευτερόλεπτα, "
+             "όσο ετοιμάζεται η κάρτα γραφικών."),
+            ("fixed",
+             "The thumbs up tries once more when the connection drops for a moment.",
+             "Το μπράβο ξαναδοκιμάζει μία φορά όταν η σύνδεση κοπεί για λίγο."),
+        ],
+    },
+    {
         "version": "0.9.19",
         "date": "2026-11-06",
         "summary": (
