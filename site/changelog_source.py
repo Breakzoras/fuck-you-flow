@@ -27,6 +27,22 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.21",
+        "date": "2026-11-08",
+        "summary": (
+            "On PCs with two graphics chips, dictation runs on the stronger card.",
+            "Σε υπολογιστές με δύο κάρτες γραφικών η υπαγόρευση τρέχει στη δυνατότερη.",
+        ),
+        "lines": [
+            ("fixed",
+             "On a laptop or PC with built-in Intel graphics and a separate graphics card, the speech engine "
+             "now uses the separate card. Before, it could pick the built-in graphics and write several times slower.",
+             "Σε λάπτοπ ή υπολογιστή με ενσωματωμένα γραφικά Intel και ξεχωριστή κάρτα γραφικών η μηχανή ομιλίας "
+             "χρησιμοποιεί πλέον την ξεχωριστή κάρτα. Πριν μπορούσε να διαλέξει τα ενσωματωμένα γραφικά και να γράφει "
+             "αρκετές φορές πιο αργά."),
+        ],
+    },
+    {
         "version": "0.9.20",
         "date": "2026-11-06",
         "summary": (
