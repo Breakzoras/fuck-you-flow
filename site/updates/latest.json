@@ -1,11 +1,11 @@
 {
-  "version": "0.9.20",
-  "notes": "Dictation works on every Windows PC, also with older graphics or an older processor.",
-  "pub_date": "2026-11-06T18:35:16Z",
+  "version": "0.9.21",
+  "notes": "On PCs with two graphics chips, dictation runs on the stronger card.",
+  "pub_date": "2026-11-08T15:23:21Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWlSTjQwekdpaGNGVnR3a2Z0ekNsV0pmeUpDRlU4c1dBWXJORUJ0bmNsSkpMRzVuQ2ZJRmxJMGxBNjZkM1FNY2s1K3dWM0tpandTQ1VkbC9Kbk1CcEFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzOTg5NzU1CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMjBfeDY0LXNldHVwLmV4ZQpDZFptajFHR2dyd2RJZ0Q0Mzc5UGg3cGFpT21ZajhXZnVhc0JzTFNWWWt5cUNoUkpSbHVyR2xPbm0vME1PMVN2S0FqTTdMcXpxOXR0WldIcWoxRmVCQT09Cg==",
-      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.20/Fuck.You.Flow.Update.0.9.20.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTamg2V3NaMVdzUWlpdTNRd1NSU2t5bVJQUmNibGJ5dW1qSG1JNmN6RmoyenpoMldteUxuS3JtejB0ZW8zMDRqS2RJc09yeWU2czNkVGUvRzJ6Q2tjS3JwTzlsWTcrUUE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MTUwODY2CWZpbGU6RnVjayBZb3UgRmxvd18wLjkuMjFfeDY0LXNldHVwLmV4ZQp2bld2b08zcjNhRnVvaGlJR1JKWEpaTjRnc1ZPdWJFWFpNSWQ5Y0w1dTB6YzRUVzBtNDdtRGdsQUdOaVJ0TmEyckEwL1IydUgvZGt4cTlNZzBlNkRBdz09Cg==",
+      "url": "https://github.com/Breakzoras/fuck-you-flow/releases/download/v0.9.21/Fuck.You.Flow.Update.0.9.21.exe"
     }
   }
 }
