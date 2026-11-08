@@ -14,12 +14,19 @@
 # output folder; the 0.9.15-0.9.19 engine (vendor\whisper-vulkan-1.9.5) stays
 # as it is, as the way back.
 #
+# Since 0.9.21 the source carries one patch of ours, branch fyf/prefer-dedicated-gpu
+# (dbc4ac36) in vendor\whisper.cpp-src-1.9.5: whisper_backend_init_gpu takes a
+# dedicated graphics card before integrated graphics. A user with an RTX 5070 Ti
+# and Intel graphics saw dictation run on the Intel part (Reddit, November 2026),
+# because upstream takes the first GPU in Vulkan's order. The output folder is new,
+# so whisper-dl-1.9.5 (0.9.20) stays as the way back.
+#
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\build-engine-dl.ps1
 $ErrorActionPreference = 'Stop'
 (Get-Process -Id $PID).PriorityClass = 'Idle'
 $src = 'C:\Claude Projects\lalia\vendor\whisper.cpp-src-1.9.5'
 $bld = Join-Path $src 'build-dl'
-$out = 'C:\Claude Projects\lalia\vendor\whisper-dl-1.9.5'
+$out = 'C:\Claude Projects\lalia\vendor\whisper-dl-1.9.5-dgpu'
 $vs = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
 $cmake = "$vs\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
 $env:VULKAN_SDK = 'C:\VulkanSDK\current'
