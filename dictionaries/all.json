@@ -1,11 +1,15 @@
 {
  "format": 1,
  "language": "all",
- "version": 1,
+ "version": 2,
  "rules": [
   {
    "wrong": "adgentic",
    "correct": "agentic"
+  },
+  {
+   "wrong": "Adventick",
+   "correct": "Agentic"
   },
   {
    "wrong": "Chajgpt",
@@ -24,7 +28,19 @@
    "correct": "Claude Code"
   },
   {
+   "wrong": "Claudeskill",
+   "correct": "Claude skill"
+  },
+  {
    "wrong": "Claudo",
+   "correct": "Claude"
+  },
+  {
+   "wrong": "Claudt",
+   "correct": "Claude"
+  },
+  {
+   "wrong": "Claudu",
    "correct": "Claude"
   },
   {
@@ -34,6 +50,10 @@
   {
    "wrong": "Connectros",
    "correct": "connectors"
+  },
+  {
+   "wrong": "dasboard",
+   "correct": "dashboard"
   },
   {
    "wrong": "dip-seq",
@@ -48,6 +68,10 @@
    "correct": "FU Flow"
   },
   {
+   "wrong": "M-Dashes",
+   "correct": "em-dashes"
+  },
+  {
    "wrong": "Tamagochi",
    "correct": "Tamagotchi"
   },
@@ -58,6 +82,10 @@
   {
    "wrong": "unred",
    "correct": "unread"
+  },
+  {
+   "wrong": "Watth",
+   "correct": "Watt"
   }
  ]
 }
