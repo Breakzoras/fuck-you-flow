@@ -357,6 +357,12 @@ fn apply_intonation(text: &str, pitch: Option<(f32, f32)>, enabled: bool) -> Str
         tracing::info!("intonation: no mark, the sentence reports a question (peak {peak:+.1} st, end {end:+.1} st)");
         return t.to_string();
     }
+    // "Πού παρκάρει το φορτηγό, δεν το ξέρω." reports a question, and "Ξέρεις τι,"
+    // in front of a statement asks nothing (G21 in docs/QUESTION-RULES.md).
+    if crate::cleanup::questions::statement_by_its_commas(t) {
+        tracing::info!("intonation: no mark, a statement by its commas (peak {peak:+.1} st, end {end:+.1} st)");
+        return t.to_string();
+    }
     // A sentence that corrects itself ("Δεν είναι η Τρίτη, είναι η Τετάρτη.")
     // rises on the corrected word for emphasis (G20 in docs/QUESTION-RULES.md).
     if crate::cleanup::questions::corrective_contrast(t) {
@@ -2218,6 +2224,17 @@ mod tests {
         assert_eq!(apply_intonation("Δεν ξέρω, θες να πάμε για καφέ.", q, true), "Δεν ξέρω, θες να πάμε για καφέ;");
         assert_eq!(apply_intonation("Δεν ξέρω.", q, true), "Δεν ξέρω;");
         assert_eq!(apply_intonation("Δεν ξέρεις πού είναι το κλειδί.", q, true), "Δεν ξέρεις πού είναι το κλειδί;");
+    }
+
+    /// 15 November 2026: G21 holds for the voice too.
+    #[test]
+    fn intonation_leaves_a_statement_by_its_commas_with_a_full_stop() {
+        let q = Some((13.0, 6.0));
+        assert_eq!(apply_intonation("Πού παρκάρει το φορτηγό, δεν το ξέρω.", q, true), "Πού παρκάρει το φορτηγό, δεν το ξέρω.");
+        assert_eq!(apply_intonation("Ξέρεις τι, μια μικρή αλλαγή στον τίτλο.", q, true), "Ξέρεις τι, μια μικρή αλλαγή στον τίτλο.");
+        // a question after "Ξέρεις τι," or one that speaks to the listener still gets the mark
+        assert_eq!(apply_intonation("Ξέρεις τι, πού το άφησες τελικά.", q, true), "Ξέρεις τι, πού το άφησες τελικά;");
+        assert_eq!(apply_intonation("Ποιο διαλέγεις τελικά, δεν το ξέρω.", q, true), "Ποιο διαλέγεις τελικά, δεν το ξέρω;");
     }
 
     /// 29 October 2026: G19 holds for the voice too.

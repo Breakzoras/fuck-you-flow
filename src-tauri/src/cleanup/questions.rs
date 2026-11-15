@@ -64,6 +64,31 @@ const OBJECT_PRONOUNS_EL: &[&str] = &[
 ];
 /// A first-person opinion anywhere in a γιατί sentence makes it "because".
 const OWN_OPINION_EL: &[&str] = &["νομίζω", "πιστεύω", "θεωρώ", "νιώθω", "φοβάμαι", "υποθέτω"];
+/// 15 November 2026: a hedge further into a γιατί sentence makes it "because"
+/// too ("Γιατί πρέπει μάλλον να ..."): a why question asks for a reason and
+/// does not guess at it. "απλά" is left out: it also sits in real questions
+/// ("Γιατί δεν το κάνεις απλά;").
+const HEDGES_EL: &[&str] = &["μάλλον", "πιθανότατα", "πιθανώς", "προφανώς", "πρακτικά", "ουσιαστικά"];
+/// Hedges that grade an adjective right after a copula ("Γιατί είναι
+/// πρακτικά αδύνατο;"), where they say nothing about the speaker.
+const DEGREE_HEDGES_EL: &[&str] = &["πρακτικά", "ουσιαστικά"];
+const COPULAS_EL: &[&str] = &["είναι", "ήταν", "είσαι", "ήσουν", "γίνεται", "φαίνεται"];
+/// Particles that may stand in front of a verb ("Τι να σου πω", "Πότε θα έρθει").
+const VERB_PARTICLES_EL: &[&str] = &["να", "θα", "δεν", "δε", "μην", "μη"];
+/// Endings of a second-person verb: "απαντάς", "έκανες", "ξέρεις", "έρχεσαι", "κάνετε".
+const SECOND_PERSON_ENDINGS_EL: &[&str] = &["εις", "είς", "ας", "άς", "ες", "ές", "ετε", "είτε", "άτε", "ατε", "σαι", "στε"];
+/// The end of a sentence saying the speaker does not know ("Πού πάει, δεν το
+/// ξέρω."). The question in front of it is one the speaker reports.
+const UNKNOWING_EL: &[&[&str]] = &[
+    &["δεν", "ξέρω"], &["δε", "ξέρω"], &["δεν", "το", "ξέρω"], &["δε", "το", "ξέρω"], &["δεν", "τα", "ξέρω"], &["δεν", "ξέρουμε"],
+    &["δεν", "το", "ξέρουμε"], &["δεν", "θυμάμαι"], &["δε", "θυμάμαι"], &["δεν", "το", "θυμάμαι"], &["δεν", "έχω", "ιδέα"],
+    &["δε", "έχω", "ιδέα"], &["ιδέα", "δεν", "έχω"], &["εξαρτάται"], &["δεν", "με", "νοιάζει"],
+];
+/// Words that may close such an end: a vocative or a softener ("δεν ξέρω ρε φίλε").
+const TRAILERS_EL: &[&str] = &["ρε", "βρε", "φίλε", "μπρο", "μαλάκα", "εγώ", "ακόμα", "καθόλου", "αλήθεια", "ειλικρινά", "πραγματικά"];
+/// "Ξέρεις τι," with a comma after it opens what follows, as "you know what,"
+/// does, and asks nothing.
+const KNOW_WHAT_EL: &[&[&str]] = &[&["ξέρεις", "τι"], &["ξέρετε", "τι"]];
 /// Words in -ω that are not verbs, so they never make a first-person present.
 const NOT_VERBS_IN_OMEGA_EL: &[&str] = &["πάνω", "κάτω", "έξω", "μέσω", "πίσω", "ίσω", "εγώ", "εδώ"];
 /// Answer words that, in front of γιατί, make it "because": "Όχι, γιατί θέλω
@@ -256,6 +281,134 @@ fn is_question_so_far(sentence: &str) -> bool {
     greek_question(&words(sentence), false) || (tail.first().map(|w| w != "γιατί").unwrap_or(false) && greek_question(&tail, false))
 }
 
+/// `greek_question` on a whole sentence, with two shapes only its commas
+/// show (15 November 2026): a "Ξέρεις τι," in front is left out and the rest
+/// decides, and a question reported by a "δεν ξέρω" at the end is a statement.
+fn greek_sentence_question(sentence: &str, ends_with_bang: bool) -> bool {
+    if let Some(rest) = after_know_what(sentence) {
+        return greek_sentence_question(rest, ends_with_bang);
+    }
+    greek_question(&words(sentence), ends_with_bang) && !reported_by_its_end(sentence)
+}
+
+/// The rest of `sentence` after a "Ξέρεις τι," that opens it ("Ξέρεις τι, μια
+/// μικρή διόρθωση."). None without the comma: "Ξέρεις τι θέλω;" asks.
+fn after_know_what(sentence: &str) -> Option<&str> {
+    // the first or second comma: an opener may have its own ("Λοιπόν, ξέρεις τι, ...")
+    let (comma, _) = sentence.match_indices(',').take(2).find(|(at, _)| {
+        let head = words(&sentence[..*at]);
+        let w = skip_openers(&head);
+        KNOW_WHAT_EL.iter().any(|p| w.len() == p.len() && starts_with_phrase(w, p))
+    })?;
+    let rest = &sentence[comma + 1..];
+    (!words(rest).is_empty()).then_some(rest)
+}
+
+/// 15 November 2026: true when `sentence` opens with a question word and its
+/// last part after a comma says the speaker does not know ("Πού παρκάρει το
+/// φορτηγό, δεν το ξέρω."): the question is reported, and the sentence ends with
+/// a full stop. It still asks when a second-person verb follows the question
+/// word ("Ποιο διαλέγεις, δεν ξέρω;") or a part in between asks on its own
+/// ("Τι έγινε, μήπως χάθηκε, δεν ξέρω;", "Πώς μπαίνει, μπορείς να το
+/// στήσεις, δεν το ξέρω;").
+fn reported_by_its_end(sentence: &str) -> bool {
+    let body = sentence.trim().trim_end_matches(|c: char| matches!(c, '.' | '!' | '?' | ';' | '…'));
+    let parts: Vec<&str> = body.split(',').collect();
+    if parts.len() < 2 {
+        return false;
+    }
+    let mut end = words(parts[parts.len() - 1]);
+    while end.len() > 1 && end.last().is_some_and(|t| TRAILERS_EL.contains(&t.as_str())) {
+        end.pop();
+    }
+    let end = skip_openers(&end);
+    if !UNKNOWING_EL.iter().any(|f| end.len() == f.len() && starts_with_phrase(end, f)) {
+        return false;
+    }
+    let first = words(parts[0]);
+    let w = skip_openers(&first);
+    let after_wh = match w.first() {
+        Some(f) if WH_EL.contains(&f.as_str()) => 1,
+        Some(f) if PREP_EL.contains(&f.as_str()) && w.get(1).is_some_and(|t| WH_EL.contains(&t.as_str())) => 2,
+        _ => return false,
+    };
+    if verb_slot(&w[after_wh..]).is_some_and(second_person) {
+        return false;
+    }
+    // a part in between that asks, or speaks to the listener ("μπορείς να το
+    // ετοιμάσεις"), makes the whole sentence a request
+    !parts[1..parts.len() - 1].iter().any(|p| {
+        let w = words(p);
+        greek_question(&w, false) || verb_slot(skip_openers(&w)).is_some_and(second_person)
+    })
+}
+
+/// For the voice: true when the last sentence of `text` is a statement by a
+/// shape only its commas show: "Ξέρεις τι," in front of a statement, or a
+/// question reported by a "δεν ξέρω" at its end ("Πού παρκάρει το φορτηγό,
+/// δεν το ξέρω."). A voice that rises there asks nothing.
+pub fn statement_by_its_commas(text: &str) -> bool {
+    let sentence = last_sentence(text);
+    if !looks_greek(sentence) {
+        return false;
+    }
+    after_know_what(sentence).is_some_and(|rest| !greek_sentence_question(rest, false)) || reported_by_its_end(sentence)
+}
+
+/// The last sentence of `text`, without the mark that ends it.
+fn last_sentence(text: &str) -> &str {
+    let body = text.trim().trim_end_matches(|c: char| matches!(c, '.' | '!' | '?' | ';' | '…'));
+    let start = body
+        .char_indices()
+        .collect::<Vec<_>>()
+        .windows(2)
+        .filter(|w| matches!(w[0].1, '.' | '!' | '?' | ';') && w[1].1.is_whitespace())
+        .map(|w| w[1].0)
+        .last()
+        .unwrap_or(0);
+    &body[start..]
+}
+
+/// `all` without up to two discourse openers in front ("Λοιπόν, ...").
+fn skip_openers(all: &[String]) -> &[String] {
+    let mut skip = 0;
+    while skip < 2 && skip + 1 < all.len() && OPENERS_EL.contains(&all[skip].as_str()) {
+        skip += 1;
+    }
+    &all[skip..]
+}
+
+/// The word where the verb of `w` stands: the first word after the particles
+/// να, θα, δεν and object pronouns ("να σου πω" gives "πω").
+fn verb_slot(w: &[String]) -> Option<&str> {
+    let mut i = 0;
+    while i < 4 && w.get(i).is_some_and(|t| VERB_PARTICLES_EL.contains(&t.as_str()) || OBJECT_PRONOUNS_EL.contains(&t.as_str())) {
+        i += 1;
+    }
+    w.get(i).map(String::as_str)
+}
+
+/// A Greek word with a second-person verb ending ("απαντάς", "έκανες").
+/// A sentence built on one speaks to the listener.
+fn second_person(word: &str) -> bool {
+    word.chars().count() >= 3
+        && word.chars().all(super::deterministic::is_greek_letter)
+        && SECOND_PERSON_ENDINGS_EL.iter().any(|e| word.ends_with(e))
+}
+
+/// 15 November 2026: true when a sentence-final "ή όχι" closes a "whether
+/// or not" clause: an αν, άμα or εάν stands before it, after the opening word
+/// ("Να δοθεί η επιλογή άμα θέλει ήχο ή όχι."). An αν that opens the sentence
+/// is a condition and the question after it stays ("Αν βρέξει, θα πάμε ή
+/// όχι;"), and so does a sentence whose verb speaks to the listener ("Θες να
+/// δεις αν ανοίγει ή όχι;").
+fn whether_or_not(all: &[String]) -> bool {
+    let w = skip_openers(all);
+    w.len() > 3
+        && w[1..w.len() - 2].iter().any(|t| matches!(t.as_str(), "αν" | "άμα" | "εάν"))
+        && !verb_slot(w).is_some_and(second_person)
+}
+
 /// Adds a question mark to every sentence whose wording makes it a question.
 pub fn mark_questions(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 4);
@@ -311,8 +464,9 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
     if all.iter().any(|w| w == "άραγε") {
         return true;
     }
-    // G8a: sentence-final multiword tag
-    if TAGS_EL.iter().any(|t| ends_with_phrase(all, t) && all.len() > t.len()) {
+    // G8a: sentence-final multiword tag. "ή όχι" that closes a "whether or
+    // not" clause is no tag (G21).
+    if TAGS_EL.iter().any(|t| ends_with_phrase(all, t) && all.len() > t.len() && !(t[..] == ["ή", "όχι"] && whether_or_not(all))) {
         return true;
     }
     // vocative / discourse openers before the question word
@@ -430,7 +584,19 @@ fn because_after_why(rest: &[String], after_and: bool) -> bool {
     }
     // "Γιατί δεν ..." and "Γιατί να ..." keep asking, opinion or not.
     let asks = rest.first().is_some_and(|f| matches!(f.as_str(), "δεν" | "δε" | "να" | "μην"));
-    !asks && rest.iter().skip(1).any(|t| OWN_OPINION_EL.contains(&t.as_str()))
+    if asks {
+        return false;
+    }
+    if rest.iter().skip(1).any(|t| OWN_OPINION_EL.contains(&t.as_str())) {
+        return true;
+    }
+    // 15 November 2026: a hedge further in ("Γιατί αυτό πρακτικά είναι ...",
+    // "Γιατί πρέπει μάλλον να ..."), unless a second-person verb asks the
+    // listener ("Γιατί μου έστειλες κάτι μάλλον λάθος;").
+    let hedged = rest.iter().enumerate().skip(1).any(|(i, t)| {
+        HEDGES_EL.contains(&t.as_str()) && !(DEGREE_HEDGES_EL.contains(&t.as_str()) && COPULAS_EL.contains(&rest[i - 1].as_str()))
+    });
+    hedged && !verb_slot(rest).is_some_and(second_person)
 }
 
 /// G19 for the voice: true when the last sentence of `text` opens with a
@@ -553,9 +719,8 @@ fn question_form(sentence: &str) -> String {
         return sentence.to_string();
     }
     let greek = looks_greek(trimmed);
-    let all = words(trimmed);
     let bang = last == Some('!');
-    let is_q = if greek { greek_question(&all, bang) } else { english_question(&all, &after_last_comma(trimmed), bang) };
+    let is_q = if greek { greek_sentence_question(trimmed, bang) } else { english_question(&words(trimmed), &after_last_comma(trimmed), bang) };
     if !is_q {
         return sentence.to_string();
     }
@@ -776,6 +941,78 @@ mod tests {
         assert_eq!(q("Γιατί τώρα έφυγες."), "Γιατί τώρα έφυγες;");
         assert_eq!(q("Γιατί δεν θα υπάρχει πακέτο."), "Γιατί δεν θα υπάρχει πακέτο;");
         assert_eq!(q("Γιατί είναι τόσο αργό."), "Γιατί είναι τόσο αργό;");
+    }
+
+    /// 15 November 2026: "ή όχι" after an αν or άμα closes a "whether or not"
+    /// clause inside a statement.
+    #[test]
+    fn whether_or_not_inside_a_statement_is_no_tag() {
+        for s in [
+            "Να μπει στις ρυθμίσεις η επιλογή άμα θέλει κάποιος ήχο ή όχι.",
+            "Δεν ξέρουμε αν θα ανοίξει το μαγαζί την Κυριακή ή όχι.",
+            "Όλα θα κριθούν από το αν θα βρέξει ή όχι.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        // still questions
+        assert_eq!(q("Θα έρθεις στο τραπέζι ή όχι."), "Θα έρθεις στο τραπέζι ή όχι;");
+        assert_eq!(q("Αν βρέξει, θα πάμε ή όχι."), "Αν βρέξει, θα πάμε ή όχι;");
+        assert_eq!(q("Μήπως να ρωτήσουμε εάν έχει θέση ή όχι."), "Μήπως να ρωτήσουμε εάν έχει θέση ή όχι;");
+        assert_eq!(q("Ξέρεις αν ανοίγει σήμερα ή όχι."), "Ξέρεις αν ανοίγει σήμερα ή όχι;");
+        assert_eq!(q("Θες να δεις αν δουλεύει ή όχι."), "Θες να δεις αν δουλεύει ή όχι;");
+    }
+
+    /// 15 November 2026: "Ξέρεις τι," with a comma opens a statement, as
+    /// "you know what," does. The rest of the sentence decides.
+    #[test]
+    fn you_know_what_with_a_comma_opens_a_statement() {
+        for s in ["Ξέρεις τι, μια μικρή αλλαγή στο κείμενο.", "Ξέρετε τι, αφήστε το για αύριο.", "Λοιπόν, ξέρεις τι, πάμε από την άλλη μεριά."] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        // still questions
+        assert_eq!(q("Ξέρεις τι, πού το έβαλες τελικά."), "Ξέρεις τι, πού το έβαλες τελικά;");
+        assert_eq!(q("Ξέρεις τι θέλω."), "Ξέρεις τι θέλω;");
+        assert_eq!(q("Ξέρεις τι."), "Ξέρεις τι;");
+    }
+
+    /// 15 November 2026: a question word at the start and "δεν ξέρω" at the
+    /// end after a comma report a question the speaker cannot answer.
+    #[test]
+    fn a_question_reported_by_its_end_is_a_statement() {
+        for s in [
+            "Πού παρκάρει το φορτηγό το βράδυ, δεν το ξέρω.",
+            "Πότε ανοίγει ξανά το γραφείο, δεν έχω ιδέα.",
+            "Τι θα πει ο πελάτης, δεν ξέρω ρε φίλε.",
+            "Πώς θα βγει, είμαι λίγο αγχωμένος, δεν ξέρω.",
+            "Πόσο θα κοστίσει, εξαρτάται.",
+            "Σε ποιον το έδωσε, δεν θυμάμαι.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        // still questions: a second-person verb, or a part in between that asks
+        assert_eq!(q("Ποιο διαλέγεις τελικά, δεν ξέρω."), "Ποιο διαλέγεις τελικά, δεν ξέρω;");
+        assert_eq!(q("Τι έγινε με το πακέτο, μήπως χάθηκε, δεν ξέρω."), "Τι έγινε με το πακέτο, μήπως χάθηκε, δεν ξέρω;");
+        assert_eq!(q("Και πώς το ανεβάζουμε, μπορείς να μου το ετοιμάσεις, δεν το ξέρω."), "Και πώς το ανεβάζουμε, μπορείς να μου το ετοιμάσεις, δεν το ξέρω;");
+        assert_eq!(q("Πού παρκάρει το φορτηγό το βράδυ."), "Πού παρκάρει το φορτηγό το βράδυ;");
+        assert_eq!(q("Πού παρκάρει το φορτηγό, δεν ξέρω, εσύ ξέρεις."), "Πού παρκάρει το φορτηγό, δεν ξέρω, εσύ ξέρεις;");
+    }
+
+    /// 15 November 2026: a hedge further into a γιατί sentence ("μάλλον",
+    /// "πρακτικά") makes it "because".
+    #[test]
+    fn greek_because_with_a_hedge_further_in() {
+        for s in [
+            "Γιατί το σχέδιο μάλλον θα αλλάξει ξανά.",
+            "Γιατί πρέπει μάλλον να ξαναγράψουμε τον οδηγό.",
+            "Γιατί αυτό το κουμπί πρακτικά ανοίγει όλο το μενού.",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
+        // still questions
+        assert_eq!(q("Γιατί είναι πρακτικά αδύνατο να μπει."), "Γιατί είναι πρακτικά αδύνατο να μπει;");
+        assert_eq!(q("Γιατί μου έστειλες κάτι που είναι μάλλον λάθος."), "Γιατί μου έστειλες κάτι που είναι μάλλον λάθος;");
+        assert_eq!(q("Γιατί δεν το κλείνεις μάλλον."), "Γιατί δεν το κλείνεις μάλλον;");
+        assert_eq!(q("Γιατί το έστειλες απλά έτσι."), "Γιατί το έστειλες απλά έτσι;");
     }
 
     #[test]
