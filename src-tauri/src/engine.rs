@@ -283,6 +283,11 @@ impl EngineManager {
         }
     }
 
+    /// The local engine's last stderr lines, for the problem report.
+    pub fn local_stderr_tail(&self) -> Vec<String> {
+        self.local.read().as_ref().map(|s| s.stderr_tail()).unwrap_or_default()
+    }
+
     pub fn is_ready(&self) -> bool {
         self.info().status == EngineStatus::Ready
     }

@@ -35,7 +35,13 @@ struct Inner {
     message: Option<String>,
     warm_ms: Option<u64>,
     gpu_active: bool,
+    /// The engine's last lines on stderr, kept for the problem report: when
+    /// it dies at start, they are the only words it leaves behind.
+    stderr_tail: std::collections::VecDeque<String>,
 }
+
+/// How many stderr lines of the engine a report carries.
+const STDERR_TAIL: usize = 40;
 
 pub struct WhisperServer {
     cfg: WhisperServerConfig,
@@ -71,7 +77,7 @@ impl WhisperServer {
         let http = reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(65)).build().expect("http client");
         Self {
             cfg,
-            inner: Arc::new(Mutex::new(Inner { child: None, status: EngineStatus::Missing, message: None, warm_ms: None, gpu_active: false })),
+            inner: Arc::new(Mutex::new(Inner { child: None, status: EngineStatus::Missing, message: None, warm_ms: None, gpu_active: false, stderr_tail: Default::default() })),
             http,
         }
     }
@@ -159,6 +165,18 @@ impl WhisperServer {
                 use tokio::io::AsyncBufReadExt;
                 let mut lines = tokio::io::BufReader::new(stderr).lines();
                 while let Ok(Some(line)) = lines.next_line().await {
+                    // Only the start-up lines are kept. Once the engine is
+                    // ready it may print what it heard, and a report never
+                    // carries dictated text.
+                    {
+                        let mut g = inner.lock();
+                        if g.status != EngineStatus::Ready {
+                            if g.stderr_tail.len() >= STDERR_TAIL {
+                                g.stderr_tail.pop_front();
+                            }
+                            g.stderr_tail.push_back(line.clone());
+                        }
+                    }
                     if (line.contains("CUDA") || line.contains("Vulkan")) && (line.contains("found") || line.contains("Device") || line.contains("device")) {
                         inner.lock().gpu_active = true;
                     }
@@ -205,7 +223,10 @@ impl WhisperServer {
             };
             if let Some(status) = exited {
                 self.set(EngineStatus::Failed, Some(format!("whisper-server exited early ({status})")));
-                return Err(AsrError::NotReady("process exited".into()));
+                // The code goes into the error too: the log line "engine start
+                // failed" is what a report shows, and on 14 November 2026 it
+                // read "process exited" with the reason left out.
+                return Err(AsrError::NotReady(format!("process exited ({status})")));
             }
             if tokio::net::TcpStream::connect(("127.0.0.1", self.cfg.port)).await.is_ok() {
                 break;
@@ -269,6 +290,11 @@ impl WhisperServer {
             Some(c) => matches!(c.try_wait(), Ok(None)),
             None => false,
         }
+    }
+
+    /// The engine's last stderr lines, oldest first.
+    pub fn stderr_tail(&self) -> Vec<String> {
+        self.inner.lock().stderr_tail.iter().cloned().collect()
     }
 
     fn set(&self, status: EngineStatus, message: Option<String>) {

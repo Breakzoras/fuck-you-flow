@@ -7,6 +7,7 @@ pub mod cleanup;
 pub mod commands;
 pub mod context;
 pub mod db;
+pub mod diagnose;
 pub mod engine;
 pub mod hotkey;
 pub mod hw;

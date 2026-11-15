@@ -968,8 +968,28 @@ fn bundle_text(state: &AppState) -> String {
     let mut out = String::new();
     let _ = writeln!(out, "Fuck You Flow {} debug bundle", env!("CARGO_PKG_VERSION"));
     let _ = writeln!(out, "written {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
+    // The verdict first: which part failed and what its code means, so a
+    // report that says only "it does nothing" is read in one screen.
+    let engine = state.shared.engine.info();
+    let status = format!("{:?}", engine.status);
+    let events = crate::journal::tail(300);
+    let facts = crate::diagnose::EngineFacts { status: &status, message: engine.message.as_deref() };
+    let _ = writeln!(out, "\n== verdict ==");
+    for line in crate::diagnose::verdict(&facts, &events) {
+        let _ = writeln!(out, "{line}");
+    }
     let hw = crate::hw::detect();
     let _ = writeln!(out, "\n== machine ==\n{hw:#?}");
+    let _ = writeln!(out, "cpu          {}", crate::diagnose::cpu_flags());
+    let _ = writeln!(out, "windows      {}", crate::diagnose::windows_build());
+    let _ = writeln!(out, "\n== engine ==");
+    let _ = writeln!(out, "status       {status} backend {} model {}", engine.backend, engine.model_id);
+    let _ = writeln!(out, "message      {}", engine.message.as_deref().unwrap_or("-"));
+    let tail = state.shared.engine.local_stderr_tail();
+    let _ = writeln!(out, "last {} engine lines:", tail.len());
+    for line in tail {
+        let _ = writeln!(out, "  {line}");
+    }
     {
         let s = state.shared.settings.read();
         let _ = writeln!(out, "\n== settings ==");
@@ -982,7 +1002,7 @@ fn bundle_text(state: &AppState) -> String {
     }
     let _ = writeln!(out, "\n== problems recorded this run: {} ==", crate::journal::problem_count());
     let _ = writeln!(out, "\n== last 300 events (newest first) ==");
-    for line in crate::journal::tail(300) {
+    for line in events {
         let _ = writeln!(out, "{line}");
     }
     let _ = writeln!(out, "\n== last 60 log lines flagged as problems ==");
