@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, UserAttentionType } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { engineExitReason } from "./engineReason";
 import { api, EngineInfo, PipelineSnapshot, Settings, UpdateInfo } from "./api";
 import { AppCtx, makeT, makeTk } from "./hooks";
 import Home from "./pages/Home";
@@ -347,7 +348,7 @@ export default function App() {
               <span className="rate-note">{t("rate_note")}</span>
             </button>
           )}
-          <div className={`status-chip ${snap?.phase === "recording" ? "recording" : engineClass}`} title={engine?.message ?? ""}>
+          <div className={`status-chip ${snap?.phase === "recording" ? "recording" : engineClass}`} title={engineExitReason(engine?.message) ? tk(engineExitReason(engine?.message)!) : engine?.message ?? ""}>
             <span className="dot" />
             <span>{snap?.phase && snap.phase !== "idle" ? phaseLabel : engineLabel}</span>
           </div>

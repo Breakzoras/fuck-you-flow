@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { engineExitReason } from "../engineReason";
 import { api, DownloadProgress, EngineInfo, fmtBytes, HistoryEntry, LANGUAGE_CHOICES, languageName, LevelInfo, LightOffer, ModelStatus, PipelineSnapshot, RuntimeStatus, StatsSummary } from "../api";
 import { useApp } from "../hooks";
 import type { Strings } from "../i18n";
@@ -141,7 +142,7 @@ export default function Home({ engine, snap, goSettings, goMilestones }: { engin
     : t("engine_missing");
   const engineLine = engine?.status === "ready"
     ? <><b>{engine.model_id}</b> {engine.gpu ? t("gpu_on") : t("gpu_off")}{engine.warm_ms ? `, ${t("warm_in", { s: (engine.warm_ms / 1000).toFixed(1) })}` : ""}</>
-    : <span>{engine?.message ? tk(engine.message) : state}</span>;
+    : <span>{engineExitReason(engine?.message) ? tk(engineExitReason(engine?.message)!) : engine?.message ? tk(engine.message) : state}</span>;
   // The "today" row is today only: its words and minutes saved come from today's line of
   // stats_daily. The all-time total stays on the Statistics page.
   const today = stats?.daily?.length ? todayFacts(stats.daily, localDayKey(new Date())) : null;
