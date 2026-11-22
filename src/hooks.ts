@@ -4,7 +4,7 @@ import { t as translate, tk as translateKey, Strings } from "./i18n";
 
 export interface Ctx {
   settings: Settings;
-  setSettings: (s: Settings) => Promise<void>;
+  setSettings: (s: Settings) => Promise<Settings>;
   lang: string;
   t: (key: keyof Strings, vars?: Record<string, string | number>) => string;
   /// For keys the backend chooses at runtime, such as a model note.
