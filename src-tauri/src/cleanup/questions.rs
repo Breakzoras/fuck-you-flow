@@ -503,7 +503,7 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
         let next = w.get(at + 1).map(|s| s.as_str());
         // G19: "Γιατί άμα ..." / "Γιατί νομίζω ..." is "because", also with an
         // adverb or two in between ("Γιατί τόσο θα κοιμηθώ.")
-        if wh == "γιατί" && at == 0 && because_after_why(&w[1..], skip > 0 && matches!(all[skip - 1].as_str(), "και" | "κι")) {
+        if wh == "γιατί" && at == 0 && because_after_why(&w[1..], skip > 0 && matches!(all[skip - 1].as_str(), "και" | "κι"), true) {
             return false;
         }
         // "Γιατί δεν ξέρω ..." gives a reason; "Γιατί δεν έρχεσαι;" stays a question.
@@ -549,7 +549,7 @@ fn greek_question(all: &[String], ends_with_bang: bool) -> bool {
 /// asks about someone else and rarely says what the asker thinks. After
 /// "Και" the first-person verb asks ("Και γιατί το βρίσκω κλειστό;"):
 /// every "Και γιατί" sentence in Lu's history was a question.
-fn because_after_why(rest: &[String], after_and: bool) -> bool {
+fn because_after_why(rest: &[String], after_and: bool, hedge_counts: bool) -> bool {
     let mut k = 0;
     while k < 2 && rest.get(k).is_some_and(|a| BECAUSE_ADVERBS_EL.contains(&a.as_str())) {
         k += 1;
@@ -596,13 +596,24 @@ fn because_after_why(rest: &[String], after_and: bool) -> bool {
     let hedged = rest.iter().enumerate().skip(1).any(|(i, t)| {
         HEDGES_EL.contains(&t.as_str()) && !(DEGREE_HEDGES_EL.contains(&t.as_str()) && COPULAS_EL.contains(&rest[i - 1].as_str()))
     });
-    hedged && !verb_slot(rest).is_some_and(second_person)
+    hedge_counts && hedged && !verb_slot(rest).is_some_and(second_person)
 }
 
 /// G19 for the voice: true when the last sentence of `text` opens with a
 /// γιατί that means "because" ("Γιατί έχει μείνει πίσω και νομίζω ότι ...").
 /// A voice that rises at its end does not make it a question.
 pub fn because_sentence(text: &str) -> bool {
+    because_in_last_sentence(text, true)
+}
+
+/// G19 for a mark the engine or the voice already wrote. A hedge alone
+/// ("μάλλον", "πρακτικά") keeps that mark: "Γιατί είναι μάλλον ακριβό;" asks.
+/// The hedge only stops a mark from being added (22 November 2026 review).
+fn because_sentence_strict(text: &str) -> bool {
+    because_in_last_sentence(text, false)
+}
+
+fn because_in_last_sentence(text: &str, hedge_counts: bool) -> bool {
     let body = text.trim().trim_end_matches(|c: char| matches!(c, '.' | '!' | '?' | ';' | '…'));
     let start = body
         .char_indices()
@@ -617,7 +628,7 @@ pub fn because_sentence(text: &str) -> bool {
     while skip < 2 && skip + 1 < all.len() && OPENERS_EL.contains(&all[skip].as_str()) {
         skip += 1;
     }
-    all.get(skip).is_some_and(|w| w == "γιατί") && because_after_why(&all[skip + 1..], skip > 0 && matches!(all[skip - 1].as_str(), "και" | "κι"))
+    all.get(skip).is_some_and(|w| w == "γιατί") && because_after_why(&all[skip + 1..], skip > 0 && matches!(all[skip - 1].as_str(), "και" | "κι"), hedge_counts)
 }
 
 /// A first-person singular present verb: a Greek word of three letters or
@@ -712,7 +723,7 @@ fn question_form(sentence: &str) -> String {
         // the γιατί, a real question can close the sentence ("Όχι γιατί θα το
         // ετοιμάσω, γι' αυτό ρωτάω, τελειώσαμε;"), so the mark stays.
         let after_why = trimmed.to_lowercase().find("γιατί").map(|at| trimmed.to_lowercase()[at..].matches(',').count()).unwrap_or(0);
-        if looks_greek(trimmed) && after_why <= 1 && because_sentence(trimmed) {
+        if looks_greek(trimmed) && after_why <= 1 && because_sentence_strict(trimmed) {
             let body = trimmed.trim_end_matches(|c: char| matches!(c, ';' | '?'));
             return format!("{body}.{trailing_ws}");
         }
@@ -1013,6 +1024,14 @@ mod tests {
         assert_eq!(q("Γιατί μου έστειλες κάτι που είναι μάλλον λάθος."), "Γιατί μου έστειλες κάτι που είναι μάλλον λάθος;");
         assert_eq!(q("Γιατί δεν το κλείνεις μάλλον."), "Γιατί δεν το κλείνεις μάλλον;");
         assert_eq!(q("Γιατί το έστειλες απλά έτσι."), "Γιατί το έστειλες απλά έτσι;");
+        // a mark the engine wrote stays: the hedge only stops one being added
+        for s in [
+            "Γιατί είναι μάλλον ακριβό;",
+            "Γιατί αυτό είναι προφανώς λάθος;",
+            "Γιατί ο Νίκος μάλλον δεν θα έρθει;",
+        ] {
+            assert_eq!(q(s), s, "{s}");
+        }
     }
 
     #[test]

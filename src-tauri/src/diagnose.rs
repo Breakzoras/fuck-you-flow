@@ -98,6 +98,8 @@ pub fn verdict(engine: &EngineFacts<'_>, events: &[String]) -> Vec<String> {
     match engine.status {
         "Ready" => out.push("ENGINE: ready".to_string()),
         "Starting" => out.push("ENGINE: still starting when the report was written".to_string()),
+        // stop() was called by the app itself, not a crash
+        "Stopped" => out.push("ENGINE: stopped by the app (not a crash)".to_string()),
         "Missing" => out.push(format!("ENGINE: not running: {}", if msg.is_empty() { "no model or engine file" } else { msg })),
         _ => match explain_exit(msg) {
             Some(meaning) => out.push(format!("ENGINE: FAILED TO START: {meaning} ({msg})")),

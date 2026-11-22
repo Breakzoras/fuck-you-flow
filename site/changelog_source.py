@@ -36,9 +36,9 @@ RELEASES = [
         "lines": [
             ("improved",
              "When the speech engine cannot start, the home screen says why and what to do: the processor is too old, "
-             "a file is missing, Windows needs a restart, or the PC needs more free memory. Before, it showed only an error code.",
+             "a file or a part of Windows is missing, or the PC needs more free memory. Before, it showed only an error code.",
              "Όταν η μηχανή ομιλίας δεν μπορεί να ξεκινήσει η αρχική οθόνη λέει γιατί και τι να κάνεις: ο επεξεργαστής "
-             "είναι πολύ παλιός, λείπει ένα αρχείο, θέλει επανεκκίνηση τα Windows ή χρειάζεται περισσότερη ελεύθερη μνήμη. "
+             "είναι πολύ παλιός, λείπει ένα αρχείο ή ένα κομμάτι των Windows ή χρειάζεται περισσότερη ελεύθερη μνήμη. "
              "Πριν έδειχνε μόνο έναν κωδικό σφάλματος."),
             ("improved",
              "A problem report now opens with which part failed and why, so we can help you faster.",
