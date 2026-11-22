@@ -1,7 +1,7 @@
 {
  "format": 1,
  "language": "all",
- "version": 2,
+ "version": 3,
  "rules": [
   {
    "wrong": "adgentic",
@@ -10,6 +10,10 @@
   {
    "wrong": "Adventick",
    "correct": "Agentic"
+  },
+  {
+   "wrong": "Antropic",
+   "correct": "Anthropic"
   },
   {
    "wrong": "Chajgpt",
@@ -70,6 +74,10 @@
   {
    "wrong": "M-Dashes",
    "correct": "em-dashes"
+  },
+  {
+   "wrong": "Sextion",
+   "correct": "section"
   },
   {
    "wrong": "Tamagochi",

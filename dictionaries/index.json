@@ -2,12 +2,12 @@
  "format": 1,
  "packs": {
   "all": {
-   "version": 2,
-   "rules": 21
+   "version": 3,
+   "rules": 23
   },
   "el": {
-   "version": 4,
-   "rules": 611
+   "version": 5,
+   "rules": 681
   }
  }
 }
