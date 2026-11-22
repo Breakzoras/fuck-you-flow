@@ -27,6 +27,29 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.22",
+        "date": "2026-11-22",
+        "summary": (
+            "When the speech engine cannot start, the app says why in plain words.",
+            "Όταν η μηχανή ομιλίας δεν μπορεί να ξεκινήσει η εφαρμογή λέει το γιατί με απλά λόγια και μπαίνουν λιγότερα λάθος ερωτηματικά.",
+        ),
+        "lines": [
+            ("improved",
+             "When the speech engine cannot start, the home screen says why and what to do: the processor is too old, "
+             "a file is missing, Windows needs a restart, or the PC needs more free memory. Before, it showed only an error code.",
+             "Όταν η μηχανή ομιλίας δεν μπορεί να ξεκινήσει η αρχική οθόνη λέει γιατί και τι να κάνεις: ο επεξεργαστής "
+             "είναι πολύ παλιός, λείπει ένα αρχείο, θέλει επανεκκίνηση τα Windows ή χρειάζεται περισσότερη ελεύθερη μνήμη. "
+             "Πριν έδειχνε μόνο έναν κωδικό σφάλματος."),
+            ("improved",
+             "A problem report now opens with which part failed and why, so we can help you faster.",
+             "Η αναφορά προβλήματος ξεκινά πλέον με το ποιο κομμάτι χάλασε και γιατί, για να σε βοηθήσουμε πιο γρήγορα."),
+            ("fixed",
+             None,
+             "Φράσεις που μοιάζουν με ερώτηση αλλά είναι δήλωση τελειώνουν πλέον με τελεία. Για παράδειγμα "
+             "«Πού πάει, δεν ξέρω», «Ξέρεις τι, θα το κάνω αύριο» ή «Γιατί μάλλον θα αργήσω»."),
+        ],
+    },
+    {
         "version": "0.9.21",
         "date": "2026-11-08",
         "summary": (
