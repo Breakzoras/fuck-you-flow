@@ -7,7 +7,7 @@ import { useApp } from "./hooks";
 export const STORAGE_CHANGED = "fyf-storage-changed";
 
 /** Sizing the folders reads every file name under them, so the rail asks
- *  once a minute rather than every few seconds like the card memory. */
+ *  once a minute (the card memory, cheap to read, is asked every few seconds). */
 const POLL_MS = 60_000;
 
 /** Below this the rail shows "nothing to clean": a few kilobytes of

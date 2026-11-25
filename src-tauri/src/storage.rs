@@ -45,7 +45,7 @@ pub struct StorageReport {
     /// Everything below that can go, added up.
     pub cleanable_bytes: u64,
     pub items: Vec<StorageItem>,
-    /// Kept on purpose, shown so the user knows why it is not counted.
+    /// Kept on purpose and shown, so the user sees why it stays out of the count.
     pub reserve_model: Option<String>,
     /// The kept recordings, which the gauge does not count.
     pub recordings_bytes: u64,
@@ -66,7 +66,7 @@ pub struct CleanResult {
 
 // ---------------------------------------------------------------- models
 
-/// The model the gauge would offer instead of `current` when the card fills
+/// The model the gauge would offer in place of `current` when the card fills
 /// up: the most accurate measured one that needs less video memory. Mirrors
 /// the choice in `commands::gpu_gauge`, but without the live free-memory
 /// figure, since a reserve is for the day the card is full.
