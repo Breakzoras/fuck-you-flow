@@ -344,6 +344,27 @@ pub fn remove_model(id: String) -> R<()> {
     crate::models::remove_model(&id).map_err(e)
 }
 
+// Disk space (storage.rs). Off the window thread: sizing the folders reads
+// every file name under them.
+#[tauri::command(async)]
+pub fn storage_report(state: State<'_, Arc<AppState>>) -> crate::storage::StorageReport {
+    let model = state.shared.settings.read().asr.model_id.clone();
+    crate::storage::report(&model)
+}
+
+#[tauri::command(async)]
+pub fn storage_clean(state: State<'_, Arc<AppState>>, keys: Vec<String>) -> crate::storage::CleanResult {
+    // Read at the moment of the click: a model picked a second ago is safe,
+    // and only the items the confirm box named (`keys`) can go.
+    let model = state.shared.settings.read().asr.model_id.clone();
+    crate::storage::clean(&model, &keys)
+}
+
+#[tauri::command(async)]
+pub fn storage_delete_recordings() -> crate::storage::CleanResult {
+    crate::storage::delete_recordings()
+}
+
 #[tauri::command]
 pub async fn verify_model(id: String) -> R<bool> {
     let (spec, path) = crate::models::find_model(&id).ok_or("unknown model")?;

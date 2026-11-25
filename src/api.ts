@@ -154,6 +154,20 @@ export interface GpuGaugeInfo {
   fits_instead_name: string | null;
 }
 
+/// Disk space the app no longer needs (storage.rs). Recordings and the reserve
+/// model are reported but never counted as cleanable.
+export interface StorageItem { key: string; kind: "model" | "old_program" | "upgrade_copy"; name: string; bytes: number }
+export interface StorageReport {
+  cleanable_bytes: number;
+  items: StorageItem[];
+  reserve_model: string | null;
+  recordings_bytes: number;
+  recordings_files: number;
+  total_bytes: number;
+  models_busy: boolean;
+}
+export interface CleanResult { freed_bytes: number; removed: number; failed: number }
+
 export interface DeviceInfo { name: string; is_default: boolean }
 export interface PipelineSnapshot { phase: "idle" | "recording" | "processing"; hands_free: boolean; last_error: string | null; last_transcript: string | null; mic_open: boolean }
 export interface RuntimeStatus { installed: boolean; cuda_driver: boolean; vad_model: boolean; spec: { url: string; sha256: string; size_bytes: number; version: string } }
@@ -195,6 +209,10 @@ export const api = {
   downloadModel: (id: string) => invoke<void>("download_model", { id }),
   installRuntime: () => invoke<void>("install_runtime"),
   removeModel: (id: string) => invoke<void>("remove_model", { id }),
+  storageReport: () => invoke<StorageReport>("storage_report"),
+  /** Deletes only the items named by `keys` (the ones the confirm box showed). */
+  storageClean: (keys: string[]) => invoke<CleanResult>("storage_clean", { keys }),
+  storageDeleteRecordings: () => invoke<CleanResult>("storage_delete_recordings"),
   verifyModel: (id: string) => invoke<boolean>("verify_model", { id }),
   setCloudKey: (key: string) => invoke<void>("set_cloud_api_key", { key }),
   hasCloudKey: () => invoke<boolean>("has_cloud_api_key"),

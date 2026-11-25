@@ -194,9 +194,11 @@ pub struct AudioSettings {
 }
 
 /// Twenty minutes, Lu's choice on 4 November 2026.
-/// The current "What's new" window (0.9.19: dictating through the Claude and
-/// Codex microphones). Kept equal to `WHATS_NEW_ID` in src/whatsNewRule.ts.
-pub const WHATS_NEW_ID: &str = "app-mic";
+/// The current "What's new" window (0.9.23: cleaning disk space; "app-mic",
+/// dictating through the Claude and Codex microphones, before it). A new id
+/// shows the window once to everyone who updates. Kept equal to
+/// `WHATS_NEW_ID` in src/whatsNewRule.ts.
+pub const WHATS_NEW_ID: &str = "disk-clean";
 
 pub const DEFAULT_PART_SECONDS: u64 = 1200;
 /// The default before that. Every saved file carries the number, so a user who

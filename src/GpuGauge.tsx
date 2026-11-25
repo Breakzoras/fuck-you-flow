@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, GpuGaugeInfo } from "./api";
 import { useApp } from "./hooks";
+import { useStorageReport } from "./storage";
+import { StorageRail } from "./StorageClean";
 
 // The rail on the right: how full the graphics card is, and what that means for
 // the model doing the listening.
@@ -23,6 +25,9 @@ export default function GpuGauge() {
   const { settings, setSettings, t, toast } = useApp();
   const [g, setG] = useState<GpuGaugeInfo | null>(null);
   const [busy, setBusy] = useState(false);
+  // Disk space sits in the same rail (0.9.23): the place people already look
+  // when the app feels heavy.
+  const { report } = useStorageReport();
 
   useEffect(() => {
     const read = () => api.gpuGauge().then(setG).catch(() => {});
@@ -112,6 +117,8 @@ export default function GpuGauge() {
           {t("gauge_switch", { name: g.fits_instead_name })}
         </button>
       )}
+
+      <StorageRail report={report} />
     </aside>
   );
 }

@@ -382,6 +382,8 @@ pub fn build(app: &tauri::App) -> anyhow::Result<()> {
         tracing::info!("deleted {pruned} kept recordings older than {} days", crate::paths::KEPT_AUDIO_DAYS);
         crate::journal::info("audio.pruned", serde_json::json!({ "files": pruned }));
     }
+    // Leftovers nobody can miss (old program files, old pre-upgrade copies).
+    crate::storage::auto_tidy();
 
     let audio = AudioCapture::new(settings.audio.preroll_ms, settings.audio.max_recording_seconds);
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMsg>();

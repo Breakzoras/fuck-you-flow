@@ -26,7 +26,6 @@ import logoOnLight from "./assets/luram-logo-on-light.png";
 const LURAM_URL = "https://luram.gr/?utm_source=fuflow&utm_medium=app&utm_campaign=credits";
 const GITHUB_URL = "https://github.com/Breakzoras/fuck-you-flow";
 // Dictating through the Claude and Codex microphones exists on Windows only.
-const IS_WINDOWS = /windows/i.test(navigator.userAgent);
 // Thumbs up, after the Lucide icon (ISC licence).
 const THUMB_ICON = (
   <svg className="rate-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -246,7 +245,7 @@ export default function App() {
   useEffect(() => {
     if (!settled || !settings || update || wnClosed || snap?.phase !== "idle") return;
     const g = settings.general;
-    if (wnBrought.current || !mayBringFront({ windows: IS_WINDOWS, firstRunDone: g.first_run_done, seen: g.whats_new_seen ?? "" })) return;
+    if (wnBrought.current || !mayBringFront({ firstRunDone: g.first_run_done, seen: g.whats_new_seen ?? "" })) return;
     // Every new snapshot runs this again before the save below comes back.
     wnBrought.current = true;
     void bringFront(false);
@@ -432,7 +431,7 @@ export default function App() {
               </div>
             </div>
           )}
-          {wantsWhatsNew({ windows: IS_WINDOWS, firstRunDone: settings.general.first_run_done, seen: settings.general.whats_new_seen ?? "" })
+          {wantsWhatsNew({ firstRunDone: settings.general.first_run_done, seen: settings.general.whats_new_seen ?? "" })
             && !wnClosed && !(update && prompt) && !reportOpen && (
             <WhatsNew onClose={() => setWnClosed(true)} />
           )}

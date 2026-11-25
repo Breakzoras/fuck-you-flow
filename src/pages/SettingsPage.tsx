@@ -7,6 +7,8 @@ import { Badge, Button, Card, Field, Select, Toggle } from "../ui";
 import ModelGuide from "../ModelGuide";
 import BrandMarks from "../BrandMarks";
 import { BACKEND_EXPLAIN, MODEL_EXPLAIN, Pick } from "../modelChoice";
+import { deleteRecordings, formatBytes, STORAGE_CHANGED, useStorageReport, WORTH_CLEANING_BYTES } from "../storage";
+import { useCleanAction } from "../StorageClean";
 
 const IS_LINUX = /linux/i.test(navigator.userAgent) && !/android/i.test(navigator.userAgent);
 
@@ -374,7 +376,7 @@ function ModelsTab({ draft, patch, engine, onApply }: { draft: Settings; patch: 
                     {m.installed && draft.asr.model_id !== m.id && <Button onClick={() => patch((s) => { s.asr.model_id = m.id; return s; })}>{t("use_this")}</Button>}
                     {draft.asr.model_id === m.id && <Badge tone="ok">{t("in_use")}</Badge>}
                     {m.installed && <Button onClick={() => api.verifyModel(m.id).then((ok) => { toast(ok ? "✓" : "✗", ok ? "ok" : "err"); refresh(); })}>{t("verify")}</Button>}
-                    {m.installed && draft.asr.model_id !== m.id && <Button kind="danger" onClick={() => api.removeModel(m.id).then(refresh)}>{t("remove")}</Button>}
+                    {m.installed && draft.asr.model_id !== m.id && <Button kind="danger" onClick={() => api.removeModel(m.id).then(() => { refresh(); window.dispatchEvent(new Event(STORAGE_CHANGED)); })}>{t("remove")}</Button>}
                   </div>
                 </td>
               </tr>
@@ -430,6 +432,7 @@ function PrivacyTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settings
     a.click();
   };
   return (
+    <>
     <Card>
       <Toggle label={t("keep_history")} checked={draft.privacy.keep_history} onChange={(v) => patch((s) => { s.privacy.keep_history = v; return s; })} />
       <Field label={t("retention")}>
@@ -447,6 +450,8 @@ function PrivacyTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settings
         <Button kind="danger" onClick={async () => { if (confirm(t("confirm_delete_all"))) { await api.deleteAll(); toast(t("saved")); } }}>{t("delete_everything")}</Button>
       </div>
     </Card>
+    <DiskCard pendingModel={draft.asr.model_id} />
+    </>
   );
 }
 
@@ -572,6 +577,59 @@ function CloudTab({ draft, patch }: { draft: Settings; patch: (p: (s: Settings) 
           <Badge tone={has ? "ok" : "warn"}>{has ? t("key_present") : t("key_absent")}</Badge>
         </div>
       </Field>
+    </Card>
+  );
+}
+
+/** Disk space (0.9.23): what the app keeps, what it can let go, and the
+ *  recordings, which only go when asked for here. */
+function DiskCard({ pendingModel }: { pendingModel: string }) {
+  const { settings, t, lang, toast } = useApp();
+  // A model picked but not applied yet still counts as unused on disk;
+  // cleaning waits until the choice is saved.
+  const unsaved = pendingModel !== settings.asr.model_id;
+  const { report } = useStorageReport(false);
+  const { run, busy } = useCleanAction();
+  const [recBusy, setRecBusy] = useState(false);
+  if (!report) return null;
+  const worth = report.cleanable_bytes >= WORTH_CLEANING_BYTES;
+  const removeRecordings = async () => {
+    if (!confirm(t("disk_confirm_recordings", { size: formatBytes(report.recordings_bytes, lang) }))) return;
+    setRecBusy(true);
+    try {
+      const res = await deleteRecordings();
+      toast(t("disk_done", { size: formatBytes(res.freed_bytes, lang) }));
+    } catch (err) {
+      toast(String(err), "err");
+    } finally {
+      setRecBusy(false);
+    }
+  };
+  return (
+    <Card title={t("disk_section")}>
+      <p className="hint">{t("disk_section_hint")}</p>
+      <p>{t("disk_total", { size: formatBytes(report.total_bytes, lang) })}</p>
+      {worth ? (
+        <>
+          <p><strong>{t("disk_cleanable")}: {formatBytes(report.cleanable_bytes, lang)}</strong></p>
+          <ul className="storage-list">
+            {report.items.map((i) => (
+              <li key={i.kind + i.name}>{i.kind === "model" ? t("disk_kind_model", { name: i.name }) : i.name} ({formatBytes(i.bytes, lang)})</li>
+            ))}
+          </ul>
+          <Button kind="primary" disabled={busy || unsaved} onClick={() => { void run(report); }}>{busy ? t("disk_cleaning") : t("disk_clean")}</Button>
+        </>
+      ) : (
+        <p>{t("disk_nothing")}</p>
+      )}
+      {report.models_busy && <p className="hint">{t("disk_busy")}</p>}
+      {report.reserve_model && <p className="hint">{t("disk_reserve", { name: report.reserve_model })}</p>}
+      {report.recordings_files > 0 && (
+        <>
+          <p style={{ marginTop: 14 }}>{t("disk_recordings", { size: formatBytes(report.recordings_bytes, lang), n: report.recordings_files })}</p>
+          <Button kind="danger" disabled={recBusy} onClick={() => { void removeRecordings(); }}>{t("disk_delete_recordings")}</Button>
+        </>
+      )}
     </Card>
   );
 }

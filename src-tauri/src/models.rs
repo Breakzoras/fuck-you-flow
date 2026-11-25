@@ -685,6 +685,17 @@ pub fn light_model_offer_due(machine_model: &str, current: &str, provider: &str,
     machine_model == SMALL_MODEL && current != SMALL_MODEL && provider == "whisper_local" && !declined && !fetching
 }
 
+/// A model file is being written right now (a download or the light model).
+/// Disk cleaning leaves the models folder alone until it ends.
+pub fn downloading_any() -> bool {
+    !DOWNLOADING.lock().is_empty() || light_model_fetching()
+}
+
+/// This exact file is being downloaded right now.
+pub fn downloading(path: &Path) -> bool {
+    DOWNLOADING.lock().iter().any(|p| p == path)
+}
+
 pub fn light_model_fetching() -> bool {
     LIGHT_FETCHING.load(std::sync::atomic::Ordering::SeqCst)
 }
@@ -698,9 +709,18 @@ pub async fn fetch_light_model(app: &tauri::AppHandle, shared: &std::sync::Arc<c
     if LIGHT_FETCHING.swap(true, Ordering::SeqCst) {
         anyhow::bail!("the light model is already downloading");
     }
+    // The flag stays up until the settings point at the new model (or the
+    // switch is skipped): disk cleaning (storage.rs) reads it, and in the gap
+    // between "downloaded" and "in use" the light model looked unused.
+    struct Lower;
+    impl Drop for Lower {
+        fn drop(&mut self) {
+            LIGHT_FETCHING.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    let _lower = Lower;
     let have = list_status().into_iter().any(|m| m.spec.id == SMALL_MODEL && m.verified);
     let got = if have { Ok(()) } else { download_model(app, SMALL_MODEL).await };
-    LIGHT_FETCHING.store(false, Ordering::SeqCst);
     got?;
     let next = {
         let mut current = shared.settings.write();

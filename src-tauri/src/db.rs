@@ -270,9 +270,14 @@ pub struct StatsSummary {
 }
 
 /// Copies `fuckyouflow.db` to `backup/fuckyouflow-YYYY-MM-DD.db` once per day and prunes
-/// copies older than 14 days. Only the main file is copied; with a rollback
+/// copies older than `DAILY_BACKUP_DAYS` days. Only the main file is copied; with a rollback
 /// journal that file is complete whenever no transaction is open, which is the
 /// case before the connection is created.
+/// How long the daily safety copies are kept. 14 until 0.9.23; by then a
+/// history of a few months weighed about 10 MB, so 14 copies held 137 MB.
+/// A week of copies still covers a bad day noticed late.
+pub const DAILY_BACKUP_DAYS: i64 = 7;
+
 fn daily_backup(path: &Path) -> anyhow::Result<()> {
     let dir = path.parent().map(|p| p.join("backup")).unwrap_or_else(|| PathBuf::from("backup"));
     std::fs::create_dir_all(&dir)?;
@@ -282,7 +287,7 @@ fn daily_backup(path: &Path) -> anyhow::Result<()> {
         std::fs::copy(path, &target)?;
         tracing::info!("database backup written: {}", target.display());
     }
-    let cutoff = chrono::Local::now() - chrono::Duration::days(14);
+    let cutoff = chrono::Local::now() - chrono::Duration::days(DAILY_BACKUP_DAYS);
     for entry in std::fs::read_dir(&dir)?.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
         if let Some(date) = name.strip_prefix("fuckyouflow-").or_else(|| name.strip_prefix("lalia-")).and_then(|n| n.strip_suffix(".db")) {
@@ -313,7 +318,7 @@ impl Db {
             std::fs::create_dir_all(parent)?;
         }
         // Daily safety copy of the single database file, taken before anything
-        // else touches it (kept for 14 days). Cheap: the file is a few hundred KB.
+        // else touches it (kept for `DAILY_BACKUP_DAYS` days).
         if path.exists() {
             if let Err(e) = daily_backup(path) {
                 tracing::warn!("database backup skipped: {e}");

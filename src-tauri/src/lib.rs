@@ -27,6 +27,7 @@ pub mod pipeline;
 pub mod scratch;
 pub mod settings;
 pub mod sharing;
+pub mod storage;
 
 use tauri::Manager;
 
@@ -185,6 +186,9 @@ pub fn run() {
             commands::download_model,
             commands::install_runtime,
             commands::remove_model,
+            commands::storage_report,
+            commands::storage_clean,
+            commands::storage_delete_recordings,
             commands::verify_model,
             commands::set_cloud_api_key,
             commands::has_cloud_api_key,

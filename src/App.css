@@ -330,6 +330,11 @@ th { font-size: 13px; color: var(--fg-2); font-weight: 700; text-transform: uppe
 .gauge-bar-track > div.warn { background: var(--warn); }
 .gauge-bar-track > div.err { background: var(--err); }
 .gauge-switch { margin-top: 10px; width: 100%; }
+/* Disk space block at the foot of the rail (0.9.23). */
+.gauge-disk { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.gauge-disk h2 { margin-top: 0; }
+.storage-list { margin: 6px 0 10px; padding-left: 20px; font-size: 16px; }
+.storage-list li { margin: 2px 0; }
 
 /* The bar that says a new version is out. It sits above the page, never over
    it, so nothing the user is reading gets covered. */
