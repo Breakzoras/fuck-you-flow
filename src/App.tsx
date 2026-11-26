@@ -25,7 +25,6 @@ import logoOnLight from "./assets/luram-logo-on-light.png";
 
 const LURAM_URL = "https://luram.gr/?utm_source=fuflow&utm_medium=app&utm_campaign=credits";
 const GITHUB_URL = "https://github.com/Breakzoras/fuck-you-flow";
-// Dictating through the Claude and Codex microphones exists on Windows only.
 // Thumbs up, after the Lucide icon (ISC licence).
 const THUMB_ICON = (
   <svg className="rate-thumb" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

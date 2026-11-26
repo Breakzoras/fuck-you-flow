@@ -27,6 +27,36 @@ KINDS = {
 
 RELEASES = [
     {
+        "version": "0.9.23",
+        "date": "2026-11-26",
+        "summary": (
+            "A new Disk space meter shows the files the app no longer needs and deletes them with one click.",
+            "Ο νέος μετρητής «Χώρος στον δίσκο» δείχνει τα αρχεία που δεν χρειάζεται πια η εφαρμογή και τα σβήνει με ένα κλικ.",
+        ),
+        "lines": [
+            ("added",
+             "Next to the card memory there is now a Disk space meter. It shows how much room the app's files take "
+             "and what it no longer needs: speech models you do not use, files left by older versions and old safety "
+             "copies of the history. One click deletes them. Your dictations, dictionary and recordings stay as they are.",
+             "Δίπλα στη μνήμη της κάρτας υπάρχει τώρα ο μετρητής «Χώρος στον δίσκο». Δείχνει πόσο χώρο πιάνουν τα "
+             "αρχεία της εφαρμογής και τι δεν χρειάζεται πια: μοντέλα ομιλίας που δεν χρησιμοποιείς, αρχεία από "
+             "παλιότερες εκδόσεις και παλιά αντίγραφα ασφαλείας του ιστορικού. Με ένα κλικ σβήνονται. Οι υπαγορεύσεις, "
+             "το λεξικό και οι ηχογραφήσεις σου μένουν ως έχουν."),
+            ("added",
+             "Settings > Privacy has the same Disk space section, with a button that deletes the saved voice recordings.",
+             "Στις Ρυθμίσεις > Απόρρητο υπάρχει η ίδια ενότητα «Χώρος στον δίσκο», με κουμπί που σβήνει τις "
+             "αποθηκευμένες ηχογραφήσεις."),
+            ("improved",
+             "When it starts, the app removes old program files and old safety copies on its own. "
+             "Speech models go only when you press the button.",
+             "Όταν ξεκινά η εφαρμογή σβήνει μόνη της τα παλιά αρχεία προγράμματος και τα παλιά αντίγραφα ασφαλείας. "
+             "Τα μοντέλα ομιλίας φεύγουν μόνο όταν πατήσεις το κουμπί."),
+            ("improved",
+             "Daily safety copies of the history are now kept for seven days. Before, they were kept for fourteen.",
+             "Τα ημερήσια αντίγραφα ασφαλείας του ιστορικού κρατιούνται πλέον επτά μέρες. Πριν κρατιούνταν δεκατέσσερις."),
+        ],
+    },
+    {
         "version": "0.9.22",
         "date": "2026-11-22",
         "summary": (
